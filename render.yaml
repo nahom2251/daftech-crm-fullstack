@@ -24,7 +24,7 @@ services:
         value: https://api.onrender.com/api
 
 databases:
-  - name: daftech-crm-db
+  - name: daftech-crm-db-new
     databaseName: daftech_crm
     user: daftech
     plan: free

@@ -1,7 +1,7 @@
 services:
   # ---------- Backend API (.NET via Docker) ----------
   - type: web
-    name: api
+    name: daftech-crm-api-new
     runtime: docker
     rootDir: api
     dockerfilePath: Dockerfile
@@ -13,7 +13,7 @@ services:
 
   # ---------- Frontend (Angular via Docker + Nginx) ----------
   - type: web
-    name: daftech-crm-web
+    name: daftech-crm-frontend
     runtime: docker
     rootDir: frontend
     dockerfilePath: Dockerfile
@@ -21,7 +21,7 @@ services:
     plan: free
     envVars:
       - key: API_BASE_URL
-        value: https://api.onrender.com/api
+        value: https://daftech-crm-api-new.onrender.com/api
 
 databases:
   - name: daftech-crm-db-new

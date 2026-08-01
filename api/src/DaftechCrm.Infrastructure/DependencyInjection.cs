@@ -16,8 +16,15 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Postgres")
-            ?? throw new InvalidOperationException("Missing 'ConnectionStrings:Postgres' in configuration.");
+        // Read DATABASE_URL directly from environment variable
+        var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
+
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            throw new InvalidOperationException(
+                "DATABASE_URL environment variable is not set. " +
+                "Please set it to your PostgreSQL connection string.");
+        }
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));

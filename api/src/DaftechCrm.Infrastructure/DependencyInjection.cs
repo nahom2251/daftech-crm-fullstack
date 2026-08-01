@@ -32,15 +32,16 @@ public static class DependencyInjection
                 var userInfo = uri.UserInfo.Split(':', 2);
 
                 var builder = new Npgsql.NpgsqlConnectionStringBuilder
-                {
-                    Host = uri.Host,
-                    Port = uri.Port,
-                    Database = uri.AbsolutePath.Trim('/'),
-                    Username = userInfo[0],
-                    Password = userInfo.Length > 1 ? userInfo[1] : "",
-                    SslMode = Npgsql.SslMode.Require,
-                    TrustServerCertificate = true
-                };
+{
+    Host = uri.Host,
+    Port = uri.IsDefaultPort ? 5432 : uri.Port,
+    Database = uri.AbsolutePath.Trim('/'),
+    Username = userInfo[0],
+    Password = userInfo.Length > 1 ? userInfo[1] : "",
+    SslMode = Npgsql.SslMode.Require
+};
+                    
+             };
 
                 // Preserve any additional query parameters (like sslmode, connect_timeout, etc.)
                 var queryParams = System.Web.HttpUtility.ParseQueryString(uri.Query);

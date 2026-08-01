@@ -47,17 +47,19 @@ const REPORTS: ReportDef[] = [
 
       @if (loading()) {
         <p class="text-muted" style="margin-top:1rem;">Loading…</p>
-      } @else if (report(); as r) {
-        <div class="chart-grid">
-          <div class="chart-cell">
-            <h4>Overall</h4>
-            <app-donut-chart [data]="donutData()" centerLabel="On Time"></app-donut-chart>
+      } @else {
+        @if (report(); as r) {
+          <div class="chart-grid">
+            <div class="chart-cell">
+              <h4>Overall</h4>
+              <app-donut-chart [data]="donutData()" centerLabel="On Time"></app-donut-chart>
+            </div>
+            <div class="chart-cell">
+              <h4>On-Time Rate by Employee</h4>
+              <app-bar-chart [chartData]="barData()"></app-bar-chart>
+            </div>
           </div>
-          <div class="chart-cell">
-            <h4>On-Time Rate by Employee</h4>
-            <app-bar-chart [chartData]="barData()"></app-bar-chart>
-          </div>
-        </div>
+        }
       }
     </div>
 

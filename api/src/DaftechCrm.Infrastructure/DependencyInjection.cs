@@ -1,80 +1,47 @@
-using DaftechCrm.Application.Interfaces;
-using DaftechCrm.Application.Options;
-using DaftechCrm.Application.Services;
-using DaftechCrm.Infrastructure.Ai;
-using DaftechCrm.Infrastructure.Auth;
-using DaftechCrm.Infrastructure.Email;
-using DaftechCrm.Infrastructure.Persistence;
-using DaftechCrm.Infrastructure.Storage;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-
-namespace DaftechCrm.Infrastructure;
-
-public static class DependencyInjection
+public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    // Read DATABASE_URL directly from environment variable
+    var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
+
+    if (string.IsNullOrEmpty(connectionString))
     {
-        // Read DATABASE_URL directly from environment variable
-        var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
-
-        if (string.IsNullOrEmpty(connectionString))
-        {
-            throw new InvalidOperationException(
-                "DATABASE_URL environment variable is not set. " +
-                "Please set it to your PostgreSQL connection string.");
-        }
-
-        services.AddDbContext<AppDbContext>(options =>
-            options.UseNpgsql(connectionString));
-
-        services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
-
-        services.Configure<TicketWorkflowOptions>(configuration.GetSection(TicketWorkflowOptions.SectionName));
-        services.Configure<SessionOptions>(configuration.GetSection(SessionOptions.SectionName));
-        services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
-        services.AddScoped<IEmailSender, MailKitEmailSender>();
-
-        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
-        services.AddScoped<ITokenService, TokenService>();
-
-        services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
-        services.AddSingleton<IFileStorageService, LocalFileStorageService>();
-
-        services.AddScoped<AccountCredentialService>();
-        services.AddScoped<ITicketAssignmentService, TicketAssignmentService>();
-        services.AddScoped<ITicketService, TicketService>();
-        services.AddScoped<IEmployeeService, EmployeeService>();
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IClientService, ClientService>();
-        services.AddScoped<IAgreementService, AgreementService>();
-        services.AddScoped<INotificationService, NotificationService>();
-        services.AddScoped<IMaintenanceService, MaintenanceService>();
-        services.AddScoped<ITimeLogService, TimeLogService>();
-        services.AddScoped<IReportService, ReportService>();
-        services.AddScoped<ISessionService, SessionService>();
-
-        services.Configure<AiReportingOptions>(configuration.GetSection(AiReportingOptions.SectionName));
-        services.AddHttpClient<IAiNarrativeReportService, AnthropicNarrativeReportService>();
-        services.AddScoped<ISatisfactionSurveyService, SatisfactionSurveyService>();
-
-        return services;
+        throw new InvalidOperationException(
+            "DATABASE_URL environment variable is not set. " +
+            "Please set it to your PostgreSQL connection string.");
     }
 
-    /// <summary>Applies pending migrations and inserts seed data if the database is empty. Call once at startup.</summary>
-    public static async Task MigrateAndSeedAsync(this IServiceProvider services)
-    {
-        using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    services.AddDbContext<AppDbContext>(options =>
+        options.UseNpgsql(connectionString));
 
-        await db.Database.MigrateAsync();
+    services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
-        if (!await db.EmployeesSet.AnyAsync())
-        {
-            db.EmployeesSet.AddRange(SeedData.Employees());
-            db.ClientsSet.AddRange(SeedData.Clients());
-            await db.SaveChangesAsync();
-        }
-    }
+    services.Configure<TicketWorkflowOptions>(configuration.GetSection(TicketWorkflowOptions.SectionName));
+    services.Configure<SessionOptions>(configuration.GetSection(SessionOptions.SectionName));
+    services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+    services.AddScoped<IEmailSender, MailKitEmailSender>();
+
+    services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+    services.AddScoped<ITokenService, TokenService>();
+
+    services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
+    services.AddSingleton<IFileStorageService, LocalFileStorageService>();
+
+    services.AddScoped<AccountCredentialService>();
+    services.AddScoped<ITicketAssignmentService, TicketAssignmentService>();
+    services.AddScoped<ITicketService, TicketService>();
+    services.AddScoped<IEmployeeService, EmployeeService>();
+    services.AddScoped<IAuthService, AuthService>();
+    services.AddScoped<IClientService, ClientService>();
+    services.AddScoped<IAgreementService, AgreementService>();
+    services.AddScoped<INotificationService, NotificationService>();
+    services.AddScoped<IMaintenanceService, MaintenanceService>();
+    services.AddScoped<ITimeLogService, TimeLogService>();
+    services.AddScoped<IReportService, ReportService>();
+    services.AddScoped<ISessionService, SessionService>();
+
+    services.Configure<AiReportingOptions>(configuration.GetSection(AiReportingOptions.SectionName));
+    services.AddHttpClient<IAiNarrativeReportService, AnthropicNarrativeReportService>();
+    services.AddScoped<ISatisfactionSurveyService, SatisfactionSurveyService>();
+
+    return services;
 }

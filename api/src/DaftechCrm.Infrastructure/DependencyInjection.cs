@@ -22,38 +22,46 @@ public static class DependencyInjection
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new InvalidOperationException("DATABASE_URL environment variable is missing or empty.");
 
-        // Parse the connection string if it's in URL format (postgres:// or postgresql://)
+        // Parse the connection string if it is in URL format
         if (connectionString.StartsWith("postgres://") ||
             connectionString.StartsWith("postgresql://"))
         {
             try
             {
                 var uri = new Uri(connectionString);
+
                 var userInfo = uri.UserInfo.Split(':', 2);
 
-                var builder = new Npgsql.NpgsqlConnectionStringBuilder
-{
-    Host = uri.Host,
-    Port = uri.IsDefaultPort ? 5432 : uri.Port,
-    Database = uri.AbsolutePath.Trim('/'),
-    Username = userInfo[0],
-    Password = userInfo.Length > 1 ? userInfo[1] : "",
-    SslMode = Npgsql.SslMode.Require
-};
-                    
-             };
+                if (userInfo.Length == 0 || string.IsNullOrWhiteSpace(userInfo[0]))
+                {
+                    throw new InvalidOperationException("DATABASE_URL is missing username.");
+                }
 
-                // Preserve any additional query parameters (like sslmode, connect_timeout, etc.)
+                var builder = new Npgsql.NpgsqlConnectionStringBuilder
+                {
+                    Host = uri.Host,
+                    Port = uri.IsDefaultPort ? 5432 : uri.Port,
+                    Database = uri.AbsolutePath.Trim('/'),
+                    Username = userInfo[0],
+                    Password = userInfo.Length > 1 ? userInfo[1] : "",
+                    SslMode = Npgsql.SslMode.Require
+                };
+
+                // Preserve additional query parameters
                 var queryParams = System.Web.HttpUtility.ParseQueryString(uri.Query);
+
                 if (!string.IsNullOrEmpty(queryParams["sslmode"]))
                 {
-                    // Override if specified in the URL
-                    builder.SslMode = Enum.Parse<Npgsql.SslMode>(queryParams["sslmode"]!, true);
+                    builder.SslMode = Enum.Parse<Npgsql.SslMode>(
+                        queryParams["sslmode"]!,
+                        true);
                 }
+
                 if (!string.IsNullOrEmpty(queryParams["connect_timeout"]))
                 {
                     builder.Timeout = int.Parse(queryParams["connect_timeout"]!);
                 }
+
                 if (!string.IsNullOrEmpty(queryParams["pooling"]))
                 {
                     builder.Pooling = bool.Parse(queryParams["pooling"]!);
@@ -65,7 +73,7 @@ public static class DependencyInjection
             {
                 throw new InvalidOperationException(
                     $"Failed to parse DATABASE_URL: {ex.Message}. " +
-                    $"Ensure it's in the format: postgres://user:password@host:port/database",
+                    "Ensure it is in the format: postgres://user:password@host:port/database",
                     ex);
             }
         }
@@ -73,17 +81,28 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));
 
-        services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+        services.AddScoped<IAppDbContext>(sp =>
+            sp.GetRequiredService<AppDbContext>());
 
-        services.Configure<TicketWorkflowOptions>(configuration.GetSection(TicketWorkflowOptions.SectionName));
-        services.Configure<SessionOptions>(configuration.GetSection(SessionOptions.SectionName));
-        services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+        services.Configure<TicketWorkflowOptions>(
+            configuration.GetSection(TicketWorkflowOptions.SectionName));
+
+        services.Configure<SessionOptions>(
+            configuration.GetSection(SessionOptions.SectionName));
+
+        services.Configure<SmtpOptions>(
+            configuration.GetSection(SmtpOptions.SectionName));
+
         services.AddScoped<IEmailSender, MailKitEmailSender>();
 
-        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+        services.Configure<JwtOptions>(
+            configuration.GetSection(JwtOptions.SectionName));
+
         services.AddScoped<ITokenService, TokenService>();
 
-        services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
+        services.Configure<StorageOptions>(
+            configuration.GetSection(StorageOptions.SectionName));
+
         services.AddSingleton<IFileStorageService, LocalFileStorageService>();
 
         services.AddScoped<AccountCredentialService>();
@@ -99,17 +118,24 @@ public static class DependencyInjection
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<ISessionService, SessionService>();
 
-        services.Configure<AiReportingOptions>(configuration.GetSection(AiReportingOptions.SectionName));
+        services.Configure<AiReportingOptions>(
+            configuration.GetSection(AiReportingOptions.SectionName));
+
         services.AddHttpClient<IAiNarrativeReportService, AnthropicNarrativeReportService>();
+
         services.AddScoped<ISatisfactionSurveyService, SatisfactionSurveyService>();
 
         return services;
     }
 
-    /// <summary>Applies pending migrations and inserts seed data if the database is empty. Call once at startup.</summary>
+    /// <summary>
+    /// Applies pending migrations and inserts seed data if database is empty.
+    /// Call once at startup.
+    /// </summary>
     public static async Task MigrateAndSeedAsync(this IServiceProvider services)
     {
         using var scope = services.CreateScope();
+
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         await db.Database.MigrateAsync();
@@ -118,6 +144,7 @@ public static class DependencyInjection
         {
             db.EmployeesSet.AddRange(SeedData.Employees());
             db.ClientsSet.AddRange(SeedData.Clients());
+
             await db.SaveChangesAsync();
         }
     }

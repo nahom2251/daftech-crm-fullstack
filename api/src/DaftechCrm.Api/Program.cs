@@ -14,6 +14,13 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ✅ FIX: Force DATABASE_URL from environment variable
+var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
+if (!string.IsNullOrEmpty(connectionString))
+{
+    builder.Configuration["ConnectionStrings:Postgres"] = connectionString;
+}
+
 const string CorsPolicy = "DaftechCors";
 
 builder.Services.AddControllers();

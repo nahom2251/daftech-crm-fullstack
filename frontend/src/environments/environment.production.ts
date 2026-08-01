@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiBaseUrl: '/api',
+  apiBaseUrl: 'https://daftech-crm-fullstack-apii.onrender.com',
 };

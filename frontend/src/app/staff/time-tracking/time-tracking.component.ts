@@ -15,7 +15,7 @@ import { AuthService } from '../../core/services/auth.service';
     @if (me(); as m) {
       <div class="panel panel-pad clock-panel" style="margin-top:1.25rem;">
         <div>
-          <div class="clock-label">{{ m.name }}</div>
+          <div class="clock-label">{{ m.fullName }}</div>
           <div class="text-muted" style="font-size:0.8rem;">{{ todayStatus() }}</div>
         </div>
         <div class="clock-actions">

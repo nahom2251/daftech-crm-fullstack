@@ -9,7 +9,7 @@ import { PwaManifestService } from './core/services/pwa-manifest.service';
   template: `<router-outlet></router-outlet>`,
 })
 export class AppComponent {
-  constructor(pwaManifest: PwaManifestService) {
-    pwaManifest.init();
+  constructor(private pwaManifest: PwaManifestService) {
+    this.pwaManifest.init();
   }
 }

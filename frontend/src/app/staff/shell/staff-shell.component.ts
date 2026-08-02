@@ -1,5 +1,6 @@
-import { Component, computed, effect } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet, Router } from '@angular/router';
+import { Component, computed, effect, signal } from '@angular/core';
+import { RouterLink, RouterLinkActive, RouterOutlet, Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { EmployeeRole, NotificationRecipientType } from '../../core/models';
@@ -32,17 +33,23 @@ const NAV_ITEMS: NavItem[] = [
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   template: `
     <div class="shell">
-      <aside class="sidebar">
+      <!-- Backdrop — clicking outside the open mobile sidebar closes it -->
+      @if (sidebarOpen()) {
+        <div class="backdrop" (click)="closeSidebar()"></div>
+      }
+
+      <aside class="sidebar" [class.open]="sidebarOpen()">
         <div class="brand">
           <img src="assets/daftech-logo.png" alt="DAFTECH" class="brand-logo-img brand-logo-sm" />
           <div>
             <div class="brand-name">DAFTECH</div>
             <div class="brand-sub">Admin / Staff</div>
           </div>
+          <button class="close-btn" (click)="closeSidebar()" aria-label="Close menu">✕</button>
         </div>
         <nav>
           @for (item of visibleNavItems(); track item.path) {
-            <a [routerLink]="item.path" routerLinkActive="active" class="nav-link">
+            <a [routerLink]="item.path" routerLinkActive="active" class="nav-link" (click)="closeSidebar()">
               <span class="nav-icon">{{ item.icon }}</span>
               <span>{{ item.label }}</span>
             </a>
@@ -59,7 +66,9 @@ const NAV_ITEMS: NavItem[] = [
 
       <div class="main">
         <header class="topbar">
-          <div></div>
+          <button class="hamburger" (click)="toggleSidebar()" aria-label="Open menu">
+            <span></span><span></span><span></span>
+          </button>
           <a routerLink="/admin/notifications" class="bell">
             🔔
             @if (unread() > 0) {
@@ -70,11 +79,15 @@ const NAV_ITEMS: NavItem[] = [
         <main class="content">
           <router-outlet></router-outlet>
         </main>
+        <footer class="app-footer">© {{ year }} DAFTECH Computer Engineering. All rights reserved.</footer>
       </div>
     </div>
   `,
   styles: [`
     .shell { display: flex; min-height: 100vh; }
+    .backdrop {
+      display: none;
+    }
     .sidebar {
       width: 240px; flex-shrink: 0; background: var(--navy-950); color: #fff;
       display: flex; flex-direction: column; padding: 1.1rem 0.9rem;
@@ -84,6 +97,7 @@ const NAV_ITEMS: NavItem[] = [
     .brand .brand-logo-img { background: #fff; border-radius: 8px; padding: 3px; }
     .brand-name { font-weight: 700; font-size: 0.95rem; color: #fff; }
     .brand-sub { font-size: 0.7rem; color: var(--slate-400); }
+    .close-btn { display: none; margin-left: auto; background: none; border: none; color: #fff; font-size: 1.1rem; padding: 0.3rem; }
     nav { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; }
     .nav-link {
       display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.7rem; border-radius: 8px;
@@ -103,15 +117,45 @@ const NAV_ITEMS: NavItem[] = [
       height: 56px; flex-shrink: 0; background: #fff; border-bottom: 1px solid var(--slate-200);
       display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem;
     }
-    .bell { position: relative; font-size: 1.15rem; }
+    .hamburger {
+      display: none; flex-direction: column; justify-content: center; gap: 4px;
+      background: none; border: none; padding: 0.4rem; cursor: pointer;
+    }
+    .hamburger span { width: 20px; height: 2px; background: var(--navy-800); border-radius: 2px; }
+    .bell { position: relative; font-size: 1.15rem; margin-left: auto; }
     .bell-count {
       position: absolute; top: -6px; right: -8px; background: var(--red); color: #fff;
       font-size: 0.65rem; font-weight: 700; border-radius: 999px; padding: 0.05rem 0.35rem;
     }
     .content { padding: 1.75rem; flex: 1; }
+    .app-footer {
+      padding: 0.9rem 1.75rem; font-size: 0.75rem; color: var(--slate-400);
+      border-top: 1px solid var(--slate-200); text-align: center;
+    }
+
+    /* Mobile: sidebar becomes an off-canvas drawer, opened by the hamburger */
+    @media (max-width: 860px) {
+      .sidebar {
+        position: fixed; left: 0; top: 0; z-index: 40;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease-out;
+        box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .close-btn { display: block; }
+      .hamburger { display: flex; }
+      .backdrop {
+        display: block; position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 30;
+      }
+      .content { padding: 1.1rem; }
+      .app-footer { padding: 0.8rem 1.1rem; }
+    }
   `],
 })
 export class StaffShellComponent {
+  sidebarOpen = signal(false);
+  readonly year = new Date().getFullYear();
+
   constructor(
     public auth: AuthService,
     private notifications: NotificationService,
@@ -121,6 +165,19 @@ export class StaffShellComponent {
       const key = this.recipientKey();
       if (key) void this.notifications.loadFor(key.type, key.id);
     });
+
+    // Close the mobile drawer automatically on every navigation, so tapping
+    // a link doesn't leave the overlay open behind the new page.
+    this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe(() => this.sidebarOpen.set(false));
+  }
+
+  toggleSidebar() {
+    this.sidebarOpen.update(v => !v);
+  }
+
+  closeSidebar() {
+    this.sidebarOpen.set(false);
   }
 
   private recipientKey = computed((): { type: NotificationRecipientType; id: string } | null => {

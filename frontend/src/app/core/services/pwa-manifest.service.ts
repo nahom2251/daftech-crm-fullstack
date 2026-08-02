@@ -1,36 +1,38 @@
-import { Injectable } from '@angular/core';
-import { Router, NavigationEnd } from '@angular/router';
-import { filter } from 'rxjs';
+import { APP_INITIALIZER, ApplicationConfig, isDevMode } from '@angular/core';
+import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { provideServiceWorker } from '@angular/service-worker';
+import { routes } from './app.routes';
+import { authInterceptor } from './core/interceptors/auth.interceptor';
+import { AuthService } from './core/services/auth.service';
 
-/**
- * A single origin can only have one <link rel="manifest"> active at a
- * time, but DAFTECH CRM is really two installable experiences (Admin/
- * Staff vs Client Portal) sharing one deployment. This swaps the
- * document's manifest link to the matching variant whenever the route
- * crosses between /admin and /portal, so "Install App" on each surface
- * picks up the right name, icon, and start_url.
- */
-@Injectable({ providedIn: 'root' })
-export class PwaManifestService {
-  private currentVariant: 'admin' | 'portal' | null = null;
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter(routes, withComponentInputBinding()),
+    provideHttpClient(withInterceptors([authInterceptor])),
 
-  constructor(private router: Router) {}
+    // ============================================================
+    // TEMPORARILY DISABLED FOR DEBUGGING
+    // This restores the user's session on application startup.
+    // Commented out to determine whether restoreSession() is
+    // causing the blank page.
+    // ============================================================
 
-  init(): void {
-    this.applyForUrl(this.router.url);
-    this.router.events
-      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
-      .subscribe(e => this.applyForUrl(e.urlAfterRedirects));
-  }
+    /*
+    {
+      provide: APP_INITIALIZER,
+      useFactory: (auth: AuthService) => () => auth.restoreSession(),
+      deps: [AuthService],
+      multi: true,
+    },
+    */
 
-  private applyForUrl(url: string): void {
-    const variant: 'admin' | 'portal' = url.startsWith('/portal') ? 'portal' : 'admin';
-    if (variant === this.currentVariant) return;
-    this.currentVariant = variant;
-
-    const link = document.getElementById('app-manifest') as HTMLLinkElement | null;
-    if (!link) return;
-
-    link.href = variant === 'portal' ? 'manifest-portal.webmanifest' : 'manifest.webmanifest';
-  }
-}
+    // PWA — only registers in production builds, and only once the app
+    // has been stable for 30s so the initial load isn't competing with
+    // service-worker installation.
+    provideServiceWorker('ngsw-worker.js', {
+      enabled: !isDevMode(),
+      registrationStrategy: 'registerWhenStable:30000',
+    }),
+  ],
+};

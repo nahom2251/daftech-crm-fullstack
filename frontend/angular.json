@@ -16,6 +16,15 @@
             "index": "src/index.html",
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
+            "allowedCommonJsDependencies": [
+              "canvg",
+              "html2canvas",
+              "jspdf",
+              "jspdf-autotable",
+              "dompurify",
+              "raf",
+              "rgbcolor"
+            ],
             "assets": [
               "src/favicon.ico",
               "src/assets",

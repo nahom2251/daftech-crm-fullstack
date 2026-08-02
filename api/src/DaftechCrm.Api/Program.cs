@@ -14,16 +14,16 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ✅ FIX: Force DATABASE_URL from environment variable
-var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
-if (!string.IsNullOrEmpty(connectionString))
-{
-    builder.Configuration["ConnectionStrings:Postgres"] = connectionString;
-}
-
 const string CorsPolicy = "DaftechCors";
 
-builder.Services.AddControllers();
+// Enums travel as string names (e.g. "Laptop", not 2) in every request/response
+// across the API — the Angular frontend sends and expects strings throughout.
+// Without this, System.Text.Json only accepts/emits the numeric value, and
+// every request carrying an enum field (DeviceType, TicketCategory, etc.)
+// fails model binding with a 400 before it reaches a controller.
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 
 if (builder.Environment.IsDevelopment())
@@ -124,27 +124,13 @@ builder.Services
 
 builder.Services.AddAuthorization(options => options.AddDaftechPolicies());
 
-// ---- CORS (UPDATED) ----
-// Read allowed origins from configuration or environment variable
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
-
-// If no origins are configured, try reading from environment variable (comma-separated)
-if (allowedOrigins == null || allowedOrigins.Length == 0)
-{
-    var envOrigin = Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS");
-    if (!string.IsNullOrEmpty(envOrigin))
-    {
-        allowedOrigins = envOrigin.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                  .Select(o => o.Trim())
-                                  .ToArray();
-    }
-}
-
-// Fallback for local development
-if (allowedOrigins == null || allowedOrigins.Length == 0)
-{
-    allowedOrigins = new[] { "http://localhost:4200" };
-}
+// ---- CORS ----
+// Allowed origins come from configuration (Cors:AllowedOrigins), not a
+// hardcoded localhost value, so the same build works in every environment.
+// appsettings.Development.json defaults this to the Angular dev server;
+// appsettings.Production.json must set it to the real deployed frontend origin(s).
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:4200" };
 
 builder.Services.AddCors(options =>
 {

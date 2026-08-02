@@ -41,11 +41,14 @@ public class AuthService : IAuthService
             return new EmployeeLoginResult(false, "This account has been disabled. Contact your Admin.", ip, null, false);
         }
 
-        if (employee.AllowedIpAddresses.Count > 0 && !employee.AllowedIpAddresses.Contains(ip))
-        {
-            await RecordLoginAsync(employee.Id, ip, request.DeviceType, request.DeviceIdentifier, allowed: false, reason: "IP not on allow-list", ct);
-            return new EmployeeLoginResult(false, $"Login blocked: {ip} is not an approved IP address for this account.", ip, null, false);
-        }
+        // TEMPORARILY DISABLED — the deployed host's outbound IP isn't fixed/known
+        // yet, so every login was being blocked. Uncomment to re-enable per-employee
+        // IP allow-listing once the real deployment IP(s) are known.
+        // if (employee.AllowedIpAddresses.Count > 0 && !employee.AllowedIpAddresses.Contains(ip))
+        // {
+        //     await RecordLoginAsync(employee.Id, ip, request.DeviceType, request.DeviceIdentifier, allowed: false, reason: "IP not on allow-list", ct);
+        //     return new EmployeeLoginResult(false, $"Login blocked: {ip} is not an approved IP address for this account.", ip, null, false);
+        // }
 
         await RecordLoginAsync(employee.Id, ip, request.DeviceType, request.DeviceIdentifier, allowed: true, reason: null, ct);
         await _sessions.OpenSessionAsync(SessionAccountType.Employee, employee.Id, ip, ct);
@@ -201,5 +204,3 @@ public class AuthService : IAuthService
         c.Id, c.Name, c.IdNumber, c.PhoneNumber, c.Email, c.Office, c.Location,
         c.KycType, c.KycContact, c.ItSupportContact, c.AccountStatus, c.OnboardingDate, c.RejectionReason,
         c.Username, c.MustChangePassword
-    );
-}

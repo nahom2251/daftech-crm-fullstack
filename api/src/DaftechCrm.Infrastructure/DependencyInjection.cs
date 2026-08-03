@@ -106,6 +106,7 @@ public static class DependencyInjection
         services.AddSingleton<IFileStorageService, LocalFileStorageService>();
 
         services.AddScoped<AccountCredentialService>();
+        services.AddScoped<ReferenceNumberService>();
         services.AddScoped<ITicketAssignmentService, TicketAssignmentService>();
         services.AddScoped<ITicketService, TicketService>();
         services.AddScoped<IEmployeeService, EmployeeService>();

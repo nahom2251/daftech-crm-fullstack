@@ -14,16 +14,16 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', path: '/admin/dashboard', icon: '📊' },
-  { label: 'Clients', path: '/admin/clients', icon: '🏢' },
+  { label: 'Clients', path: '/admin/clients', icon: '🏢', rolesAllowed: ['Admin', 'ItSupport'] },
   { label: 'Signup Requests', path: '/admin/signup-requests', icon: '📥', rolesAllowed: ['Admin'] },
-  { label: 'Agreements', path: '/admin/agreements', icon: '📄' },
+  { label: 'Agreements', path: '/admin/agreements', icon: '📄', rolesAllowed: ['Admin', 'ItSupport'] },
   { label: 'Tickets', path: '/admin/tickets', icon: '🎫' },
   { label: 'Employees', path: '/admin/employees', icon: '👥', rolesAllowed: ['Admin'] },
-  { label: 'Time Tracking', path: '/admin/time-tracking', icon: '⏱️' },
-  { label: 'Employee Performance', path: '/admin/employee-performance', icon: '📈' },
-  { label: 'Maintenance History', path: '/admin/maintenance', icon: '🛠️' },
+  { label: 'Time Tracking', path: '/admin/time-tracking', icon: '⏱️', rolesAllowed: ['Admin', 'EmployeeTechnician'] },
+  { label: 'Employee Performance', path: '/admin/employee-performance', icon: '📈', rolesAllowed: ['Admin'] },
+  { label: 'Maintenance History', path: '/admin/maintenance', icon: '🛠️', rolesAllowed: ['Admin', 'ItSupport'] },
   { label: 'Notifications', path: '/admin/notifications', icon: '🔔' },
-  { label: 'Reports', path: '/admin/reports', icon: '📈' },
+  { label: 'Reports', path: '/admin/reports', icon: '📈', rolesAllowed: ['Admin'] },
   { label: 'Session Activity', path: '/admin/session-activity', icon: '🟢', rolesAllowed: ['Admin'] },
 ];
 

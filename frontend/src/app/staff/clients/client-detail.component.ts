@@ -37,7 +37,7 @@ import { TICKET_CATEGORY_LABELS } from '../../core/models';
 
         <div class="panel panel-pad">
           <h3>Agreements</h3>
-          <table>
+          <div class="table-scroll"><table>
             <thead><tr><th>Doc #</th><th>Sign Date</th><th>Expiry</th><th>Tier</th><th>Status</th></tr></thead>
             <tbody>
               @for (a of agreements(); track a.id) {
@@ -51,14 +51,14 @@ import { TICKET_CATEGORY_LABELS } from '../../core/models';
               }
               @empty { <tr><td colspan="5" class="text-muted">No agreements on file.</td></tr> }
             </tbody>
-          </table>
+          </table></div>
         </div>
       </div>
 
       <div class="panel panel-pad" style="margin-top:1.25rem;">
         <h3>Full Ticket History with DAFTECH</h3>
         <p class="text-muted" style="font-size:0.8rem; margin: 0.2rem 0 0.9rem;">Used by Admin when assigning new tickets.</p>
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th>Ticket</th><th>Category</th><th>Submitted</th><th>Chargeable</th><th>Status</th></tr></thead>
           <tbody>
             @for (t of tickets(); track t.id) {
@@ -72,7 +72,7 @@ import { TICKET_CATEGORY_LABELS } from '../../core/models';
             }
             @empty { <tr><td colspan="5" class="text-muted">No tickets submitted yet.</td></tr> }
           </tbody>
-        </table>
+        </table></div>
       </div>
     } @else {
       <p class="text-muted">Client not found.</p>

@@ -15,7 +15,7 @@ import { TICKET_CATEGORY_LABELS } from '../../core/models';
     <p class="text-muted" style="margin-top:0.3rem;">Your submitted issues and their current status.</p>
 
     <div class="panel panel-pad" style="margin-top:1.25rem;">
-      <table>
+      <div class="table-scroll"><table>
         <thead><tr><th>Ticket</th><th>Category</th><th>Submitted</th><th>Chargeable</th><th>Status</th><th>Your Rating</th><th></th></tr></thead>
         <tbody>
           @for (t of tickets(); track t.id) {
@@ -35,7 +35,7 @@ import { TICKET_CATEGORY_LABELS } from '../../core/models';
           }
           @empty { <tr><td colspan="7" class="text-muted" style="text-align:center; padding:1.5rem;">You haven't submitted any issues yet.</td></tr> }
         </tbody>
-      </table>
+      </table></div>
     </div>
   `,
 })

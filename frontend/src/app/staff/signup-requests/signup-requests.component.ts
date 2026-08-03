@@ -10,7 +10,7 @@ import { ClientService } from '../../core/services/client.service';
     <p class="text-muted" style="margin-top:0.3rem;">Review and approve or reject pending portal access requests.</p>
 
     <div class="panel panel-pad" style="margin-top:1.25rem;">
-      <table>
+      <div class="table-scroll"><table>
         <thead><tr><th>Client Name</th><th>ID Number</th><th>Phone</th><th>Office</th><th>Location</th><th>Submitted</th><th></th></tr></thead>
         <tbody>
           @for (r of clients.pendingRequests(); track r.id) {
@@ -42,7 +42,7 @@ import { ClientService } from '../../core/services/client.service';
             <tr><td colspan="7" class="text-muted" style="text-align:center; padding:1.5rem;">No pending signup requests.</td></tr>
           }
         </tbody>
-      </table>
+      </table></div>
     </div>
   `,
   styles: [`

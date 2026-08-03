@@ -69,11 +69,11 @@ export class AuthService {
       }
 
       if (decoded.daftech_account_type === 'Employee') {
-        const employee = await firstValueFrom(this.http.get<Employee>(`${API_BASE_URL}/api/employees/${decoded.sub}`));
+        const employee = await firstValueFrom(this.http.get<Employee>(`${API_BASE_URL}/employees/${decoded.sub}`));
         this._currentEmployee.set(employee);
         this.sessions.startHeartbeat('Employee', employee.id);
       } else {
-        const client = await firstValueFrom(this.http.get<Client>(`${API_BASE_URL}/api/clients/${decoded.sub}`));
+        const client = await firstValueFrom(this.http.get<Client>(`${API_BASE_URL}/clients/${decoded.sub}`));
         this._currentClient.set(client);
         this.sessions.startHeartbeat('Client', client.id);
       }
@@ -96,7 +96,7 @@ export class AuthService {
       this.http.post<{
         success: boolean; message?: string; ipAddress: string; employee: Employee | null;
         mustChangePassword: boolean; tokens: AuthTokenResultDto | null;
-      }>(`${API_BASE_URL}/api/auth/employee-login`, { username, password, deviceType, deviceIdentifier })
+      }>(`${API_BASE_URL}/auth/employee-login`, { username, password, deviceType, deviceIdentifier })
     );
 
     if (result.success && result.employee) {
@@ -111,14 +111,14 @@ export class AuthService {
     const employee = this._currentEmployee();
     if (!employee) throw new Error('Not logged in.');
     await firstValueFrom(
-      this.http.post(`${API_BASE_URL}/api/auth/employee/${employee.id}/change-password`, {
+      this.http.post(`${API_BASE_URL}/auth/employee/${employee.id}/change-password`, {
         currentPassword, newPassword, confirmNewPassword,
       })
     );
     this._currentEmployee.set({ ...employee, mustChangePassword: false });
 
     const result = await firstValueFrom(
-      this.http.post<{ tokens: AuthTokenResultDto | null }>(`${API_BASE_URL}/api/auth/employee-login`, {
+      this.http.post<{ tokens: AuthTokenResultDto | null }>(`${API_BASE_URL}/auth/employee-login`, {
         username: employee.username, password: newPassword, deviceType: 'Laptop', deviceIdentifier: 'WEB-SESSION',
       })
     );
@@ -130,7 +130,7 @@ export class AuthService {
       this.http.post<{
         success: boolean; message?: string; client: Client | null;
         mustChangePassword: boolean; tokens: AuthTokenResultDto | null;
-      }>(`${API_BASE_URL}/api/auth/client-login`, { username, password })
+      }>(`${API_BASE_URL}/auth/client-login`, { username, password })
     );
 
     if (result.success && result.client) {
@@ -145,14 +145,14 @@ export class AuthService {
     const client = this._currentClient();
     if (!client) throw new Error('Not logged in.');
     await firstValueFrom(
-      this.http.post(`${API_BASE_URL}/api/auth/client/${client.id}/change-password`, {
+      this.http.post(`${API_BASE_URL}/auth/client/${client.id}/change-password`, {
         currentPassword, newPassword, confirmNewPassword,
       })
     );
     this._currentClient.set({ ...client, mustChangePassword: false });
 
     const result = await firstValueFrom(
-      this.http.post<{ tokens: AuthTokenResultDto | null }>(`${API_BASE_URL}/api/auth/client-login`, {
+      this.http.post<{ tokens: AuthTokenResultDto | null }>(`${API_BASE_URL}/auth/client-login`, {
         username: client.username, password: newPassword,
       })
     );
@@ -165,7 +165,7 @@ export class AuthService {
       throw new Error('No refresh token available.');
     }
 
-    return this.http.post<AuthTokenResultDto>(`${API_BASE_URL}/api/auth/refresh`, { refreshToken }).pipe(
+    return this.http.post<AuthTokenResultDto>(`${API_BASE_URL}/auth/refresh`, { refreshToken }).pipe(
       tap((tokens) => this.tokenStorage.setTokens(tokens)),
       map(() => void 0)
     );
@@ -198,7 +198,7 @@ export class AuthService {
     const refreshToken = this.tokenStorage.refreshToken;
     if (!refreshToken) return;
     try {
-      await firstValueFrom(this.http.post(`${API_BASE_URL}/api/auth/logout`, { refreshToken }));
+      await firstValueFrom(this.http.post(`${API_BASE_URL}/auth/logout`, { refreshToken }));
     } catch {
       // Best-effort
     }

@@ -11,12 +11,14 @@ public class ClientService : IClientService
     private readonly IAppDbContext _db;
     private readonly INotificationService _notifications;
     private readonly AccountCredentialService _credentials;
+    private readonly ReferenceNumberService _referenceNumbers;
 
-    public ClientService(IAppDbContext db, INotificationService notifications, AccountCredentialService credentials)
+    public ClientService(IAppDbContext db, INotificationService notifications, AccountCredentialService credentials, ReferenceNumberService referenceNumbers)
     {
         _db = db;
         _notifications = notifications;
         _credentials = credentials;
+        _referenceNumbers = referenceNumbers;
     }
 
     /// <summary>
@@ -29,11 +31,14 @@ public class ClientService : IClientService
         var client = new Client
         {
             Name = request.Name,
-            IdNumber = request.IdNumber,
+            IdNumber = await _referenceNumbers.GenerateClientIdNumberAsync(ct),
             PhoneNumber = request.PhoneNumber,
             Email = request.Email,
             Office = request.Office,
             Location = request.Location,
+            Region = request.Region,
+            City = request.City,
+            Woreda = request.Woreda,
             KycType = "Pending Verification",
             KycContact = request.PhoneNumber,
             AccountStatus = ClientAccountStatus.Pending,
@@ -57,11 +62,14 @@ public class ClientService : IClientService
         var client = new Client
         {
             Name = request.Name,
-            IdNumber = request.IdNumber,
+            IdNumber = await _referenceNumbers.GenerateClientIdNumberAsync(ct),
             PhoneNumber = request.PhoneNumber,
             Email = request.Email,
             Office = request.Office,
             Location = request.Location,
+            Region = request.Region,
+            City = request.City,
+            Woreda = request.Woreda,
             KycType = request.KycType,
             KycContact = request.KycContact,
             ItSupportContact = request.ItSupportContact,
@@ -155,6 +163,7 @@ public class ClientService : IClientService
 
     private static ClientDto ToDto(Client c) => new(
         c.Id, c.Name, c.IdNumber, c.PhoneNumber, c.Email, c.Office, c.Location,
+        c.Region, c.City, c.Woreda,
         c.KycType, c.KycContact, c.ItSupportContact, c.AccountStatus, c.OnboardingDate, c.RejectionReason,
         c.Username, c.MustChangePassword
     );

@@ -132,13 +132,17 @@ tbody td {
 tbody tr:hover { background: var(--slate-50); }
 tbody tr:last-child td { border-bottom: none; }
 
-/* On narrow screens, a table wider than the viewport scrolls horizontally
-   within its own row instead of being clipped or forcing the whole page to
-   scroll sideways. `display: block` on the table element is what makes an
-   ordinary <table> (with no wrapper div needed) respect overflow-x. */
+/* On narrow screens, wrap tables so they scroll horizontally within their
+   own row instead of being clipped, overflowing the page, or having their
+   layout broken. Add class="table-scroll" to a div wrapping any <table>
+   that appears on a page reachable from a phone. */
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 @media (max-width: 640px) {
-  table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  thead, tbody, tr { display: table; width: 100%; table-layout: auto; }
+  .table-scroll table { min-width: 560px; }
   thead th, tbody td { white-space: nowrap; }
 }
 

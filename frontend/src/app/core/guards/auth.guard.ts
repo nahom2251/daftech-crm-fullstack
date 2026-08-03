@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
+import { EmployeeRole } from '../models';
 
 /**
  * On a hard page refresh, AuthService.restoreSession() (kicked off by the
@@ -60,3 +61,22 @@ export const adminRoleGuard: CanActivateFn = async () => {
   if (emp?.roles.includes('Admin')) return true;
   return router.parseUrl('/admin/dashboard');
 };
+
+/**
+ * Generic role gate for staff pages restricted to specific roles (in
+ * addition to Admin, which the sidebar and route config always assume can
+ * reach everything). Use as canActivate: [roleGuard(['ItSupport'])] etc.
+ * A signed-in employee without any of the listed roles is bounced to their
+ * own dashboard rather than shown a blank/broken page.
+ */
+export function roleGuard(roles: EmployeeRole[]): CanActivateFn {
+  return async () => {
+    const auth = inject(AuthService);
+    const router = inject(Router);
+    await awaitSessionRestore(auth);
+    const emp = auth.currentEmployee();
+    if (emp?.roles.includes('Admin')) return true;
+    if (emp && roles.some(r => emp.roles.includes(r))) return true;
+    return router.parseUrl('/admin/dashboard');
+  };
+}

@@ -42,7 +42,7 @@ export class AgreementService {
   }
 
   async createAgreement(data: {
-    clientId: string; documentNumber: string; agreementPlace: string;
+    clientId: string; agreementPlace: string;
     signDate: string; expiryDate?: string; supportWindowMonths: number; billingTier: BillingTier;
   }): Promise<Agreement> {
     const agreement = await firstValueFrom(this.http.post<Agreement>(`${API_BASE_URL}/agreements`, data));

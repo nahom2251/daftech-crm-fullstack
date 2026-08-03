@@ -60,6 +60,9 @@ export interface Client {
   email: string;
   office: string;
   location: string;
+  region?: string;
+  city?: string;
+  woreda?: string;
   kycType: string;
   kycContact: string;
   itSupportContact?: string;

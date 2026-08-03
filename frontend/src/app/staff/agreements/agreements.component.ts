@@ -28,10 +28,6 @@ import { BillingTier } from '../../core/models';
             </select>
           </div>
           <div class="field">
-            <label>Document Number</label>
-            <input type="text" [ngModel]="form.documentNumber" (ngModelChange)="form.documentNumber = $event" placeholder="DOC-2026-0001" />
-          </div>
-          <div class="field">
             <label>Agreement Place</label>
             <input type="text" [ngModel]="form.agreementPlace" (ngModelChange)="form.agreementPlace = $event" placeholder="Addis Ababa" />
           </div>
@@ -65,7 +61,7 @@ import { BillingTier } from '../../core/models';
     }
 
     <div class="panel panel-pad" style="margin-top:1.25rem;">
-      <table>
+      <div class="table-scroll"><table>
         <thead><tr><th>Client</th><th>Doc #</th><th>Sign Date</th><th>Expiry</th><th>Support Window</th><th>Tier</th><th>Status</th><th>Document</th></tr></thead>
         <tbody>
           @for (a of agreements.agreements(); track a.id) {
@@ -87,7 +83,7 @@ import { BillingTier } from '../../core/models';
             </tr>
           }
         </tbody>
-      </table>
+      </table></div>
     </div>
   `,
   styles: [`
@@ -105,10 +101,10 @@ export class AgreementsComponent {
   selectedFile = signal<File | null>(null);
 
   form: {
-    clientId: string; documentNumber: string; agreementPlace: string; signDate: string;
+    clientId: string; agreementPlace: string; signDate: string;
     supportWindowMonths: number; billingTier: BillingTier;
   } = {
-    clientId: '', documentNumber: '', agreementPlace: '', signDate: new Date().toISOString().slice(0, 10),
+    clientId: '', agreementPlace: '', signDate: new Date().toISOString().slice(0, 10),
     supportWindowMonths: 12, billingTier: 'Basic',
   };
 
@@ -132,7 +128,7 @@ export class AgreementsComponent {
   }
 
   async submit() {
-    if (!this.form.clientId || !this.form.documentNumber) return;
+    if (!this.form.clientId) return;
 
     this.submitting.set(true);
     this.uploadError.set(null);
@@ -150,7 +146,7 @@ export class AgreementsComponent {
       this.showForm.set(false);
       this.selectedFile.set(null);
       this.form = {
-        clientId: this.clients.approvedClients()[0]?.id ?? '', documentNumber: '', agreementPlace: '',
+        clientId: this.clients.approvedClients()[0]?.id ?? '', agreementPlace: '',
         signDate: new Date().toISOString().slice(0, 10), supportWindowMonths: 12, billingTier: 'Basic',
       };
     } catch (err) {

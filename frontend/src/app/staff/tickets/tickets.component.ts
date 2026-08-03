@@ -22,7 +22,7 @@ import { TicketStatus, TICKET_CATEGORY_LABELS } from '../../core/models';
         <p class="text-muted" style="font-size:0.8rem; margin: 0.2rem 0 0.9rem;">
           The client rated these below the 90/100 satisfaction threshold after resolution.
         </p>
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th>Ticket</th><th>Client</th><th>Assigned To</th><th>Rating</th><th></th></tr></thead>
           <tbody>
             @for (t of tickets.escalated(); track t.id) {
@@ -36,13 +36,13 @@ import { TicketStatus, TICKET_CATEGORY_LABELS } from '../../core/models';
             }
             @empty { <tr><td colspan="5" class="text-muted" style="text-align:center; padding:1rem;">No escalations right now.</td></tr> }
           </tbody>
-        </table>
+        </table></div>
       </div>
     }
 
     <div class="panel panel-pad" style="margin-top:1.25rem;">
       <h3>All Tickets</h3>
-      <table style="margin-top:0.75rem;">
+      <div class="table-scroll"><table style="margin-top:0.75rem;">
         <thead><tr><th>Ticket</th><th>Client</th><th>Category</th><th>Submitted</th><th>Assigned</th><th>Chargeable</th><th>Status</th><th>Satisfaction</th><th></th></tr></thead>
         <tbody>
           @for (t of tickets.tickets(); track t.id) {
@@ -70,7 +70,7 @@ import { TicketStatus, TICKET_CATEGORY_LABELS } from '../../core/models';
             </tr>
           }
         </tbody>
-      </table>
+      </table></div>
     </div>
   `,
 })

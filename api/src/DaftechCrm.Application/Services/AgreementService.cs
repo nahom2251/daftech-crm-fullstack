@@ -9,11 +9,13 @@ public class AgreementService : IAgreementService
 {
     private readonly IAppDbContext _db;
     private readonly IFileStorageService _storage;
+    private readonly ReferenceNumberService _referenceNumbers;
 
-    public AgreementService(IAppDbContext db, IFileStorageService storage)
+    public AgreementService(IAppDbContext db, IFileStorageService storage, ReferenceNumberService referenceNumbers)
     {
         _db = db;
         _storage = storage;
+        _referenceNumbers = referenceNumbers;
     }
 
     public async Task<AgreementDto> CreateAsync(CreateAgreementRequest request, CancellationToken ct = default)
@@ -22,7 +24,7 @@ public class AgreementService : IAgreementService
         var agreement = new Agreement
         {
             ClientId = request.ClientId,
-            DocumentNumber = request.DocumentNumber,
+            DocumentNumber = await _referenceNumbers.GenerateAgreementDocumentNumberAsync(ct),
             // A scanned file is attached later via UploadScannedFileAsync, not at creation —
             // any client-provided value here is ignored to keep this null until a real
             // upload happens (see Final_version_fix.docx item 1: "ensure ScannedFileUrl is null").

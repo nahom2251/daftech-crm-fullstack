@@ -11,6 +11,9 @@ public class Client
     public string Email { get; set; } = default!;
     public string Office { get; set; } = default!;
     public string Location { get; set; } = default!;
+    public string? Region { get; set; }
+    public string? City { get; set; }
+    public string? Woreda { get; set; }
     public string KycType { get; set; } = default!;
     public string KycContact { get; set; } = default!;
     public string? ItSupportContact { get; set; }

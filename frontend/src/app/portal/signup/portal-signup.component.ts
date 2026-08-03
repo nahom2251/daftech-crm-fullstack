@@ -16,11 +16,13 @@ import { ClientService } from '../../core/services/client.service';
           <p class="text-muted" style="margin: 0.35rem 0 1.25rem;">Your request will be reviewed by a DAFTECH Admin before you can log in.</p>
 
           <div class="field"><label>Name / Organization</label><input type="text" [ngModel]="form.name" (ngModelChange)="form.name = $event" /></div>
-          <div class="field"><label>ID Number</label><input type="text" [ngModel]="form.idNumber" (ngModelChange)="form.idNumber = $event" /></div>
           <div class="field"><label>Phone Number</label><input type="text" [ngModel]="form.phoneNumber" (ngModelChange)="form.phoneNumber = $event" /></div>
           <div class="field"><label>Email</label><input type="email" [ngModel]="form.email" (ngModelChange)="form.email = $event" /></div>
           <div class="field"><label>Office</label><input type="text" [ngModel]="form.office" (ngModelChange)="form.office = $event" /></div>
           <div class="field"><label>Location</label><input type="text" [ngModel]="form.location" (ngModelChange)="form.location = $event" /></div>
+          <div class="field"><label>Region</label><input type="text" [ngModel]="form.region" (ngModelChange)="form.region = $event" /></div>
+          <div class="field"><label>City</label><input type="text" [ngModel]="form.city" (ngModelChange)="form.city = $event" /></div>
+          <div class="field"><label>Woreda</label><input type="text" [ngModel]="form.woreda" (ngModelChange)="form.woreda = $event" /></div>
 
           <button class="btn btn-primary" style="width:100%; margin-top:1rem;" (click)="submit()">Submit Request</button>
           <p class="alt-link">Already approved? <a routerLink="/portal/login">Log in</a></p>
@@ -49,12 +51,12 @@ import { ClientService } from '../../core/services/client.service';
 })
 export class PortalSignupComponent {
   submitted = signal(false);
-  form = { name: '', idNumber: '', phoneNumber: '', email: '', office: '', location: '' };
+  form = { name: '', phoneNumber: '', email: '', office: '', location: '', region: '', city: '', woreda: '' };
 
   constructor(private clients: ClientService) {}
 
   async submit() {
-    if (!this.form.name || !this.form.idNumber) return;
+    if (!this.form.name) return;
     await this.clients.submitSignup({ ...this.form });
     this.submitted.set(true);
   }

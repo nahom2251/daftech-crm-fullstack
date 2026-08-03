@@ -7,8 +7,9 @@ public record AgreementDto(
     DateOnly SignDate, DateOnly ExpiryDate, int SupportWindowMonths, AgreementStatus Status, BillingTier BillingTier
 );
 
+/// <summary>DocumentNumber is system-generated (see ReferenceNumberService), not supplied by the caller.</summary>
 public record CreateAgreementRequest(
-    Guid ClientId, string DocumentNumber, string? ScannedFileUrl, string AgreementPlace,
+    Guid ClientId, string? ScannedFileUrl, string AgreementPlace,
     DateOnly SignDate, DateOnly? ExpiryDate, int SupportWindowMonths, BillingTier BillingTier
 );
 

@@ -53,6 +53,9 @@ public class ClientConfiguration : IEntityTypeConfiguration<Client>
         b.Property(x => x.Email).HasMaxLength(200).IsRequired();
         b.Property(x => x.Office).HasMaxLength(200);
         b.Property(x => x.Location).HasMaxLength(200);
+        b.Property(x => x.Region).HasMaxLength(100);
+        b.Property(x => x.City).HasMaxLength(100);
+        b.Property(x => x.Woreda).HasMaxLength(100);
         b.Property(x => x.KycType).HasMaxLength(100);
         b.Property(x => x.KycContact).HasMaxLength(200);
         b.Property(x => x.RejectionReason).HasMaxLength(500);

@@ -87,7 +87,7 @@ const SPECIALIZATIONS = ['Front-end', 'Back-end', 'Database'];
     }
 
     <div class="panel panel-pad" style="margin-top:1.25rem;">
-      <table>
+      <div class="table-scroll"><table>
         <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Specialization</th><th>Role(s)</th><th>Open Tickets</th><th>Avg. Satisfaction</th><th>Status</th><th></th></tr></thead>
         <tbody>
           @for (e of employees.employees(); track e.id) {
@@ -139,7 +139,7 @@ const SPECIALIZATIONS = ['Front-end', 'Back-end', 'Database'];
 
                       <div>
                         <h4>Known Devices</h4>
-                        <table class="inner-table">
+                        <div class="table-scroll"><table class="inner-table">
                           <thead><tr><th>Device</th><th>Type</th><th>Last IP</th><th>Last Seen</th><th>Status</th><th></th></tr></thead>
                           <tbody>
                             @for (d of devices(); track d.id) {
@@ -158,10 +158,10 @@ const SPECIALIZATIONS = ['Front-end', 'Back-end', 'Database'];
                             }
                             @empty { <tr><td colspan="6" class="text-muted">No devices recorded yet.</td></tr> }
                           </tbody>
-                        </table>
+                        </table></div>
 
                         <h4 style="margin-top:1.1rem;">Login History</h4>
-                        <table class="inner-table">
+                        <div class="table-scroll"><table class="inner-table">
                           <thead><tr><th>When</th><th>IP Address</th><th>Device</th><th>Result</th></tr></thead>
                           <tbody>
                             @for (l of loginHistory(); track l.id) {
@@ -180,7 +180,7 @@ const SPECIALIZATIONS = ['Front-end', 'Back-end', 'Database'];
                             }
                             @empty { <tr><td colspan="4" class="text-muted">No login attempts recorded yet.</td></tr> }
                           </tbody>
-                        </table>
+                        </table></div>
                       </div>
                     </div>
                   </div>
@@ -189,7 +189,7 @@ const SPECIALIZATIONS = ['Front-end', 'Back-end', 'Database'];
             }
           }
         </tbody>
-      </table>
+      </table></div>
     </div>
   `,
   styles: [`

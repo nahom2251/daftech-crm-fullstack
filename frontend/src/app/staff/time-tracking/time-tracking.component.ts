@@ -35,7 +35,7 @@ import { AuthService } from '../../core/services/auth.service';
           @for (e of employees.employees(); track e.id) { <option [value]="e.id">{{ e.fullName }}</option> }
         </select>
       </div>
-      <table>
+      <div class="table-scroll"><table>
         <thead><tr><th>Employee</th><th>Date</th><th>Start</th><th>Finish</th><th>Total Hours</th></tr></thead>
         <tbody>
           @for (l of filteredLogs(); track l.id) {
@@ -49,7 +49,7 @@ import { AuthService } from '../../core/services/auth.service';
           }
           @empty { <tr><td colspan="5" class="text-muted" style="text-align:center; padding:1.5rem;">No time logs for this filter.</td></tr> }
         </tbody>
-      </table>
+      </table></div>
     </div>
   `,
   styles: [`

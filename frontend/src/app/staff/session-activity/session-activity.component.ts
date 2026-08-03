@@ -19,7 +19,7 @@ import { SessionActivity } from '../../core/models';
     </div>
 
     <div class="panel panel-pad" style="margin-top:1.25rem;">
-      <table>
+      <div class="table-scroll"><table>
         <thead><tr><th>Account</th><th>Type</th><th>Status</th><th>Last Seen</th><th>Most Recent IP</th></tr></thead>
         <tbody>
           @for (s of activity(); track s.accountType + s.accountId) {
@@ -40,7 +40,7 @@ import { SessionActivity } from '../../core/models';
             <tr><td colspan="5" class="text-muted" style="text-align:center; padding:1.5rem;">No session activity recorded yet.</td></tr>
           }
         </tbody>
-      </table>
+      </table></div>
     </div>
   `,
   styles: [`

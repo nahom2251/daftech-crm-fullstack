@@ -33,7 +33,8 @@ export class ClientService {
   }
 
   async submitSignup(data: {
-    name: string; idNumber: string; phoneNumber: string; email: string; office: string; location: string;
+    name: string; phoneNumber: string; email: string; office: string; location: string;
+    region?: string; city?: string; woreda?: string;
   }): Promise<Client> {
     const client = await firstValueFrom(this.http.post<Client>(`${API_BASE_URL}/clients/signup`, data));
     await this.refresh();
@@ -46,7 +47,8 @@ export class ClientService {
    * must display it to the Admin now.
    */
   async registerClient(data: {
-    name: string; idNumber: string; phoneNumber: string; email: string; office: string; location: string;
+    name: string; phoneNumber: string; email: string; office: string; location: string;
+    region?: string; city?: string; woreda?: string;
     kycType: string; kycContact: string; itSupportContact?: string;
   }): Promise<ClientRegisteredResult> {
     const result = await firstValueFrom(this.http.post<ClientRegisteredResult>(`${API_BASE_URL}/clients/register`, data));

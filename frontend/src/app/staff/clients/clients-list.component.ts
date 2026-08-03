@@ -23,11 +23,13 @@ import { ClientRegisteredResult } from '../../core/models';
         @if (!justRegistered()) {
           <div class="form-grid">
             <div class="field"><label>Name / Organization</label><input type="text" [ngModel]="form.name" (ngModelChange)="form.name = $event" /></div>
-            <div class="field"><label>ID Number</label><input type="text" [ngModel]="form.idNumber" (ngModelChange)="form.idNumber = $event" /></div>
             <div class="field"><label>Phone Number</label><input type="text" [ngModel]="form.phoneNumber" (ngModelChange)="form.phoneNumber = $event" /></div>
             <div class="field"><label>Email</label><input type="email" [ngModel]="form.email" (ngModelChange)="form.email = $event" placeholder="used to send login credentials" /></div>
             <div class="field"><label>Office</label><input type="text" [ngModel]="form.office" (ngModelChange)="form.office = $event" /></div>
             <div class="field"><label>Location</label><input type="text" [ngModel]="form.location" (ngModelChange)="form.location = $event" /></div>
+            <div class="field"><label>Region</label><input type="text" [ngModel]="form.region" (ngModelChange)="form.region = $event" /></div>
+            <div class="field"><label>City</label><input type="text" [ngModel]="form.city" (ngModelChange)="form.city = $event" /></div>
+            <div class="field"><label>Woreda</label><input type="text" [ngModel]="form.woreda" (ngModelChange)="form.woreda = $event" /></div>
             <div class="field"><label>KYC Type</label><input type="text" [ngModel]="form.kycType" (ngModelChange)="form.kycType = $event" placeholder="Business License…" /></div>
             <div class="field"><label>KYC Contact</label><input type="text" [ngModel]="form.kycContact" (ngModelChange)="form.kycContact = $event" placeholder="Name — phone/email" /></div>
             <div class="field"><label>IT Support Contact (optional)</label><input type="text" [ngModel]="form.itSupportContact" (ngModelChange)="form.itSupportContact = $event" /></div>
@@ -72,7 +74,7 @@ import { ClientRegisteredResult } from '../../core/models';
         </select>
       </div>
 
-      <table>
+      <div class="table-scroll"><table>
         <thead>
           <tr><th>Name</th><th>ID Number</th><th>Office</th><th>Location</th><th>Status</th><th>Onboarded</th><th></th></tr>
         </thead>
@@ -92,7 +94,7 @@ import { ClientRegisteredResult } from '../../core/models';
             <tr><td colspan="7" class="text-muted" style="text-align:center; padding: 1.5rem;">No clients match your filters.</td></tr>
           }
         </tbody>
-      </table>
+      </table></div>
     </div>
   `,
   styles: [`
@@ -119,7 +121,7 @@ export class ClientsListComponent {
   resending = signal(false);
   justRegistered = signal<ClientRegisteredResult | null>(null);
 
-  form = { name: '', idNumber: '', phoneNumber: '', email: '', office: '', location: '', kycType: '', kycContact: '', itSupportContact: '' };
+  form = { name: '', phoneNumber: '', email: '', office: '', location: '', region: '', city: '', woreda: '', kycType: '', kycContact: '', itSupportContact: '' };
 
   constructor(public clients: ClientService) {}
 
@@ -139,7 +141,7 @@ export class ClientsListComponent {
   }
 
   async submit() {
-    if (!this.form.name || !this.form.idNumber) return;
+    if (!this.form.name) return;
     this.registering.set(true);
     try {
       const result = await this.clients.registerClient({
@@ -147,7 +149,7 @@ export class ClientsListComponent {
         itSupportContact: this.form.itSupportContact || undefined,
       });
       this.justRegistered.set(result);
-      this.form = { name: '', idNumber: '', phoneNumber: '', email: '', office: '', location: '', kycType: '', kycContact: '', itSupportContact: '' };
+      this.form = { name: '', phoneNumber: '', email: '', office: '', location: '', region: '', city: '', woreda: '', kycType: '', kycContact: '', itSupportContact: '' };
     } finally {
       this.registering.set(false);
     }

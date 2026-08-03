@@ -45,7 +45,7 @@ import { NotificationRecipientType } from '../../core/models';
 
     <div class="panel panel-pad" style="margin-top: 1.5rem;">
       <h3 style="margin-bottom: 0.9rem;">Employee Workload</h3>
-      <table>
+      <div class="table-scroll"><table>
         <thead><tr><th>Employee</th><th>Role(s)</th><th>Open Tickets</th><th>Avg. Satisfaction</th><th>Account Status</th></tr></thead>
         <tbody>
           @for (e of employees.employees(); track e.id) {
@@ -60,7 +60,7 @@ import { NotificationRecipientType } from '../../core/models';
             </tr>
           }
         </tbody>
-      </table>
+      </table></div>
     </div>
   `,
   styles: [`

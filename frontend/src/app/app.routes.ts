@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import {
-  staffAuthGuard, clientAuthGuard, adminRoleGuard,
+  staffAuthGuard, clientAuthGuard, adminRoleGuard, roleGuard,
   staffMustChangePasswordGuard, clientMustChangePasswordGuard,
 } from './core/guards/auth.guard';
 
@@ -24,25 +24,53 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       { path: 'dashboard', loadComponent: () => import('./staff/dashboard/dashboard.component').then(m => m.DashboardComponent) },
-      { path: 'clients', loadComponent: () => import('./staff/clients/clients-list.component').then(m => m.ClientsListComponent) },
-      { path: 'clients/:id', loadComponent: () => import('./staff/clients/client-detail.component').then(m => m.ClientDetailComponent) },
+      {
+        path: 'clients',
+        canActivate: [roleGuard(['ItSupport'])],
+        loadComponent: () => import('./staff/clients/clients-list.component').then(m => m.ClientsListComponent),
+      },
+      {
+        path: 'clients/:id',
+        canActivate: [roleGuard(['ItSupport'])],
+        loadComponent: () => import('./staff/clients/client-detail.component').then(m => m.ClientDetailComponent),
+      },
       {
         path: 'signup-requests',
         canActivate: [adminRoleGuard],
         loadComponent: () => import('./staff/signup-requests/signup-requests.component').then(m => m.SignupRequestsComponent),
       },
-      { path: 'agreements', loadComponent: () => import('./staff/agreements/agreements.component').then(m => m.AgreementsComponent) },
+      {
+        path: 'agreements',
+        canActivate: [roleGuard(['ItSupport'])],
+        loadComponent: () => import('./staff/agreements/agreements.component').then(m => m.AgreementsComponent),
+      },
       { path: 'tickets', loadComponent: () => import('./staff/tickets/tickets.component').then(m => m.TicketsComponent) },
       {
         path: 'employees',
         canActivate: [adminRoleGuard],
         loadComponent: () => import('./staff/employees/employees.component').then(m => m.EmployeesComponent),
       },
-      { path: 'time-tracking', loadComponent: () => import('./staff/time-tracking/time-tracking.component').then(m => m.TimeTrackingComponent) },
-      { path: 'employee-performance', loadComponent: () => import('./staff/employee-performance/employee-performance.component').then(m => m.EmployeePerformanceComponent) },
-      { path: 'maintenance', loadComponent: () => import('./staff/maintenance/maintenance.component').then(m => m.MaintenanceComponent) },
+      {
+        path: 'time-tracking',
+        canActivate: [roleGuard(['EmployeeTechnician'])],
+        loadComponent: () => import('./staff/time-tracking/time-tracking.component').then(m => m.TimeTrackingComponent),
+      },
+      {
+        path: 'employee-performance',
+        canActivate: [adminRoleGuard],
+        loadComponent: () => import('./staff/employee-performance/employee-performance.component').then(m => m.EmployeePerformanceComponent),
+      },
+      {
+        path: 'maintenance',
+        canActivate: [roleGuard(['ItSupport'])],
+        loadComponent: () => import('./staff/maintenance/maintenance.component').then(m => m.MaintenanceComponent),
+      },
       { path: 'notifications', loadComponent: () => import('./staff/notifications/notifications.component').then(m => m.NotificationsComponent) },
-      { path: 'reports', loadComponent: () => import('./staff/reports/reports.component').then(m => m.ReportsComponent) },
+      {
+        path: 'reports',
+        canActivate: [adminRoleGuard],
+        loadComponent: () => import('./staff/reports/reports.component').then(m => m.ReportsComponent),
+      },
       {
         path: 'session-activity',
         canActivate: [adminRoleGuard],

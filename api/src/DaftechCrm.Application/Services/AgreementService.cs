@@ -43,6 +43,20 @@ public class AgreementService : IAgreementService
     public async Task<IReadOnlyList<AgreementDto>> GetAllAsync(CancellationToken ct = default) =>
         (await _db.Agreements.AsNoTracking().ToListAsync(ct)).Select(ToDto).ToList();
 
+    public async Task<PagedResult<AgreementDto>> GetAllPagedAsync(PaginationQuery query, CancellationToken ct = default)
+    {
+        var totalCount = await _db.Agreements.CountAsync(ct);
+
+        var items = await _db.Agreements
+            .AsNoTracking()
+            .OrderByDescending(a => a.ExpiryDate)
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .ToListAsync(ct);
+
+        return new PagedResult<AgreementDto>(items.Select(ToDto).ToList(), query.Page, query.PageSize, totalCount);
+    }
+
     public async Task<IReadOnlyList<AgreementDto>> GetForClientAsync(Guid clientId, CancellationToken ct = default) =>
         (await _db.Agreements.AsNoTracking().Where(a => a.ClientId == clientId).ToListAsync(ct)).Select(ToDto).ToList();
 

@@ -10,7 +10,7 @@ import { AuthService } from '../../core/services/auth.service';
   imports: [FormsModule, DatePipe],
   template: `
     <h1>Time Tracking</h1>
-    <p class="text-muted" style="margin-top:0.3rem;">Clock in/out and review attendance across the team.</p>
+    <p class="text-muted" style="margin-top:0.3rem;">{{ isAdmin() ? 'Clock in/out and review attendance across the team.' : 'Clock in/out and review your own attendance.' }}</p>
 
     @if (me(); as m) {
       <div class="panel panel-pad clock-panel" style="margin-top:1.25rem;">
@@ -29,25 +29,27 @@ import { AuthService } from '../../core/services/auth.service';
     }
 
     <div class="panel panel-pad" style="margin-top:1.25rem;">
-      <div class="filters">
-        <select [ngModel]="employeeFilter()" (ngModelChange)="employeeFilter.set($event)">
-          <option value="">All employees</option>
-          @for (e of employees.employees(); track e.id) { <option [value]="e.id">{{ e.fullName }}</option> }
-        </select>
-      </div>
+      @if (isAdmin()) {
+        <div class="filters">
+          <select [ngModel]="employeeFilter()" (ngModelChange)="employeeFilter.set($event)">
+            <option value="">All employees</option>
+            @for (e of employees.employees(); track e.id) { <option [value]="e.id">{{ e.fullName }}</option> }
+          </select>
+        </div>
+      }
       <div class="table-scroll"><table>
-        <thead><tr><th>Employee</th><th>Date</th><th>Start</th><th>Finish</th><th>Total Hours</th></tr></thead>
+        <thead><tr>@if (isAdmin()) {<th>Employee</th>} <th>Date</th><th>Start</th><th>Finish</th><th>Total Hours</th></tr></thead>
         <tbody>
           @for (l of filteredLogs(); track l.id) {
             <tr>
-              <td>{{ employeeName(l.employeeId) }}</td>
+              @if (isAdmin()) {<td>{{ employeeName(l.employeeId) }}</td>}
               <td>{{ l.date }}</td>
               <td class="text-muted">{{ l.startTime ? (l.startTime | date:'shortTime') : '—' }}</td>
               <td class="text-muted">{{ l.finishTime ? (l.finishTime | date:'shortTime') : '—' }}</td>
               <td>{{ l.totalHours ? (l.totalHours + ' h') : '—' }}</td>
             </tr>
           }
-          @empty { <tr><td colspan="5" class="text-muted" style="text-align:center; padding:1.5rem;">No time logs for this filter.</td></tr> }
+          @empty { <tr><td [attr.colspan]="isAdmin() ? 5 : 4" class="text-muted" style="text-align:center; padding:1.5rem;">No time logs for this filter.</td></tr> }
         </tbody>
       </table></div>
     </div>
@@ -64,6 +66,7 @@ export class TimeTrackingComponent {
   constructor(public employees: EmployeeService, private auth: AuthService) {}
 
   me = computed(() => this.auth.currentEmployee());
+  isAdmin = computed(() => this.me()?.roles.includes('Admin') ?? false);
 
   hasOpenLogToday = computed(() => {
     const m = this.me();
@@ -75,6 +78,18 @@ export class TimeTrackingComponent {
   todayStatus = computed(() => (this.hasOpenLogToday() ? 'Currently clocked in' : 'Not clocked in today'));
 
   filteredLogs = computed(() => {
+    const m = this.me();
+    if (!m) return [];
+
+    // A non-Admin (Technician) only ever sees their own attendance — the
+    // "All employees" filter and the Employee column don't apply to them at
+    // all, so there's nothing to switch on here besides their own id.
+    if (!this.isAdmin()) {
+      return this.employees.timeLogs()
+        .filter(l => l.employeeId === m.id)
+        .sort((a, b) => b.date.localeCompare(a.date));
+    }
+
     const filter = this.employeeFilter();
     return this.employees
       .timeLogs()

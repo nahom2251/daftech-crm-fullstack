@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Ticket, TicketCategory, TicketStatus } from '../models';
+import { Ticket, TicketCategory, TicketStatus, PagedResult } from '../models';
 import { API_BASE_URL } from './api-base';
 
 @Injectable({ providedIn: 'root' })
@@ -9,13 +9,45 @@ export class TicketService {
   private readonly _tickets = signal<Ticket[]>([]);
   readonly tickets = this._tickets.asReadonly();
 
+  // Paged state for the "All Tickets" table. Kept separate from the
+  // full-list cache above, which reports/escalated/dashboards rely on
+  // for filtering and counts and must stay complete.
+  private readonly _page = signal(1);
+  private readonly _pageSize = signal(20);
+  private readonly _totalCount = signal(0);
+  private readonly _totalPages = signal(0);
+  private readonly _pagedTickets = signal<Ticket[]>([]);
+  readonly pagedTickets = this._pagedTickets.asReadonly();
+  readonly page = this._page.asReadonly();
+  readonly pageSize = this._pageSize.asReadonly();
+  readonly totalCount = this._totalCount.asReadonly();
+  readonly totalPages = this._totalPages.asReadonly();
+
   constructor(private http: HttpClient) {
     void this.refresh();
+    void this.refreshPaged();
   }
 
   async refresh(): Promise<void> {
     const list = await firstValueFrom(this.http.get<Ticket[]>(`${API_BASE_URL}/tickets`));
     this._tickets.set(list);
+  }
+
+  /** Fetches one page of tickets for the table UI. Defaults to the current page/pageSize. */
+  async refreshPaged(page = this._page(), pageSize = this._pageSize()): Promise<void> {
+    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    const result = await firstValueFrom(
+      this.http.get<PagedResult<Ticket>>(`${API_BASE_URL}/tickets/paged`, { params })
+    );
+    this._page.set(result.page);
+    this._pageSize.set(result.pageSize);
+    this._totalCount.set(result.totalCount);
+    this._totalPages.set(result.totalPages);
+    this._pagedTickets.set(result.items);
+  }
+
+  async goToPage(page: number): Promise<void> {
+    await this.refreshPaged(page);
   }
 
   getById(id: string): Ticket | undefined {
@@ -58,7 +90,7 @@ export class TicketService {
     const ticket = await firstValueFrom(
       this.http.post<Ticket>(`${API_BASE_URL}/tickets`, { clientId, agreementId, description, category })
     );
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshPaged()]);
     return ticket;
   }
 
@@ -69,7 +101,7 @@ export class TicketService {
    */
   async forward(ticketId: string, byEmployeeId: string): Promise<void> {
     await firstValueFrom(this.http.post<Ticket>(`${API_BASE_URL}/tickets/${ticketId}/forward`, { forwardedByEmployeeId: byEmployeeId }));
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshPaged()]);
   }
 
   /**
@@ -79,7 +111,7 @@ export class TicketService {
    */
   async updateStatus(ticketId: string, status: TicketStatus, actorName: string): Promise<void> {
     await firstValueFrom(this.http.patch<Ticket>(`${API_BASE_URL}/tickets/${ticketId}/status`, { status, actorName }));
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshPaged()]);
   }
 
   /**
@@ -95,7 +127,7 @@ export class TicketService {
     const ticket = await firstValueFrom(
       this.http.post<Ticket>(`${API_BASE_URL}/tickets/${ticketId}/confirm`, { isFixed, satisfactionStars })
     );
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshPaged()]);
     return ticket;
   }
 }

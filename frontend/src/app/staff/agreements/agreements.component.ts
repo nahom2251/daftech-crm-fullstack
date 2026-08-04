@@ -3,12 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { AgreementService } from '../../core/services/agreement.service';
 import { ClientService } from '../../core/services/client.service';
 import { BadgeComponent } from '../../shared/badge.component';
+import { PaginationComponent } from '../../shared/pagination.component';
 import { BillingTier } from '../../core/models';
 
 @Component({
   selector: 'app-agreements',
   standalone: true,
-  imports: [FormsModule, BadgeComponent],
+  imports: [FormsModule, BadgeComponent, PaginationComponent],
   template: `
     <div class="header-row">
       <div>
@@ -64,7 +65,7 @@ import { BillingTier } from '../../core/models';
       <div class="table-scroll"><table>
         <thead><tr><th>Client</th><th>Doc #</th><th>Sign Date</th><th>Expiry</th><th>Support Window</th><th>Tier</th><th>Status</th><th>Document</th></tr></thead>
         <tbody>
-          @for (a of agreements.agreements(); track a.id) {
+          @for (a of agreements.pagedAgreements(); track a.id) {
             <tr>
               <td>{{ clientName(a.clientId) }}</td>
               <td class="mono">{{ a.documentNumber }}</td>
@@ -84,6 +85,13 @@ import { BillingTier } from '../../core/models';
           }
         </tbody>
       </table></div>
+      <app-pagination
+        [page]="agreements.page()"
+        [totalPages]="agreements.totalPages()"
+        [totalCount]="agreements.totalCount()"
+        [pageSize]="agreements.pageSize()"
+        (pageChange)="agreements.goToPage($event)">
+      </app-pagination>
     </div>
   `,
   styles: [`

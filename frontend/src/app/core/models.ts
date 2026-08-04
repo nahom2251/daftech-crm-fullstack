@@ -275,3 +275,14 @@ export interface EmployeePerformanceReport {
   aiNarrative?: string;
   aiUnavailableReason?: string;
 }
+
+/** Mirrors the API's PagedResult<T> — one page of items plus metadata for rendering pager controls. */
+export interface PagedResult<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}

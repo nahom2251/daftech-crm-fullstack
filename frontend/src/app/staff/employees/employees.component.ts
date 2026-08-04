@@ -57,6 +57,9 @@ const SPECIALIZATIONS = ['Front-end', 'Back-end', 'Database'];
               <input type="text" [ngModel]="ipInput" (ngModelChange)="ipInput = $event" placeholder="196.188.20.10, 196.188.20.11" />
             </div>
           </div>
+          @if (registerError()) {
+            <p class="register-error" style="margin-top:0.75rem;">{{ registerError() }}</p>
+          }
           <button class="btn btn-primary" style="margin-top:1rem;" [disabled]="registering()" (click)="submit()">
             {{ registering() ? 'Registering…' : 'Register Employee' }}
           </button>
@@ -194,6 +197,7 @@ const SPECIALIZATIONS = ['Front-end', 'Back-end', 'Database'];
   `,
   styles: [`
     .header-row { display: flex; justify-content: space-between; align-items: flex-start; }
+    .register-error { color: var(--red); font-size: 0.85rem; }
     .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
     .field { display: flex; flex-direction: column; gap: 0.3rem; }
     .field label { font-size: 0.78rem; font-weight: 600; color: var(--slate-500); }
@@ -225,6 +229,7 @@ export class EmployeesComponent {
   newIp = signal('');
   ipInput = '';
   registering = signal(false);
+  registerError = signal('');
   resending = signal(false);
   justRegistered = signal<EmployeeRegisteredResult | null>(null);
 
@@ -299,6 +304,7 @@ export class EmployeesComponent {
     if (!this.form.fullName || !this.form.email || this.form.roles.length === 0) return;
     const ips = this.ipInput.split(',').map(s => s.trim()).filter(Boolean);
     this.registering.set(true);
+    this.registerError.set('');
     try {
       const result = await this.employees.registerEmployee({
         fullName: this.form.fullName, email: this.form.email, phoneNumber: this.form.phoneNumber,
@@ -307,6 +313,8 @@ export class EmployeesComponent {
       this.justRegistered.set(result);
       this.form = { fullName: '', email: '', phoneNumber: '', specialization: SPECIALIZATIONS[0], roles: [] };
       this.ipInput = '';
+    } catch (err: any) {
+      this.registerError.set(err?.error?.error ?? 'Registration failed — please check the details and try again.');
     } finally {
       this.registering.set(false);
     }

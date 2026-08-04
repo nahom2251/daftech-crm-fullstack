@@ -41,20 +41,20 @@ public class AgreementService : IAgreementService
     }
 
     public async Task<IReadOnlyList<AgreementDto>> GetAllAsync(CancellationToken ct = default) =>
-        (await _db.Agreements.ToListAsync(ct)).Select(ToDto).ToList();
+        (await _db.Agreements.AsNoTracking().ToListAsync(ct)).Select(ToDto).ToList();
 
     public async Task<IReadOnlyList<AgreementDto>> GetForClientAsync(Guid clientId, CancellationToken ct = default) =>
-        (await _db.Agreements.Where(a => a.ClientId == clientId).ToListAsync(ct)).Select(ToDto).ToList();
+        (await _db.Agreements.AsNoTracking().Where(a => a.ClientId == clientId).ToListAsync(ct)).Select(ToDto).ToList();
 
     public async Task<IReadOnlyList<AgreementDto>> GetExpiringSoonAsync(CancellationToken ct = default)
     {
         var in30 = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30));
-        return (await _db.Agreements.Where(a => a.ExpiryDate <= in30).ToListAsync(ct)).Select(ToDto).ToList();
+        return (await _db.Agreements.AsNoTracking().Where(a => a.ExpiryDate <= in30).ToListAsync(ct)).Select(ToDto).ToList();
     }
 
     public async Task<AgreementDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        var agreement = await _db.Agreements.FirstOrDefaultAsync(a => a.Id == id, ct);
+        var agreement = await _db.Agreements.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id, ct);
         return agreement is null ? null : ToDto(agreement);
     }
 
@@ -82,7 +82,7 @@ public class AgreementService : IAgreementService
 
     public async Task<RetrievedFile?> DownloadScannedFileAsync(Guid agreementId, CancellationToken ct = default)
     {
-        var agreement = await _db.Agreements.FirstOrDefaultAsync(a => a.Id == agreementId, ct);
+        var agreement = await _db.Agreements.AsNoTracking().FirstOrDefaultAsync(a => a.Id == agreementId, ct);
         if (agreement is null || string.IsNullOrEmpty(agreement.ScannedFileUrl))
             return null;
 

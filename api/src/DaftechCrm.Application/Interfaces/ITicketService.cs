@@ -33,6 +33,10 @@ public interface ITicketService
     Task<int> AutoCloseUnansweredTicketsAsync(CancellationToken ct = default);
 
     Task<IReadOnlyList<TicketDto>> GetAllAsync(CancellationToken ct = default);
+
+    /// <summary>Paged variant of <see cref="GetAllAsync"/> for the Tickets table UI.</summary>
+    Task<PagedResult<TicketDto>> GetAllPagedAsync(PaginationQuery query, CancellationToken ct = default);
+
     Task<TicketDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<IReadOnlyList<TicketDto>> GetForClientAsync(Guid clientId, CancellationToken ct = default);
     Task<IReadOnlyList<TicketDto>> GetForEmployeeAsync(Guid employeeId, CancellationToken ct = default);

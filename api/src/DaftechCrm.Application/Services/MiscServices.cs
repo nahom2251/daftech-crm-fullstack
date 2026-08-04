@@ -71,6 +71,20 @@ public class MaintenanceService : IMaintenanceService
     public async Task<IReadOnlyList<MaintenanceRecordDto>> GetAllAsync(CancellationToken ct = default) =>
         (await _db.MaintenanceRecords.AsNoTracking().OrderByDescending(r => r.Date).ToListAsync(ct)).Select(ToDto).ToList();
 
+    public async Task<PagedResult<MaintenanceRecordDto>> GetAllPagedAsync(PaginationQuery query, CancellationToken ct = default)
+    {
+        var totalCount = await _db.MaintenanceRecords.CountAsync(ct);
+
+        var items = await _db.MaintenanceRecords
+            .AsNoTracking()
+            .OrderByDescending(r => r.Date)
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .ToListAsync(ct);
+
+        return new PagedResult<MaintenanceRecordDto>(items.Select(ToDto).ToList(), query.Page, query.PageSize, totalCount);
+    }
+
     private static MaintenanceRecordDto ToDto(MaintenanceRecord r) => new(
         r.Id, r.Date, r.Category, r.Description, r.PerformedByEmployeeId, r.Status, r.Remarks
     );
@@ -111,5 +125,22 @@ public class TimeLogService : ITimeLogService
         return await query.OrderByDescending(l => l.Date)
             .Select(l => new TimeLogDto(l.Id, l.EmployeeId, l.Date, l.StartTime, l.FinishTime, l.TotalHours))
             .ToListAsync(ct);
+    }
+
+    public async Task<PagedResult<TimeLogDto>> GetAllPagedAsync(Guid? employeeId, PaginationQuery query, CancellationToken ct = default)
+    {
+        var baseQuery = _db.TimeLogs.AsQueryable();
+        if (employeeId is not null) baseQuery = baseQuery.Where(l => l.EmployeeId == employeeId);
+
+        var totalCount = await baseQuery.CountAsync(ct);
+
+        var items = await baseQuery
+            .OrderByDescending(l => l.Date)
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .Select(l => new TimeLogDto(l.Id, l.EmployeeId, l.Date, l.StartTime, l.FinishTime, l.TotalHours))
+            .ToListAsync(ct);
+
+        return new PagedResult<TimeLogDto>(items, query.Page, query.PageSize, totalCount);
     }
 }

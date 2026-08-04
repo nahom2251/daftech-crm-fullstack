@@ -47,7 +47,6 @@ namespace DaftechCrm.Infrastructure.Migrations
             {
                 b.Property<Guid>("Id").HasColumnType("uuid");
                 b.Property<int>("AccountStatus").HasColumnType("integer");
-                b.Property<string>("City").HasMaxLength(100).HasColumnType("character varying(100)");
                 b.Property<string>("Email").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
                 b.Property<string>("IdNumber").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
                 b.Property<string>("ItSupportContact").HasColumnType("text");
@@ -61,9 +60,7 @@ namespace DaftechCrm.Infrastructure.Migrations
                 b.Property<string>("PasswordHash").HasMaxLength(200).HasColumnType("character varying(200)");
                 b.Property<string>("PhoneNumber").IsRequired().HasMaxLength(30).HasColumnType("character varying(30)");
                 b.Property<string>("RejectionReason").HasMaxLength(500).HasColumnType("character varying(500)");
-                b.Property<string>("Region").HasMaxLength(100).HasColumnType("character varying(100)");
                 b.Property<string>("Username").HasMaxLength(50).HasColumnType("character varying(50)");
-                b.Property<string>("Woreda").HasMaxLength(100).HasColumnType("character varying(100)");
                 b.HasKey("Id");
                 b.HasIndex("IdNumber").IsUnique();
                 b.HasIndex("Username").IsUnique();

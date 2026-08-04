@@ -26,6 +26,7 @@ public class TicketAssignmentService : ITicketAssignmentService
         // filter AccountStatus in the query, then filter by role in memory
         // after materializing.
         var activeEmployees = await _db.Employees
+            .AsNoTracking()
             .Where(e => e.AccountStatus == EmployeeAccountStatus.Active)
             .ToListAsync(ct);
 

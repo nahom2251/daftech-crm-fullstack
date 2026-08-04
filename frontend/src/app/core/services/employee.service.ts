@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Employee, DeviceSession, LoginRecord, EmployeeRole, TimeLog, EmployeeRegisteredResult } from '../models';
+import { Employee, DeviceSession, LoginRecord, EmployeeRole, TimeLog, EmployeeRegisteredResult, PagedResult } from '../models';
 import { API_BASE_URL } from './api-base';
 
 @Injectable({ providedIn: 'root' })
@@ -11,14 +11,45 @@ export class EmployeeService {
   readonly employees = this._employees.asReadonly();
   readonly timeLogs = this._timeLogs.asReadonly();
 
+  // Paged state for the Employees table. Kept separate from the full-list
+  // cache above, which activeEmployees()/getById() still rely on.
+  private readonly _page = signal(1);
+  private readonly _pageSize = signal(20);
+  private readonly _totalCount = signal(0);
+  private readonly _totalPages = signal(0);
+  private readonly _pagedEmployees = signal<Employee[]>([]);
+  readonly pagedEmployees = this._pagedEmployees.asReadonly();
+  readonly page = this._page.asReadonly();
+  readonly pageSize = this._pageSize.asReadonly();
+  readonly totalCount = this._totalCount.asReadonly();
+  readonly totalPages = this._totalPages.asReadonly();
+
   constructor(private http: HttpClient) {
     void this.refresh();
+    void this.refreshPaged();
     void this.refreshTimeLogs();
+    void this.refreshTimeLogsPaged();
   }
 
   async refresh(): Promise<void> {
     const list = await firstValueFrom(this.http.get<Employee[]>(`${API_BASE_URL}/employees`));
     this._employees.set(list);
+  }
+
+  async refreshPaged(page = this._page(), pageSize = this._pageSize()): Promise<void> {
+    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    const result = await firstValueFrom(
+      this.http.get<PagedResult<Employee>>(`${API_BASE_URL}/employees/paged`, { params })
+    );
+    this._page.set(result.page);
+    this._pageSize.set(result.pageSize);
+    this._totalCount.set(result.totalCount);
+    this._totalPages.set(result.totalPages);
+    this._pagedEmployees.set(result.items);
+  }
+
+  async goToPage(page: number): Promise<void> {
+    await this.refreshPaged(page);
   }
 
   async refreshTimeLogs(employeeId?: string): Promise<void> {
@@ -28,14 +59,45 @@ export class EmployeeService {
     this._timeLogs.set(list);
   }
 
+  // Paged state for the Time Tracking table (Admin view). Kept separate
+  // from the full-list cache above, which the Technician's own-attendance
+  // view and the "currently clocked in" check still rely on.
+  private readonly _timeLogsPage = signal(1);
+  private readonly _timeLogsPageSize = signal(20);
+  private readonly _timeLogsTotalCount = signal(0);
+  private readonly _timeLogsTotalPages = signal(0);
+  private readonly _pagedTimeLogs = signal<TimeLog[]>([]);
+  readonly pagedTimeLogs = this._pagedTimeLogs.asReadonly();
+  readonly timeLogsPage = this._timeLogsPage.asReadonly();
+  readonly timeLogsPageSize = this._timeLogsPageSize.asReadonly();
+  readonly timeLogsTotalCount = this._timeLogsTotalCount.asReadonly();
+  readonly timeLogsTotalPages = this._timeLogsTotalPages.asReadonly();
+
+  async refreshTimeLogsPaged(employeeId?: string, page = this._timeLogsPage(), pageSize = this._timeLogsPageSize()): Promise<void> {
+    let params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    if (employeeId) params = params.set('employeeId', employeeId);
+    const result = await firstValueFrom(
+      this.http.get<PagedResult<TimeLog>>(`${API_BASE_URL}/time-logs/paged`, { params })
+    );
+    this._timeLogsPage.set(result.page);
+    this._timeLogsPageSize.set(result.pageSize);
+    this._timeLogsTotalCount.set(result.totalCount);
+    this._timeLogsTotalPages.set(result.totalPages);
+    this._pagedTimeLogs.set(result.items);
+  }
+
+  async goToTimeLogsPage(page: number, employeeId?: string): Promise<void> {
+    await this.refreshTimeLogsPaged(employeeId, page);
+  }
+
   async clockIn(employeeId: string): Promise<void> {
     await firstValueFrom(this.http.post(`${API_BASE_URL}/time-logs/${employeeId}/clock-in`, {}));
-    await this.refreshTimeLogs();
+    await Promise.all([this.refreshTimeLogs(), this.refreshTimeLogsPaged()]);
   }
 
   async clockOut(employeeId: string): Promise<void> {
     await firstValueFrom(this.http.post(`${API_BASE_URL}/time-logs/${employeeId}/clock-out`, {}));
-    await this.refreshTimeLogs();
+    await Promise.all([this.refreshTimeLogs(), this.refreshTimeLogsPaged()]);
   }
 
   activeEmployees(): Employee[] {
@@ -57,7 +119,7 @@ export class EmployeeService {
     roles: EmployeeRole[]; allowedIpAddresses: string[];
   }): Promise<EmployeeRegisteredResult> {
     const result = await firstValueFrom(this.http.post<EmployeeRegisteredResult>(`${API_BASE_URL}/employees`, data));
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshPaged()]);
     return result;
   }
 
@@ -72,22 +134,22 @@ export class EmployeeService {
    */
   async disableEmployee(id: string, reason: string): Promise<void> {
     await firstValueFrom(this.http.post<Employee>(`${API_BASE_URL}/employees/${id}/disable`, { reason }));
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshPaged()]);
   }
 
   async enableEmployee(id: string): Promise<void> {
     await firstValueFrom(this.http.post<Employee>(`${API_BASE_URL}/employees/${id}/enable`, {}));
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshPaged()]);
   }
 
   async addAllowedIp(employeeId: string, ip: string): Promise<void> {
     await firstValueFrom(this.http.post<Employee>(`${API_BASE_URL}/employees/${employeeId}/allowed-ips`, { ipAddress: ip }));
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshPaged()]);
   }
 
   async removeAllowedIp(employeeId: string, ip: string): Promise<void> {
     await firstValueFrom(this.http.delete<Employee>(`${API_BASE_URL}/employees/${employeeId}/allowed-ips/${encodeURIComponent(ip)}`));
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshPaged()]);
   }
 
   async devicesFor(employeeId: string): Promise<DeviceSession[]> {

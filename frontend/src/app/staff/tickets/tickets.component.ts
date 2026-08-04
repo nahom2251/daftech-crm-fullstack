@@ -4,12 +4,13 @@ import { TicketService } from '../../core/services/ticket.service';
 import { EmployeeService } from '../../core/services/employee.service';
 import { AuthService } from '../../core/services/auth.service';
 import { BadgeComponent } from '../../shared/badge.component';
+import { PaginationComponent } from '../../shared/pagination.component';
 import { TicketStatus, TICKET_CATEGORY_LABELS } from '../../core/models';
 
 @Component({
   selector: 'app-tickets',
   standalone: true,
-  imports: [BadgeComponent, SlicePipe],
+  imports: [BadgeComponent, PaginationComponent, SlicePipe],
   template: `
     <h1>Tickets</h1>
     <p class="text-muted" style="margin-top:0.3rem;">
@@ -45,7 +46,7 @@ import { TicketStatus, TICKET_CATEGORY_LABELS } from '../../core/models';
       <div class="table-scroll"><table style="margin-top:0.75rem;">
         <thead><tr><th>Ticket</th><th>Client</th><th>Category</th><th>Submitted</th><th>Assigned</th><th>Chargeable</th><th>Status</th><th>Satisfaction</th><th></th></tr></thead>
         <tbody>
-          @for (t of tickets.tickets(); track t.id) {
+          @for (t of tickets.pagedTickets(); track t.id) {
             <tr>
               <td class="mono">{{ t.id.slice(0,8) }}</td>
               <td>{{ t.clientName }}</td>
@@ -69,8 +70,16 @@ import { TicketStatus, TICKET_CATEGORY_LABELS } from '../../core/models';
               </td>
             </tr>
           }
+          @empty { <tr><td colspan="9" class="text-muted" style="text-align:center; padding:1rem;">No tickets yet.</td></tr> }
         </tbody>
       </table></div>
+      <app-pagination
+        [page]="tickets.page()"
+        [totalPages]="tickets.totalPages()"
+        [totalCount]="tickets.totalCount()"
+        [pageSize]="tickets.pageSize()"
+        (pageChange)="tickets.goToPage($event)">
+      </app-pagination>
     </div>
   `,
 })

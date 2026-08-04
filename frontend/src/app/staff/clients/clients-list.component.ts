@@ -3,12 +3,13 @@ import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ClientService } from '../../core/services/client.service';
 import { BadgeComponent } from '../../shared/badge.component';
+import { PaginationComponent } from '../../shared/pagination.component';
 import { ClientRegisteredResult } from '../../core/models';
 
 @Component({
   selector: 'app-clients-list',
   standalone: true,
-  imports: [RouterLink, FormsModule, BadgeComponent],
+  imports: [RouterLink, FormsModule, BadgeComponent, PaginationComponent],
   template: `
     <div class="header-row">
       <div>
@@ -82,7 +83,7 @@ import { ClientRegisteredResult } from '../../core/models';
           <tr><th>Name</th><th>ID Number</th><th>Office</th><th>Location</th><th>Status</th><th>Onboarded</th><th></th></tr>
         </thead>
         <tbody>
-          @for (c of filtered(); track c.id) {
+          @for (c of displayedClients(); track c.id) {
             <tr>
               <td>{{ c.name }}</td>
               <td class="mono text-muted">{{ c.idNumber }}</td>
@@ -98,6 +99,20 @@ import { ClientRegisteredResult } from '../../core/models';
           }
         </tbody>
       </table></div>
+
+      @if (!isFiltering()) {
+        <app-pagination
+          [page]="clients.page()"
+          [totalPages]="clients.totalPages()"
+          [totalCount]="clients.totalCount()"
+          [pageSize]="clients.pageSize()"
+          (pageChange)="clients.goToPage($event)">
+        </app-pagination>
+      } @else {
+        <p class="text-muted" style="font-size:0.78rem; margin-top:0.75rem;">
+          Showing all matches for your search/filter across every client. Clear the filters to page through the full list.
+        </p>
+      }
     </div>
   `,
   styles: [`
@@ -139,6 +154,12 @@ export class ClientsListComponent {
       return matchesQuery && matchesStatus;
     });
   });
+
+  /** True when the user has an active search or status filter — in that case we show all matches instead of one server-paged slice. */
+  isFiltering = computed(() => this.query().trim().length > 0 || this.statusFilter().length > 0);
+
+  /** Filtered results when searching, otherwise the current server-fetched page. */
+  displayedClients = computed(() => this.isFiltering() ? this.filtered() : this.clients.pagedClients());
 
   toggleForm() {
     this.justRegistered.set(null);

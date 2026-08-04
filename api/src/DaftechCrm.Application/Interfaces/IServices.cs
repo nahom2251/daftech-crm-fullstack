@@ -16,6 +16,10 @@ public interface IClientService
     Task<ClientDto> ApproveAsync(Guid clientId, CancellationToken ct = default);
     Task<ClientDto> RejectAsync(Guid clientId, RejectClientRequest request, CancellationToken ct = default);
     Task<IReadOnlyList<ClientDto>> GetAllAsync(CancellationToken ct = default);
+
+    /// <summary>Paged variant of <see cref="GetAllAsync"/> for the Clients table UI.</summary>
+    Task<PagedResult<ClientDto>> GetAllPagedAsync(PaginationQuery query, CancellationToken ct = default);
+
     Task<ClientDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<IReadOnlyList<ClientDto>> GetPendingAsync(CancellationToken ct = default);
 }
@@ -28,6 +32,10 @@ public interface IEmployeeService
     /// <summary>Retries sending the credential email with a freshly regenerated one-time password (SRS v2.0 §4.3.1).</summary>
     Task<ResendCredentialEmailResult> ResendCredentialEmailAsync(Guid employeeId, CancellationToken ct = default);
     Task<IReadOnlyList<EmployeeDto>> GetAllAsync(CancellationToken ct = default);
+
+    /// <summary>Paged variant of <see cref="GetAllAsync"/> for the Employees table UI.</summary>
+    Task<PagedResult<EmployeeDto>> GetAllPagedAsync(PaginationQuery query, CancellationToken ct = default);
+
     Task<EmployeeDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>Disables the account, revokes all active device sessions, and blocks future logins. Historical records are untouched.</summary>
@@ -94,6 +102,10 @@ public interface IAgreementService
 {
     Task<AgreementDto> CreateAsync(CreateAgreementRequest request, CancellationToken ct = default);
     Task<IReadOnlyList<AgreementDto>> GetAllAsync(CancellationToken ct = default);
+
+    /// <summary>Paged variant of <see cref="GetAllAsync"/> for the Agreements table UI.</summary>
+    Task<PagedResult<AgreementDto>> GetAllPagedAsync(PaginationQuery query, CancellationToken ct = default);
+
     Task<IReadOnlyList<AgreementDto>> GetForClientAsync(Guid clientId, CancellationToken ct = default);
     Task<IReadOnlyList<AgreementDto>> GetExpiringSoonAsync(CancellationToken ct = default);
     Task<AgreementDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
@@ -114,6 +126,9 @@ public interface IMaintenanceService
 {
     Task<MaintenanceRecordDto> CreateAsync(CreateMaintenanceRecordRequest request, CancellationToken ct = default);
     Task<IReadOnlyList<MaintenanceRecordDto>> GetAllAsync(CancellationToken ct = default);
+
+    /// <summary>Paged variant of <see cref="GetAllAsync"/> for the Maintenance table UI.</summary>
+    Task<PagedResult<MaintenanceRecordDto>> GetAllPagedAsync(PaginationQuery query, CancellationToken ct = default);
 }
 
 public interface ITimeLogService
@@ -121,6 +136,9 @@ public interface ITimeLogService
     Task ClockInAsync(Guid employeeId, CancellationToken ct = default);
     Task ClockOutAsync(Guid employeeId, CancellationToken ct = default);
     Task<IReadOnlyList<TimeLogDto>> GetAllAsync(Guid? employeeId = null, CancellationToken ct = default);
+
+    /// <summary>Paged variant of <see cref="GetAllAsync"/> for the Time Tracking table UI.</summary>
+    Task<PagedResult<TimeLogDto>> GetAllPagedAsync(Guid? employeeId, PaginationQuery query, CancellationToken ct = default);
 }
 
 public interface INotificationService
@@ -150,6 +168,9 @@ public interface ISatisfactionSurveyService
     Task<SatisfactionSurveyDto> SubmitAsync(SubmitSatisfactionSurveyRequest request, CancellationToken ct = default);
     Task<SatisfactionSurveyDto?> GetForTicketAsync(Guid ticketId, CancellationToken ct = default);
     Task<IReadOnlyList<SatisfactionSurveyDto>> GetAllAsync(CancellationToken ct = default);
+
+    /// <summary>Paged variant of <see cref="GetAllAsync"/> for the Satisfaction Surveys table UI.</summary>
+    Task<PagedResult<SatisfactionSurveyDto>> GetAllPagedAsync(PaginationQuery query, CancellationToken ct = default);
 }
 
 /// <summary>

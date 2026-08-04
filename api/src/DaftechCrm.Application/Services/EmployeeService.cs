@@ -91,6 +91,42 @@ public class EmployeeService : IEmployeeService
         )).ToList();
     }
 
+    public async Task<PagedResult<EmployeeDto>> GetAllPagedAsync(PaginationQuery query, CancellationToken ct = default)
+    {
+        var totalCount = await _db.Employees.CountAsync(ct);
+
+        var employees = await _db.Employees
+            .AsNoTracking()
+            .OrderBy(e => e.FullName)
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .ToListAsync(ct);
+
+        var employeeIds = employees.Select(e => e.Id).ToList();
+
+        // Same grouped-query approach as GetAllAsync, scoped to just this page's employees.
+        var openCounts = await _db.Tickets
+            .Where(t => t.AssignedEmployeeId != null && employeeIds.Contains(t.AssignedEmployeeId!.Value) && OpenStatuses.Contains(t.Status))
+            .GroupBy(t => t.AssignedEmployeeId!.Value)
+            .Select(g => new { EmployeeId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.EmployeeId, x => x.Count, ct);
+
+        var avgScores = await _db.Tickets
+            .Where(t => t.AssignedEmployeeId != null && employeeIds.Contains(t.AssignedEmployeeId!.Value) && t.SatisfactionScore != null)
+            .GroupBy(t => t.AssignedEmployeeId!.Value)
+            .Select(g => new { EmployeeId = g.Key, Avg = g.Average(t => t.SatisfactionScore!.Value) })
+            .ToDictionaryAsync(x => x.EmployeeId, x => (double?)x.Avg, ct);
+
+        var items = employees.Select(e => new EmployeeDto(
+            e.Id, e.FullName, e.Email, e.PhoneNumber, e.Specialization, e.Roles, e.AccountStatus, e.AllowedIpAddresses,
+            e.DisabledAt, e.DisabledReason,
+            openCounts.GetValueOrDefault(e.Id, 0), avgScores.GetValueOrDefault(e.Id),
+            e.Username, e.MustChangePassword
+        )).ToList();
+
+        return new PagedResult<EmployeeDto>(items, query.Page, query.PageSize, totalCount);
+    }
+
     public async Task<EmployeeDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         var employee = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id, ct);

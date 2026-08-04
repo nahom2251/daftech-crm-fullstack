@@ -152,6 +152,20 @@ public class ClientService : IClientService
     public async Task<IReadOnlyList<ClientDto>> GetAllAsync(CancellationToken ct = default) =>
         (await _db.Clients.AsNoTracking().ToListAsync(ct)).Select(ToDto).ToList();
 
+    public async Task<PagedResult<ClientDto>> GetAllPagedAsync(PaginationQuery query, CancellationToken ct = default)
+    {
+        var totalCount = await _db.Clients.CountAsync(ct);
+
+        var items = await _db.Clients
+            .AsNoTracking()
+            .OrderBy(c => c.Name)
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .ToListAsync(ct);
+
+        return new PagedResult<ClientDto>(items.Select(ToDto).ToList(), query.Page, query.PageSize, totalCount);
+    }
+
     public async Task<ClientDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         var client = await _db.Clients.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);

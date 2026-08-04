@@ -32,6 +32,7 @@ public class ReportService : IReportService
         var targetSpan = TimeSpan.FromDays(_options.OnTimeResolutionTargetDays);
 
         var resolvedTickets = await _db.Tickets
+            .AsNoTracking()
             .Include(t => t.AssignedEmployee)
             .Where(t => t.AssignedAt != null && t.ResolvedAt != null)
             .ToListAsync(ct);
@@ -68,10 +69,10 @@ public class ReportService : IReportService
 
     public async Task<EmployeePerformanceReportDto> GetEmployeePerformanceReportAsync(Guid employeeId, bool includeAiNarrative, CancellationToken ct = default)
     {
-        var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId, ct)
+        var employee = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId, ct)
             ?? throw new InvalidOperationException("Employee not found.");
 
-        var assignedTickets = await _db.Tickets.Where(t => t.AssignedEmployeeId == employeeId).ToListAsync(ct);
+        var assignedTickets = await _db.Tickets.AsNoTracking().Where(t => t.AssignedEmployeeId == employeeId).ToListAsync(ct);
         var resolvedOrClosed = assignedTickets.Where(t => t.ResolvedAt != null).ToList();
 
         double? avgResolutionHours = null;

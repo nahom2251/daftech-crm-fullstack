@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Agreement, BillingTier } from '../models';
+import { Agreement, BillingTier, PagedResult } from '../models';
 import { API_BASE_URL } from './api-base';
 
 @Injectable({ providedIn: 'root' })
@@ -9,13 +9,43 @@ export class AgreementService {
   private readonly _agreements = signal<Agreement[]>([]);
   readonly agreements = this._agreements.asReadonly();
 
+  // Paged state for the Agreements table. Kept separate from the full-list
+  // cache above, which forClient()/expiringSoon() still rely on.
+  private readonly _page = signal(1);
+  private readonly _pageSize = signal(20);
+  private readonly _totalCount = signal(0);
+  private readonly _totalPages = signal(0);
+  private readonly _pagedAgreements = signal<Agreement[]>([]);
+  readonly pagedAgreements = this._pagedAgreements.asReadonly();
+  readonly page = this._page.asReadonly();
+  readonly pageSize = this._pageSize.asReadonly();
+  readonly totalCount = this._totalCount.asReadonly();
+  readonly totalPages = this._totalPages.asReadonly();
+
   constructor(private http: HttpClient) {
     void this.refresh();
+    void this.refreshPaged();
   }
 
   async refresh(): Promise<void> {
     const list = await firstValueFrom(this.http.get<Agreement[]>(`${API_BASE_URL}/agreements`));
     this._agreements.set(list);
+  }
+
+  async refreshPaged(page = this._page(), pageSize = this._pageSize()): Promise<void> {
+    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    const result = await firstValueFrom(
+      this.http.get<PagedResult<Agreement>>(`${API_BASE_URL}/agreements/paged`, { params })
+    );
+    this._page.set(result.page);
+    this._pageSize.set(result.pageSize);
+    this._totalCount.set(result.totalCount);
+    this._totalPages.set(result.totalPages);
+    this._pagedAgreements.set(result.items);
+  }
+
+  async goToPage(page: number): Promise<void> {
+    await this.refreshPaged(page);
   }
 
   getById(id: string): Agreement | undefined {
@@ -46,7 +76,7 @@ export class AgreementService {
     signDate: string; expiryDate?: string; supportWindowMonths: number; billingTier: BillingTier;
   }): Promise<Agreement> {
     const agreement = await firstValueFrom(this.http.post<Agreement>(`${API_BASE_URL}/agreements`, data));
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshPaged()]);
     return agreement;
   }
 
@@ -62,7 +92,7 @@ export class AgreementService {
     const updated = await firstValueFrom(
       this.http.post<Agreement>(`${API_BASE_URL}/agreements/${agreementId}/scanned-file`, form)
     );
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshPaged()]);
     return updated;
   }
 

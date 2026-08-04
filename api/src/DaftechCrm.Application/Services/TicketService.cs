@@ -29,7 +29,7 @@ public class TicketService : ITicketService
 
     public async Task<TicketDto> SubmitFromClientAsync(SubmitTicketRequest request, CancellationToken ct = default)
     {
-        var agreement = await _db.Agreements.FirstOrDefaultAsync(a => a.Id == request.AgreementId, ct)
+        var agreement = await _db.Agreements.AsNoTracking().FirstOrDefaultAsync(a => a.Id == request.AgreementId, ct)
             ?? throw new InvalidOperationException("Agreement not found.");
 
         var chargeable = !agreement.IsWithinSupportWindow(DateOnly.FromDateTime(DateTime.UtcNow));
@@ -270,6 +270,7 @@ public class TicketService : ITicketService
     private static async Task<IReadOnlyList<TicketDto>> ProjectAsync(IQueryable<Ticket> query, CancellationToken ct)
     {
         var tickets = await query
+            .AsNoTracking()
             .Include(t => t.Client)
             .Include(t => t.AssignedEmployee)
             .Include(t => t.AuditTrail)

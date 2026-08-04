@@ -20,6 +20,12 @@ public class TicketsController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<TicketDto>>> GetAll(CancellationToken ct) =>
         Ok(await _tickets.GetAllAsync(ct));
 
+    /// <summary>Paged ticket listing for the Tickets table (query: page, pageSize).</summary>
+    [HttpGet("paged")]
+    [Authorize(Policy = AuthorizationPolicies.AnyEmployee)]
+    public async Task<ActionResult<PagedResult<TicketDto>>> GetAllPaged([FromQuery] PaginationQuery query, CancellationToken ct) =>
+        Ok(await _tickets.GetAllPagedAsync(query, ct));
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<TicketDto>> GetById(Guid id, CancellationToken ct)
     {

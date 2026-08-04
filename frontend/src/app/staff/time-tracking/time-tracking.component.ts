@@ -1,13 +1,14 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, effect, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { EmployeeService } from '../../core/services/employee.service';
 import { AuthService } from '../../core/services/auth.service';
+import { PaginationComponent } from '../../shared/pagination.component';
 
 @Component({
   selector: 'app-time-tracking',
   standalone: true,
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, PaginationComponent],
   template: `
     <h1>Time Tracking</h1>
     <p class="text-muted" style="margin-top:0.3rem;">{{ isAdmin() ? 'Clock in/out and review attendance across the team.' : 'Clock in/out and review your own attendance.' }}</p>
@@ -52,6 +53,15 @@ import { AuthService } from '../../core/services/auth.service';
           @empty { <tr><td [attr.colspan]="isAdmin() ? 5 : 4" class="text-muted" style="text-align:center; padding:1.5rem;">No time logs for this filter.</td></tr> }
         </tbody>
       </table></div>
+      @if (isAdmin()) {
+        <app-pagination
+          [page]="employees.timeLogsPage()"
+          [totalPages]="employees.timeLogsTotalPages()"
+          [totalCount]="employees.timeLogsTotalCount()"
+          [pageSize]="employees.timeLogsPageSize()"
+          (pageChange)="goToPage($event)">
+        </app-pagination>
+      }
     </div>
   `,
   styles: [`
@@ -63,7 +73,15 @@ import { AuthService } from '../../core/services/auth.service';
 export class TimeTrackingComponent {
   employeeFilter = signal('');
 
-  constructor(public employees: EmployeeService, private auth: AuthService) {}
+  constructor(public employees: EmployeeService, private auth: AuthService) {
+    // Re-fetch page 1 of the admin table whenever the employee filter changes.
+    effect(() => {
+      const filter = this.employeeFilter();
+      if (this.isAdmin()) {
+        void this.employees.refreshTimeLogsPaged(filter || undefined, 1);
+      }
+    });
+  }
 
   me = computed(() => this.auth.currentEmployee());
   isAdmin = computed(() => this.me()?.roles.includes('Admin') ?? false);
@@ -83,19 +101,21 @@ export class TimeTrackingComponent {
 
     // A non-Admin (Technician) only ever sees their own attendance — the
     // "All employees" filter and the Employee column don't apply to them at
-    // all, so there's nothing to switch on here besides their own id.
+    // all, so there's nothing to switch on here besides their own id. This
+    // list is small (one person's history), so it stays unpaged.
     if (!this.isAdmin()) {
       return this.employees.timeLogs()
         .filter(l => l.employeeId === m.id)
         .sort((a, b) => b.date.localeCompare(a.date));
     }
 
-    const filter = this.employeeFilter();
-    return this.employees
-      .timeLogs()
-      .filter(l => !filter || l.employeeId === filter)
-      .sort((a, b) => b.date.localeCompare(a.date));
+    // Admin view is server-paged and server-filtered by employeeId already.
+    return this.employees.pagedTimeLogs();
   });
+
+  goToPage(page: number) {
+    void this.employees.goToTimeLogsPage(page, this.employeeFilter() || undefined);
+  }
 
   employeeName(id: string): string {
     return this.employees.getById(id)?.fullName ?? id;

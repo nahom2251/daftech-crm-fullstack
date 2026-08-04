@@ -94,15 +94,15 @@ public class SessionService : ISessionService
         // across EF Core providers (Npgsql/PostgreSQL included), so pull
         // sessions and reduce to "most recent per account" in memory. Session
         // volume per account is small, so this stays cheap at this app's scale.
-        var allSessions = await _db.LoginSessions.ToListAsync(ct);
+        var allSessions = await _db.LoginSessions.AsNoTracking().ToListAsync(ct);
 
         var latestPerAccount = allSessions
             .GroupBy(s => (s.AccountType, s.AccountId))
             .Select(g => g.OrderByDescending(s => s.LastSeen).First())
             .ToList();
 
-        var employeeNames = await _db.Employees.ToDictionaryAsync(e => e.Id, e => e.FullName, ct);
-        var clientNames = await _db.Clients.ToDictionaryAsync(c => c.Id, c => c.Name, ct);
+        var employeeNames = await _db.Employees.AsNoTracking().ToDictionaryAsync(e => e.Id, e => e.FullName, ct);
+        var clientNames = await _db.Clients.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Name, ct);
 
         return latestPerAccount
             .Select(s => new SessionActivityDto(

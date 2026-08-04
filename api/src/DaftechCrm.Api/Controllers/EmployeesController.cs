@@ -19,6 +19,11 @@ public class EmployeesController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<EmployeeDto>>> GetAll(CancellationToken ct) => Ok(await _employees.GetAllAsync(ct));
 
+    /// <summary>Paged employee listing for the Employees table (query: page, pageSize).</summary>
+    [HttpGet("paged")]
+    public async Task<ActionResult<PagedResult<EmployeeDto>>> GetAllPaged([FromQuery] PaginationQuery query, CancellationToken ct) =>
+        Ok(await _employees.GetAllPagedAsync(query, ct));
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<EmployeeDto>> GetById(Guid id, CancellationToken ct)
     {

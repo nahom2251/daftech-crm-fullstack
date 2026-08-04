@@ -1,45 +1,51 @@
 import { Component, computed, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { ClientService } from '../../core/services/client.service';
+import { EmployeeService } from '../../core/services/employee.service';
 import { BadgeComponent } from '../../shared/badge.component';
 import { PaginationComponent } from '../../shared/pagination.component';
-import { ClientRegisteredResult } from '../../core/models';
+import { EmployeeRegisteredResult, EmployeeRole, EMPLOYEE_ROLE_LABELS } from '../../core/models';
+
+const ALL_ROLES: EmployeeRole[] = ['Admin', 'ItSupport', 'EmployeeTechnician'];
 
 @Component({
-  selector: 'app-clients-list',
+  selector: 'app-employees',
   standalone: true,
-  imports: [RouterLink, FormsModule, BadgeComponent, PaginationComponent],
+  imports: [FormsModule, BadgeComponent, PaginationComponent],
   template: `
     <div class="header-row">
       <div>
-        <h1>Clients</h1>
-        <p class="text-muted" style="margin-top:0.3rem;">Customer profiles and their agreement / ticket history.</p>
+        <h1>Employees</h1>
+        <p class="text-muted" style="margin-top:0.3rem;">Staff accounts, roles, and device/IP access.</p>
       </div>
-      <button class="btn btn-primary" (click)="toggleForm()">{{ showForm() ? 'Cancel' : '+ Register Client' }}</button>
+      <button class="btn btn-primary" (click)="toggleForm()">{{ showForm() ? 'Cancel' : '+ Register Employee' }}</button>
     </div>
 
     @if (showForm()) {
       <div class="panel panel-pad" style="margin-top:1.25rem;">
         @if (!justRegistered()) {
           <div class="form-grid">
-            <div class="field"><label>Name / Organization</label><input type="text" [ngModel]="form.name" (ngModelChange)="form.name = $event" /></div>
+            <div class="field"><label>Full Name</label><input type="text" [ngModel]="form.fullName" (ngModelChange)="form.fullName = $event" /></div>
             <div class="field"><label>Phone Number</label><input type="text" [ngModel]="form.phoneNumber" (ngModelChange)="form.phoneNumber = $event" /></div>
             <div class="field"><label>Email</label><input type="email" [ngModel]="form.email" (ngModelChange)="form.email = $event" placeholder="used to send login credentials" /></div>
-            <div class="field"><label>Office</label><input type="text" [ngModel]="form.office" (ngModelChange)="form.office = $event" /></div>
-            <div class="field"><label>Location</label><input type="text" [ngModel]="form.location" (ngModelChange)="form.location = $event" /></div>
-            <div class="field"><label>Region</label><input type="text" [ngModel]="form.region" (ngModelChange)="form.region = $event" /></div>
-            <div class="field"><label>City</label><input type="text" [ngModel]="form.city" (ngModelChange)="form.city = $event" /></div>
-            <div class="field"><label>Woreda</label><input type="text" [ngModel]="form.woreda" (ngModelChange)="form.woreda = $event" /></div>
-            <div class="field"><label>KYC Type</label><input type="text" [ngModel]="form.kycType" (ngModelChange)="form.kycType = $event" placeholder="Business License…" /></div>
-            <div class="field"><label>KYC Contact</label><input type="text" [ngModel]="form.kycContact" (ngModelChange)="form.kycContact = $event" placeholder="Name — phone/email" /></div>
-            <div class="field"><label>IT Support Contact (optional)</label><input type="text" [ngModel]="form.itSupportContact" (ngModelChange)="form.itSupportContact = $event" /></div>
+            <div class="field"><label>Specialization</label><input type="text" [ngModel]="form.specialization" (ngModelChange)="form.specialization = $event" placeholder="e.g. Networking, SQL…" /></div>
+            <div class="field"><label>Allowed IP Addresses (optional)</label><input type="text" [ngModel]="form.allowedIpAddressesRaw" (ngModelChange)="form.allowedIpAddressesRaw = $event" placeholder="comma-separated — blank = no restriction" /></div>
+            <div class="field">
+              <label>Roles</label>
+              <div class="role-checks">
+                @for (r of allRoles; track r) {
+                  <label class="role-check">
+                    <input type="checkbox" [checked]="form.roles.includes(r)" (change)="toggleRole(r)" />
+                    {{ roleLabel(r) }}
+                  </label>
+                }
+              </div>
+            </div>
           </div>
           @if (registerError()) {
             <p class="register-error" style="margin-top:0.75rem;">{{ registerError() }}</p>
           }
           <button class="btn btn-primary" style="margin-top:1rem;" [disabled]="registering()" (click)="submit()">
-            {{ registering() ? 'Registering…' : 'Register Client' }}
+            {{ registering() ? 'Registering…' : 'Register Employee' }}
           </button>
         } @else {
           <div class="credential-panel">
@@ -47,16 +53,16 @@ import { ClientRegisteredResult } from '../../core/models';
             <p class="text-muted" style="font-size:0.82rem; margin: 0.3rem 0 0.9rem;">
               This one-time password will not be shown again.
               @if (justRegistered()!.emailSent) {
-                An email with these details was also sent to {{ justRegistered()!.client.email }}.
+                An email with these details was also sent to {{ justRegistered()!.employee.email }}.
               } @else {
-                The credential email could not be sent{{ justRegistered()!.emailError ? ' (' + justRegistered()!.emailError + ')' : '' }} — relay these to {{ justRegistered()!.client.name }} directly, or retry below.
+                The credential email could not be sent{{ justRegistered()!.emailError ? ' (' + justRegistered()!.emailError + ')' : '' }} — relay these to {{ justRegistered()!.employee.fullName }} directly, or retry below.
               }
             </p>
             <div class="cred-row"><span class="cred-label">Username</span><span class="mono cred-value">{{ justRegistered()!.username }}</span></div>
             <div class="cred-row"><span class="cred-label">One-time password</span><span class="mono cred-value">{{ justRegistered()!.oneTimePassword }}</span></div>
             <div style="display:flex; gap:0.5rem; margin-top:1rem;">
               @if (!justRegistered()!.emailSent) {
-                <button class="btn btn-outline btn-sm" [disabled]="resending()" (click)="retryEmail(justRegistered()!.client.id)">
+                <button class="btn btn-outline btn-sm" [disabled]="resending()" (click)="retryEmail(justRegistered()!.employee.id)">
                   {{ resending() ? 'Retrying…' : 'Retry Email' }}
                 </button>
               }
@@ -69,48 +75,57 @@ import { ClientRegisteredResult } from '../../core/models';
 
     <div class="panel panel-pad" style="margin-top:1.25rem;">
       <div class="filters">
-        <input type="text" placeholder="Search by name or ID number…" [ngModel]="query()" (ngModelChange)="query.set($event)" />
+        <input type="text" placeholder="Search by name or email…" [ngModel]="query()" (ngModelChange)="query.set($event)" />
         <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
           <option value="">All statuses</option>
-          <option value="Approved">Approved</option>
-          <option value="Pending">Pending</option>
-          <option value="Rejected">Rejected</option>
+          <option value="Active">Active</option>
+          <option value="Disabled">Disabled</option>
         </select>
       </div>
 
       <div class="table-scroll"><table>
         <thead>
-          <tr><th>Name</th><th>ID Number</th><th>Office</th><th>Location</th><th>Status</th><th>Onboarded</th><th></th></tr>
+          <tr><th>Name</th><th>Email</th><th>Specialization</th><th>Roles</th><th>Open Tickets</th><th>Status</th><th></th></tr>
         </thead>
         <tbody>
-          @for (c of displayedClients(); track c.id) {
+          @for (e of displayedEmployees(); track e.id) {
             <tr>
-              <td>{{ c.name }}</td>
-              <td class="mono text-muted">{{ c.idNumber }}</td>
-              <td>{{ c.office }}</td>
-              <td>{{ c.location }}</td>
-              <td><app-badge [status]="c.accountStatus"></app-badge></td>
-              <td class="text-muted">{{ c.onboardingDate }}</td>
-              <td><a [routerLink]="['/admin/clients', c.id]" class="btn btn-outline btn-sm">View</a></td>
+              <td>{{ e.fullName }}</td>
+              <td class="text-muted">{{ e.email }}</td>
+              <td>{{ e.specialization }}</td>
+              <td>{{ e.roles.map(roleLabel).join(', ') }}</td>
+              <td class="mono">{{ e.openTicketCount }}</td>
+              <td><app-badge [status]="e.accountStatus"></app-badge></td>
+              <td>
+                @if (e.accountStatus === 'Active') {
+                  <button class="btn btn-outline btn-sm" [disabled]="disabling() === e.id" (click)="disable(e.id)">
+                    {{ disabling() === e.id ? 'Disabling…' : 'Disable' }}
+                  </button>
+                } @else {
+                  <button class="btn btn-outline btn-sm" [disabled]="enabling() === e.id" (click)="enable(e.id)">
+                    {{ enabling() === e.id ? 'Enabling…' : 'Enable' }}
+                  </button>
+                }
+              </td>
             </tr>
           }
           @empty {
-            <tr><td colspan="7" class="text-muted" style="text-align:center; padding: 1.5rem;">No clients match your filters.</td></tr>
+            <tr><td colspan="7" class="text-muted" style="text-align:center; padding: 1.5rem;">No employees match your filters.</td></tr>
           }
         </tbody>
       </table></div>
 
       @if (!isFiltering()) {
         <app-pagination
-          [page]="clients.page()"
-          [totalPages]="clients.totalPages()"
-          [totalCount]="clients.totalCount()"
-          [pageSize]="clients.pageSize()"
-          (pageChange)="clients.goToPage($event)">
+          [page]="employeeService.page()"
+          [totalPages]="employeeService.totalPages()"
+          [totalCount]="employeeService.totalCount()"
+          [pageSize]="employeeService.pageSize()"
+          (pageChange)="employeeService.goToPage($event)">
         </app-pagination>
       } @else {
         <p class="text-muted" style="font-size:0.78rem; margin-top:0.75rem;">
-          Showing all matches for your search/filter across every client. Clear the filters to page through the full list.
+          Showing all matches for your search/filter across every employee. Clear the filters to page through the full list.
         </p>
       }
     </div>
@@ -124,6 +139,8 @@ import { ClientRegisteredResult } from '../../core/models';
     .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
     .field { display: flex; flex-direction: column; gap: 0.3rem; }
     .field label { font-size: 0.78rem; font-weight: 600; color: var(--slate-500); }
+    .role-checks { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.2rem; }
+    .role-check { display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; font-weight: 400; color: var(--navy-900); }
     .credential-panel { background: var(--green-bg); border-radius: 10px; padding: 1.1rem; }
     .credential-panel h4 { color: var(--green); font-size: 0.92rem; }
     .cred-row { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-top: 1px solid rgba(0,0,0,0.06); }
@@ -132,25 +149,34 @@ import { ClientRegisteredResult } from '../../core/models';
     .cred-value { font-size: 0.95rem; font-weight: 700; color: var(--navy-900); }
   `],
 })
-export class ClientsListComponent {
+export class EmployeesComponent {
+  allRoles = ALL_ROLES;
+
   query = signal('');
   statusFilter = signal('');
   showForm = signal(false);
   registering = signal(false);
   registerError = signal('');
   resending = signal(false);
-  justRegistered = signal<ClientRegisteredResult | null>(null);
+  disabling = signal<string | null>(null);
+  enabling = signal<string | null>(null);
+  justRegistered = signal<EmployeeRegisteredResult | null>(null);
 
-  form = { name: '', phoneNumber: '', email: '', office: '', location: '', region: '', city: '', woreda: '', kycType: '', kycContact: '', itSupportContact: '' };
+  form = {
+    fullName: '', phoneNumber: '', email: '', specialization: '',
+    allowedIpAddressesRaw: '', roles: [] as EmployeeRole[],
+  };
 
-  constructor(public clients: ClientService) {}
+  constructor(public employeeService: EmployeeService) {}
+
+  roleLabel = (r: EmployeeRole) => EMPLOYEE_ROLE_LABELS[r];
 
   filtered = computed(() => {
     const q = this.query().toLowerCase().trim();
     const status = this.statusFilter();
-    return this.clients.clients().filter(c => {
-      const matchesQuery = !q || c.name.toLowerCase().includes(q) || c.idNumber.toLowerCase().includes(q);
-      const matchesStatus = !status || c.accountStatus === status;
+    return this.employeeService.employees().filter(e => {
+      const matchesQuery = !q || e.fullName.toLowerCase().includes(q) || e.email.toLowerCase().includes(q);
+      const matchesStatus = !status || e.accountStatus === status;
       return matchesQuery && matchesStatus;
     });
   });
@@ -159,24 +185,36 @@ export class ClientsListComponent {
   isFiltering = computed(() => this.query().trim().length > 0 || this.statusFilter().length > 0);
 
   /** Filtered results when searching, otherwise the current server-fetched page. */
-  displayedClients = computed(() => this.isFiltering() ? this.filtered() : this.clients.pagedClients());
+  displayedEmployees = computed(() => this.isFiltering() ? this.filtered() : this.employeeService.pagedEmployees());
 
   toggleForm() {
     this.justRegistered.set(null);
     this.showForm.set(!this.showForm());
   }
 
+  toggleRole(r: EmployeeRole) {
+    const idx = this.form.roles.indexOf(r);
+    if (idx === -1) this.form.roles = [...this.form.roles, r];
+    else this.form.roles = this.form.roles.filter(x => x !== r);
+  }
+
   async submit() {
-    if (!this.form.name) return;
+    if (!this.form.fullName || this.form.roles.length === 0) return;
     this.registering.set(true);
     this.registerError.set('');
     try {
-      const result = await this.clients.registerClient({
-        ...this.form,
-        itSupportContact: this.form.itSupportContact || undefined,
+      const allowedIpAddresses = this.form.allowedIpAddressesRaw
+        .split(',').map(s => s.trim()).filter(Boolean);
+      const result = await this.employeeService.registerEmployee({
+        fullName: this.form.fullName,
+        email: this.form.email,
+        phoneNumber: this.form.phoneNumber,
+        specialization: this.form.specialization,
+        roles: this.form.roles,
+        allowedIpAddresses,
       });
       this.justRegistered.set(result);
-      this.form = { name: '', phoneNumber: '', email: '', office: '', location: '', region: '', city: '', woreda: '', kycType: '', kycContact: '', itSupportContact: '' };
+      this.form = { fullName: '', phoneNumber: '', email: '', specialization: '', allowedIpAddressesRaw: '', roles: [] };
     } catch (err: any) {
       this.registerError.set(err?.error?.error ?? 'Registration failed — please check the details and try again.');
     } finally {
@@ -184,10 +222,10 @@ export class ClientsListComponent {
     }
   }
 
-  async retryEmail(clientId: string) {
+  async retryEmail(employeeId: string) {
     this.resending.set(true);
     try {
-      const result = await this.clients.resendCredentialEmail(clientId);
+      const result = await this.employeeService.resendCredentialEmail(employeeId);
       const current = this.justRegistered();
       if (current) {
         this.justRegistered.set({ ...current, emailSent: result.emailSent, emailError: result.emailError });
@@ -200,5 +238,25 @@ export class ClientsListComponent {
   closeCredentialPanel() {
     this.justRegistered.set(null);
     this.showForm.set(false);
+  }
+
+  async disable(id: string) {
+    const reason = window.prompt('Reason for disabling this account?') ?? '';
+    if (reason === '') return;
+    this.disabling.set(id);
+    try {
+      await this.employeeService.disableEmployee(id, reason);
+    } finally {
+      this.disabling.set(null);
+    }
+  }
+
+  async enable(id: string) {
+    this.enabling.set(id);
+    try {
+      await this.employeeService.enableEmployee(id);
+    } finally {
+      this.enabling.set(null);
+    }
   }
 }

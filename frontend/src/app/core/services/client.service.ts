@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Client, ClientRegisteredResult } from '../models';
+import { Client, ClientRegisteredResult, PagedResult } from '../models';
 import { API_BASE_URL } from './api-base';
 
 @Injectable({ providedIn: 'root' })
@@ -10,14 +10,45 @@ export class ClientService {
   private readonly _loaded = signal(false);
   readonly clients = this._clients.asReadonly();
 
+  // Paged state for the main Clients table. Separate from the full-list
+  // cache above, which pendingRequests()/approvedClients()/reports still
+  // rely on for filtering across the whole dataset.
+  private readonly _page = signal(1);
+  private readonly _pageSize = signal(20);
+  private readonly _totalCount = signal(0);
+  private readonly _totalPages = signal(0);
+  private readonly _pagedClients = signal<Client[]>([]);
+  readonly pagedClients = this._pagedClients.asReadonly();
+  readonly page = this._page.asReadonly();
+  readonly pageSize = this._pageSize.asReadonly();
+  readonly totalCount = this._totalCount.asReadonly();
+  readonly totalPages = this._totalPages.asReadonly();
+
   constructor(private http: HttpClient) {
     void this.refresh();
+    void this.refreshPaged();
   }
 
   async refresh(): Promise<void> {
     const list = await firstValueFrom(this.http.get<Client[]>(`${API_BASE_URL}/clients`));
     this._clients.set(list);
     this._loaded.set(true);
+  }
+
+  async refreshPaged(page = this._page(), pageSize = this._pageSize()): Promise<void> {
+    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    const result = await firstValueFrom(
+      this.http.get<PagedResult<Client>>(`${API_BASE_URL}/clients/paged`, { params })
+    );
+    this._page.set(result.page);
+    this._pageSize.set(result.pageSize);
+    this._totalCount.set(result.totalCount);
+    this._totalPages.set(result.totalPages);
+    this._pagedClients.set(result.items);
+  }
+
+  async goToPage(page: number): Promise<void> {
+    await this.refreshPaged(page);
   }
 
   pendingRequests(): Client[] {
@@ -37,7 +68,7 @@ export class ClientService {
     region?: string; city?: string; woreda?: string;
   }): Promise<Client> {
     const client = await firstValueFrom(this.http.post<Client>(`${API_BASE_URL}/clients/signup`, data));
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshPaged()]);
     return client;
   }
 
@@ -52,7 +83,7 @@ export class ClientService {
     kycType: string; kycContact: string; itSupportContact?: string;
   }): Promise<ClientRegisteredResult> {
     const result = await firstValueFrom(this.http.post<ClientRegisteredResult>(`${API_BASE_URL}/clients/register`, data));
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshPaged()]);
     return result;
   }
 
@@ -62,11 +93,11 @@ export class ClientService {
 
   async approve(clientId: string): Promise<void> {
     await firstValueFrom(this.http.post<Client>(`${API_BASE_URL}/clients/${clientId}/approve`, {}));
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshPaged()]);
   }
 
   async reject(clientId: string, reason: string): Promise<void> {
     await firstValueFrom(this.http.post<Client>(`${API_BASE_URL}/clients/${clientId}/reject`, { reason }));
-    await this.refresh();
+    await Promise.all([this.refresh(), this.refreshPaged()]);
   }
 }

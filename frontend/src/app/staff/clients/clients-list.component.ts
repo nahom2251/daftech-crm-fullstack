@@ -34,6 +34,9 @@ import { ClientRegisteredResult } from '../../core/models';
             <div class="field"><label>KYC Contact</label><input type="text" [ngModel]="form.kycContact" (ngModelChange)="form.kycContact = $event" placeholder="Name — phone/email" /></div>
             <div class="field"><label>IT Support Contact (optional)</label><input type="text" [ngModel]="form.itSupportContact" (ngModelChange)="form.itSupportContact = $event" /></div>
           </div>
+          @if (registerError()) {
+            <p class="register-error" style="margin-top:0.75rem;">{{ registerError() }}</p>
+          }
           <button class="btn btn-primary" style="margin-top:1rem;" [disabled]="registering()" (click)="submit()">
             {{ registering() ? 'Registering…' : 'Register Client' }}
           </button>
@@ -99,6 +102,7 @@ import { ClientRegisteredResult } from '../../core/models';
   `,
   styles: [`
     .header-row { display: flex; justify-content: space-between; align-items: flex-start; }
+    .register-error { color: var(--red); font-size: 0.85rem; }
     .filters { display: flex; gap: 0.6rem; margin-bottom: 1rem; }
     .filters input { flex: 1; }
     .filters select { width: 180px; }
@@ -118,6 +122,7 @@ export class ClientsListComponent {
   statusFilter = signal('');
   showForm = signal(false);
   registering = signal(false);
+  registerError = signal('');
   resending = signal(false);
   justRegistered = signal<ClientRegisteredResult | null>(null);
 
@@ -143,6 +148,7 @@ export class ClientsListComponent {
   async submit() {
     if (!this.form.name) return;
     this.registering.set(true);
+    this.registerError.set('');
     try {
       const result = await this.clients.registerClient({
         ...this.form,
@@ -150,6 +156,8 @@ export class ClientsListComponent {
       });
       this.justRegistered.set(result);
       this.form = { name: '', phoneNumber: '', email: '', office: '', location: '', region: '', city: '', woreda: '', kycType: '', kycContact: '', itSupportContact: '' };
+    } catch (err: any) {
+      this.registerError.set(err?.error?.error ?? 'Registration failed — please check the details and try again.');
     } finally {
       this.registering.set(false);
     }

@@ -56,12 +56,12 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
 
     public async Task<SatisfactionSurveyDto?> GetForTicketAsync(Guid ticketId, CancellationToken ct = default)
     {
-        var survey = await _db.SatisfactionSurveys.FirstOrDefaultAsync(s => s.TicketId == ticketId, ct);
+        var survey = await _db.SatisfactionSurveys.AsNoTracking().FirstOrDefaultAsync(s => s.TicketId == ticketId, ct);
         return survey is null ? null : ToDto(survey);
     }
 
     public async Task<IReadOnlyList<SatisfactionSurveyDto>> GetAllAsync(CancellationToken ct = default) =>
-        (await _db.SatisfactionSurveys.OrderByDescending(s => s.SubmittedAt).ToListAsync(ct)).Select(ToDto).ToList();
+        (await _db.SatisfactionSurveys.AsNoTracking().OrderByDescending(s => s.SubmittedAt).ToListAsync(ct)).Select(ToDto).ToList();
 
     private static SatisfactionSurveyDto ToDto(SatisfactionSurvey s) => new(
         s.Id, s.TicketId, s.ClientId, s.SubmittedAt,

@@ -4,6 +4,7 @@ import { MaintenanceService } from '../../core/services/maintenance.service';
 import { EmployeeService } from '../../core/services/employee.service';
 import { AuthService } from '../../core/services/auth.service';
 import { BadgeComponent } from '../../shared/badge.component';
+import { PaginationComponent } from '../../shared/pagination.component';
 import { MaintenanceCategory, MaintenanceStatus } from '../../core/models';
 
 const CATEGORIES: MaintenanceCategory[] = ['SQL/Database error', 'Front-end error', 'Back-end/server error', 'Security patch', 'Performance update'];
@@ -11,7 +12,7 @@ const CATEGORIES: MaintenanceCategory[] = ['SQL/Database error', 'Front-end erro
 @Component({
   selector: 'app-maintenance',
   standalone: true,
-  imports: [FormsModule, BadgeComponent],
+  imports: [FormsModule, BadgeComponent, PaginationComponent],
   template: `
     <div class="header-row">
       <div>
@@ -71,7 +72,7 @@ const CATEGORIES: MaintenanceCategory[] = ['SQL/Database error', 'Front-end erro
       <table>
         <thead><tr><th>ID</th><th>Date</th><th>Category</th><th>Description</th><th>Performed By</th><th>Status</th></tr></thead>
         <tbody>
-          @for (r of filtered(); track r.id) {
+          @for (r of displayedRecords(); track r.id) {
             <tr>
               <td class="mono">{{ r.id }}</td>
               <td class="text-muted">{{ r.date }}</td>
@@ -83,6 +84,19 @@ const CATEGORIES: MaintenanceCategory[] = ['SQL/Database error', 'Front-end erro
           }
         </tbody>
       </table>
+      @if (!categoryFilter()) {
+        <app-pagination
+          [page]="maintenance.page()"
+          [totalPages]="maintenance.totalPages()"
+          [totalCount]="maintenance.totalCount()"
+          [pageSize]="maintenance.pageSize()"
+          (pageChange)="maintenance.goToPage($event)">
+        </app-pagination>
+      } @else {
+        <p class="text-muted" style="font-size:0.78rem; margin-top:0.75rem;">
+          Showing all matches for the selected category. Clear the filter to page through the full list.
+        </p>
+      }
     </div>
   `,
   styles: [`
@@ -119,6 +133,9 @@ export class MaintenanceComponent {
     const filter = this.categoryFilter();
     return this.maintenance.records().filter(r => !filter || r.category === filter);
   });
+
+  /** Filtered results when a category is selected, otherwise the current server-fetched page. */
+  displayedRecords = computed(() => this.categoryFilter() ? this.filtered() : this.maintenance.pagedRecords());
 
   employeeName(id: string): string {
     return this.employees.getById(id)?.fullName ?? id;

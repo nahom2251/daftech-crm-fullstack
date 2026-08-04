@@ -150,16 +150,16 @@ public class ClientService : IClientService
     }
 
     public async Task<IReadOnlyList<ClientDto>> GetAllAsync(CancellationToken ct = default) =>
-        (await _db.Clients.ToListAsync(ct)).Select(ToDto).ToList();
+        (await _db.Clients.AsNoTracking().ToListAsync(ct)).Select(ToDto).ToList();
 
     public async Task<ClientDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == id, ct);
+        var client = await _db.Clients.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
         return client is null ? null : ToDto(client);
     }
 
     public async Task<IReadOnlyList<ClientDto>> GetPendingAsync(CancellationToken ct = default) =>
-        (await _db.Clients.Where(c => c.AccountStatus == ClientAccountStatus.Pending).ToListAsync(ct)).Select(ToDto).ToList();
+        (await _db.Clients.AsNoTracking().Where(c => c.AccountStatus == ClientAccountStatus.Pending).ToListAsync(ct)).Select(ToDto).ToList();
 
     private static ClientDto ToDto(Client c) => new(
         c.Id, c.Name, c.IdNumber, c.PhoneNumber, c.Email, c.Office, c.Location,

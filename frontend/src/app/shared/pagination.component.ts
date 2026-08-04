@@ -18,17 +18,17 @@ import { Component, Input, Output, EventEmitter, computed, signal } from '@angul
   selector: 'app-pagination',
   standalone: true,
   template: `
-    @if (totalPages() > 0) {
+    @if (pageCount() > 0) {
       <div class="pagination">
         <span class="pagination-summary text-muted">
-          Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ totalCount() }}
+          Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ itemCount() }}
         </span>
         <div class="pagination-controls">
           <button
             type="button"
             class="btn btn-outline btn-sm"
-            [disabled]="page() <= 1"
-            (click)="goTo(page() - 1)">
+            [disabled]="currentPage() <= 1"
+            (click)="goTo(currentPage() - 1)">
             ← Prev
           </button>
 
@@ -39,7 +39,7 @@ import { Component, Input, Output, EventEmitter, computed, signal } from '@angul
               <button
                 type="button"
                 class="btn btn-sm"
-                [class.btn-outline]="p !== page()"
+                [class.btn-outline]="p !== currentPage()"
                 (click)="goTo(p)">
                 {{ p }}
               </button>
@@ -49,8 +49,8 @@ import { Component, Input, Output, EventEmitter, computed, signal } from '@angul
           <button
             type="button"
             class="btn btn-outline btn-sm"
-            [disabled]="page() >= totalPages()"
-            (click)="goTo(page() + 1)">
+            [disabled]="currentPage() >= pageCount()"
+            (click)="goTo(currentPage() + 1)">
             Next →
           </button>
         </div>
@@ -96,18 +96,18 @@ export class PaginationComponent {
 
   @Output() pageChange = new EventEmitter<number>();
 
-  page = this._page.asReadonly();
-  totalPages = this._totalPages.asReadonly();
-  totalCount = this._totalCount.asReadonly();
-  pageSize = this._pageSize.asReadonly();
+  currentPage = this._page.asReadonly();
+  pageCount = this._totalPages.asReadonly();
+  itemCount = this._totalCount.asReadonly();
+  itemsPerPage = this._pageSize.asReadonly();
 
-  rangeStart = computed(() => this.totalCount() === 0 ? 0 : (this.page() - 1) * this.pageSize() + 1);
-  rangeEnd = computed(() => Math.min(this.page() * this.pageSize(), this.totalCount()));
+  rangeStart = computed(() => this.itemCount() === 0 ? 0 : (this.currentPage() - 1) * this.itemsPerPage() + 1);
+  rangeEnd = computed(() => Math.min(this.currentPage() * this.itemsPerPage(), this.itemCount()));
 
   /** Compact page list with ellipses, e.g. 1 … 4 5 [6] 7 8 … 20 */
   pageNumbers = computed<number[]>(() => {
-    const total = this.totalPages();
-    const current = this.page();
+    const total = this.pageCount();
+    const current = this.currentPage();
     if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
 
     const pages = new Set<number>([1, total, current, current - 1, current + 1]);
@@ -122,7 +122,7 @@ export class PaginationComponent {
   });
 
   goTo(p: number): void {
-    if (p < 1 || p > this.totalPages() || p === this.page()) return;
+    if (p < 1 || p > this.pageCount() || p === this.currentPage()) return;
     this.pageChange.emit(p);
   }
 }

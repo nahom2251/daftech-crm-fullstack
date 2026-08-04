@@ -18,6 +18,11 @@ public class ClientsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ClientDto>>> GetAll(CancellationToken ct) => Ok(await _clients.GetAllAsync(ct));
 
+    /// <summary>Paged client listing for the Clients table (query: page, pageSize).</summary>
+    [HttpGet("paged")]
+    public async Task<ActionResult<PagedResult<ClientDto>>> GetAllPaged([FromQuery] PaginationQuery query, CancellationToken ct) =>
+        Ok(await _clients.GetAllPagedAsync(query, ct));
+
     [HttpGet("{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.AnyAuthenticated)]
     public async Task<ActionResult<ClientDto>> GetById(Guid id, CancellationToken ct)
@@ -82,6 +87,12 @@ public class AgreementsController : ControllerBase
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.AnyEmployee)]
     public async Task<ActionResult<IReadOnlyList<AgreementDto>>> GetAll(CancellationToken ct) => Ok(await _agreements.GetAllAsync(ct));
+
+    /// <summary>Paged agreement listing for the Agreements table (query: page, pageSize).</summary>
+    [HttpGet("paged")]
+    [Authorize(Policy = AuthorizationPolicies.AnyEmployee)]
+    public async Task<ActionResult<PagedResult<AgreementDto>>> GetAllPaged([FromQuery] PaginationQuery query, CancellationToken ct) =>
+        Ok(await _agreements.GetAllPagedAsync(query, ct));
 
     [HttpGet("client/{clientId:guid}")]
     public async Task<ActionResult<IReadOnlyList<AgreementDto>>> GetForClient(Guid clientId, CancellationToken ct) =>
@@ -156,6 +167,11 @@ public class MaintenanceController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<MaintenanceRecordDto>>> GetAll(CancellationToken ct) => Ok(await _maintenance.GetAllAsync(ct));
 
+    /// <summary>Paged maintenance record listing for the Maintenance table (query: page, pageSize).</summary>
+    [HttpGet("paged")]
+    public async Task<ActionResult<PagedResult<MaintenanceRecordDto>>> GetAllPaged([FromQuery] PaginationQuery query, CancellationToken ct) =>
+        Ok(await _maintenance.GetAllPagedAsync(query, ct));
+
     [HttpPost]
     public async Task<ActionResult<MaintenanceRecordDto>> Create([FromBody] CreateMaintenanceRecordRequest request, CancellationToken ct)
     {
@@ -175,6 +191,11 @@ public class TimeLogsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<TimeLogDto>>> GetAll([FromQuery] Guid? employeeId, CancellationToken ct) =>
         Ok(await _timeLogs.GetAllAsync(employeeId, ct));
+
+    /// <summary>Paged time log listing for the Time Tracking table (query: employeeId, page, pageSize).</summary>
+    [HttpGet("paged")]
+    public async Task<ActionResult<PagedResult<TimeLogDto>>> GetAllPaged([FromQuery] Guid? employeeId, [FromQuery] PaginationQuery query, CancellationToken ct) =>
+        Ok(await _timeLogs.GetAllPagedAsync(employeeId, query, ct));
 
     [HttpPost("{employeeId:guid}/clock-in")]
     public async Task<IActionResult> ClockIn(Guid employeeId, CancellationToken ct)
@@ -258,6 +279,12 @@ public class SatisfactionSurveysController : ControllerBase
     [HttpGet]
     [Authorize(Policy = AuthorizationPolicies.AnyEmployee)]
     public async Task<ActionResult<IReadOnlyList<SatisfactionSurveyDto>>> GetAll(CancellationToken ct) => Ok(await _surveys.GetAllAsync(ct));
+
+    /// <summary>Paged survey listing for the Satisfaction Surveys table (query: page, pageSize).</summary>
+    [HttpGet("paged")]
+    [Authorize(Policy = AuthorizationPolicies.AnyEmployee)]
+    public async Task<ActionResult<PagedResult<SatisfactionSurveyDto>>> GetAllPaged([FromQuery] PaginationQuery query, CancellationToken ct) =>
+        Ok(await _surveys.GetAllPagedAsync(query, ct));
 
     [HttpGet("ticket/{ticketId:guid}")]
     public async Task<ActionResult<SatisfactionSurveyDto>> GetForTicket(Guid ticketId, CancellationToken ct)

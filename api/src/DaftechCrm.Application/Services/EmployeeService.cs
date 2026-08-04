@@ -64,15 +64,36 @@ public class EmployeeService : IEmployeeService
 
     public async Task<IReadOnlyList<EmployeeDto>> GetAllAsync(CancellationToken ct = default)
     {
-        var employees = await _db.Employees.ToListAsync(ct);
-        var result = new List<EmployeeDto>();
-        foreach (var e in employees) result.Add(await ToDto(e, ct));
-        return result;
+        var employees = await _db.Employees.AsNoTracking().ToListAsync(ct);
+
+        // Two grouped queries covering every employee, instead of the
+        // previous 2-queries-per-employee loop (an N+1 that meant a
+        // 20-employee list issued 40 round trips to Postgres). GroupBy here
+        // translates to SQL GROUP BY, so this scales with ticket volume, not
+        // with (employee count × ticket volume).
+        var openCounts = await _db.Tickets
+            .Where(t => t.AssignedEmployeeId != null && OpenStatuses.Contains(t.Status))
+            .GroupBy(t => t.AssignedEmployeeId!.Value)
+            .Select(g => new { EmployeeId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.EmployeeId, x => x.Count, ct);
+
+        var avgScores = await _db.Tickets
+            .Where(t => t.AssignedEmployeeId != null && t.SatisfactionScore != null)
+            .GroupBy(t => t.AssignedEmployeeId!.Value)
+            .Select(g => new { EmployeeId = g.Key, Avg = g.Average(t => t.SatisfactionScore!.Value) })
+            .ToDictionaryAsync(x => x.EmployeeId, x => (double?)x.Avg, ct);
+
+        return employees.Select(e => new EmployeeDto(
+            e.Id, e.FullName, e.Email, e.PhoneNumber, e.Specialization, e.Roles, e.AccountStatus, e.AllowedIpAddresses,
+            e.DisabledAt, e.DisabledReason,
+            openCounts.GetValueOrDefault(e.Id, 0), avgScores.GetValueOrDefault(e.Id),
+            e.Username, e.MustChangePassword
+        )).ToList();
     }
 
     public async Task<EmployeeDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == id, ct);
+        var employee = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id, ct);
         return employee is null ? null : await ToDto(employee, ct);
     }
 
@@ -163,6 +184,7 @@ public class EmployeeService : IEmployeeService
         // Average satisfaction score across the employee's tickets that were
         // actually rated (auto-closes with no rating are excluded).
         var scores = await _db.Tickets
+            .AsNoTracking()
             .Where(t => t.AssignedEmployeeId == e.Id && t.SatisfactionScore != null)
             .Select(t => t.SatisfactionScore!.Value)
             .ToListAsync(ct);

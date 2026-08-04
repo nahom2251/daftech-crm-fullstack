@@ -1,399 +1,371 @@
+
 using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 #nullable disable
 
 namespace DaftechCrm.Infrastructure.Migrations
 {
-    /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    internal static class InitialCreateModel
     {
-        /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
+        public static void Build(ModelBuilder modelBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "clients",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    IdNumber = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    PhoneNumber = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
-                    Email = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    Office = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
-                    Location = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
-                    KycType = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    KycContact = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
-                    ItSupportContact = table.Column<string>(type: "text", nullable: true),
-                    AccountStatus = table.Column<int>(type: "integer", nullable: false),
-                    OnboardingDate = table.Column<DateOnly>(type: "date", nullable: false),
-                    RejectionReason = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    Username = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    PasswordHash = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true),
-                    MustChangePassword = table.Column<bool>(type: "boolean", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_clients", x => x.Id);
-                });
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.Agreement", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<string>("AgreementPlace").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<int>("BillingTier").HasColumnType("integer");
+                b.Property<Guid>("ClientId").HasColumnType("uuid");
+                b.Property<string>("DocumentNumber").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
+                b.Property<DateOnly>("ExpiryDate").HasColumnType("date");
+                b.Property<string>("ScannedFileUrl").HasMaxLength(500).HasColumnType("character varying(500)");
+                b.Property<DateOnly>("SignDate").HasColumnType("date");
+                b.Property<int>("Status").HasColumnType("integer");
+                b.Property<int>("SupportWindowMonths").HasColumnType("integer");
+                b.HasKey("Id");
+                b.HasIndex("ClientId");
+                b.HasIndex("DocumentNumber").IsUnique();
+                b.ToTable("agreements");
+            });
 
-            migrationBuilder.CreateTable(
-                name: "employees",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    FullName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    Email = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    PhoneNumber = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
-                    Specialization = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Roles = table.Column<string>(type: "varchar(200)", nullable: false),
-                    AccountStatus = table.Column<int>(type: "integer", nullable: false),
-                    Username = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    PasswordHash = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    MustChangePassword = table.Column<bool>(type: "boolean", nullable: false),
-                    AllowedIpAddresses = table.Column<string>(type: "varchar(1000)", nullable: false),
-                    DisabledAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    DisabledReason = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_employees", x => x.Id);
-                });
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.AppNotification", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<DateTimeOffset>("DateSent").HasColumnType("timestamp with time zone");
+                b.Property<string>("EventType").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
+                b.Property<string>("Message").IsRequired().HasColumnType("text");
+                b.Property<bool>("ReadStatus").HasColumnType("boolean");
+                b.Property<string>("RecipientId").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
+                b.Property<int>("RecipientType").HasColumnType("integer");
+                b.HasKey("Id");
+                b.HasIndex("RecipientType", "RecipientId", "ReadStatus");
+                b.ToTable("notifications");
+            });
 
-            migrationBuilder.CreateTable(
-                name: "agreements",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ClientId = table.Column<Guid>(type: "uuid", nullable: false),
-                    DocumentNumber = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    ScannedFileUrl = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    AgreementPlace = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    SignDate = table.Column<DateOnly>(type: "date", nullable: false),
-                    ExpiryDate = table.Column<DateOnly>(type: "date", nullable: false),
-                    SupportWindowMonths = table.Column<int>(type: "integer", nullable: false),
-                    Status = table.Column<int>(type: "integer", nullable: false),
-                    BillingTier = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_agreements", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_agreements_clients_ClientId",
-                        column: x => x.ClientId,
-                        principalTable: "clients",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.Client", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<int>("AccountStatus").HasColumnType("integer");
+                b.Property<string>("Email").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<string>("IdNumber").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
+                b.Property<string>("ItSupportContact").HasColumnType("text");
+                b.Property<string>("KycContact").HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<string>("KycType").HasMaxLength(100).HasColumnType("character varying(100)");
+                b.Property<string>("Location").HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<bool>("MustChangePassword").HasColumnType("boolean");
+                b.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<string>("Office").HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<DateOnly>("OnboardingDate").HasColumnType("date");
+                b.Property<string>("PasswordHash").HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<string>("PhoneNumber").IsRequired().HasMaxLength(30).HasColumnType("character varying(30)");
+                b.Property<string>("RejectionReason").HasMaxLength(500).HasColumnType("character varying(500)");
+                b.Property<string>("Username").HasMaxLength(50).HasColumnType("character varying(50)");
+                b.HasKey("Id");
+                b.HasIndex("IdNumber").IsUnique();
+                b.HasIndex("Username").IsUnique();
+                b.ToTable("clients");
+            });
 
-            migrationBuilder.CreateTable(
-                name: "device_sessions",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    EmployeeId = table.Column<Guid>(type: "uuid", nullable: false),
-                    DeviceType = table.Column<int>(type: "integer", nullable: false),
-                    DeviceIdentifier = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    IpAddress = table.Column<string>(type: "character varying(45)", maxLength: 45, nullable: false),
-                    LastSeen = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    AccessStatus = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_device_sessions", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_device_sessions_employees_EmployeeId",
-                        column: x => x.EmployeeId,
-                        principalTable: "employees",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.Employee", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<int>("AccountStatus").HasColumnType("integer");
+                b.Property<string>("AllowedIpAddresses").IsRequired().HasColumnType("varchar(1000)");
+                b.Property<DateTimeOffset?>("DisabledAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("DisabledReason").HasMaxLength(500).HasColumnType("character varying(500)");
+                b.Property<string>("Email").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<string>("FullName").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<bool>("MustChangePassword").HasColumnType("boolean");
+                b.Property<string>("PasswordHash").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<string>("PhoneNumber").IsRequired().HasMaxLength(30).HasColumnType("character varying(30)");
+                b.Property<string>("Roles").IsRequired().HasColumnType("varchar(200)");
+                b.Property<string>("Specialization").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
+                b.Property<string>("Username").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)");
+                b.HasKey("Id");
+                b.HasIndex("Email").IsUnique();
+                b.HasIndex("Username").IsUnique();
+                b.ToTable("employees");
+            });
 
-            migrationBuilder.CreateTable(
-                name: "login_records",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    EmployeeId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Timestamp = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    IpAddress = table.Column<string>(type: "character varying(45)", maxLength: 45, nullable: false),
-                    DeviceType = table.Column<int>(type: "integer", nullable: false),
-                    DeviceIdentifier = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    Allowed = table.Column<bool>(type: "boolean", nullable: false),
-                    Reason = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_login_records", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_login_records_employees_EmployeeId",
-                        column: x => x.EmployeeId,
-                        principalTable: "employees",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.DeviceSession", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<int>("AccessStatus").HasColumnType("integer");
+                b.Property<string>("DeviceIdentifier").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<int>("DeviceType").HasColumnType("integer");
+                b.Property<Guid>("EmployeeId").HasColumnType("uuid");
+                b.Property<string>("IpAddress").IsRequired().HasMaxLength(45).HasColumnType("character varying(45)");
+                b.Property<DateTimeOffset>("LastSeen").HasColumnType("timestamp with time zone");
+                b.HasKey("Id");
+                b.HasIndex("EmployeeId");
+                b.ToTable("device_sessions");
+            });
 
-            migrationBuilder.CreateTable(
-                name: "time_logs",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    EmployeeId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Date = table.Column<DateOnly>(type: "date", nullable: false),
-                    StartTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    FinishTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    TotalHours = table.Column<double>(type: "double precision", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_time_logs", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_time_logs_employees_EmployeeId",
-                        column: x => x.EmployeeId,
-                        principalTable: "employees",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.LoginRecord", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<bool>("Allowed").HasColumnType("boolean");
+                b.Property<string>("DeviceIdentifier").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<int>("DeviceType").HasColumnType("integer");
+                b.Property<Guid>("EmployeeId").HasColumnType("uuid");
+                b.Property<string>("IpAddress").IsRequired().HasMaxLength(45).HasColumnType("character varying(45)");
+                b.Property<string>("Reason").HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<DateTimeOffset>("Timestamp").HasColumnType("timestamp with time zone");
+                b.HasKey("Id");
+                b.HasIndex("EmployeeId");
+                b.HasIndex("Timestamp");
+                b.ToTable("login_records");
+            });
 
-            migrationBuilder.CreateTable(
-                name: "maintenance_records",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Date = table.Column<DateOnly>(type: "date", nullable: false),
-                    Category = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "text", nullable: false),
-                    PerformedByEmployeeId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Status = table.Column<int>(type: "integer", nullable: false),
-                    Remarks = table.Column<string>(type: "text", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_maintenance_records", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_maintenance_records_employees_PerformedByEmployeeId",
-                        column: x => x.PerformedByEmployeeId,
-                        principalTable: "employees",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.LoginSession", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<Guid>("AccountId").HasColumnType("uuid");
+                b.Property<int>("AccountType").HasColumnType("integer");
+                b.Property<string>("IpAddress").IsRequired().HasMaxLength(45).HasColumnType("character varying(45)");
+                b.Property<DateTimeOffset>("LastSeen").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset>("LoginTime").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset?>("LogoutTime").HasColumnType("timestamp with time zone");
+                b.Property<bool>("OnlineStatus").HasColumnType("boolean");
+                b.HasKey("Id");
+                b.HasIndex("AccountType", "AccountId", "OnlineStatus");
+                b.HasIndex("LastSeen");
+                b.ToTable("login_sessions");
+            });
 
-            migrationBuilder.CreateTable(
-                name: "tickets",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ClientId = table.Column<Guid>(type: "uuid", nullable: false),
-                    AgreementId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Description = table.Column<string>(type: "text", nullable: false),
-                    Category = table.Column<int>(type: "integer", nullable: false),
-                    DateSubmitted = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ForwardedByEmployeeId = table.Column<Guid>(type: "uuid", nullable: true),
-                    AssignedEmployeeId = table.Column<Guid>(type: "uuid", nullable: true),
-                    AssignedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    Chargeable = table.Column<bool>(type: "boolean", nullable: false),
-                    Status = table.Column<int>(type: "integer", nullable: false),
-                    ResolvedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    ClientConfirmationDeadline = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    SatisfactionStars = table.Column<int>(type: "integer", nullable: true),
-                    SatisfactionScore = table.Column<int>(type: "integer", nullable: true),
-                    ClosureReason = table.Column<int>(type: "integer", nullable: true),
-                    ClosedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_tickets", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_tickets_agreements_AgreementId",
-                        column: x => x.AgreementId,
-                        principalTable: "agreements",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_tickets_clients_ClientId",
-                        column: x => x.ClientId,
-                        principalTable: "clients",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_tickets_employees_AssignedEmployeeId",
-                        column: x => x.AssignedEmployeeId,
-                        principalTable: "employees",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_tickets_employees_ForwardedByEmployeeId",
-                        column: x => x.ForwardedByEmployeeId,
-                        principalTable: "employees",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                });
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.MaintenanceRecord", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<string>("Category").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
+                b.Property<DateOnly>("Date").HasColumnType("date");
+                b.Property<string>("Description").IsRequired().HasColumnType("text");
+                b.Property<Guid>("PerformedByEmployeeId").HasColumnType("uuid");
+                b.Property<string>("Remarks").HasColumnType("text");
+                b.Property<int>("Status").HasColumnType("integer");
+                b.HasKey("Id");
+                b.HasIndex("PerformedByEmployeeId");
+                b.ToTable("maintenance_records");
+            });
 
-            migrationBuilder.CreateTable(
-                name: "notifications",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    RecipientType = table.Column<int>(type: "integer", nullable: false),
-                    RecipientId = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    EventType = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Message = table.Column<string>(type: "text", nullable: false),
-                    DateSent = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ReadStatus = table.Column<bool>(type: "boolean", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_notifications", x => x.Id);
-                });
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.RefreshToken", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<Guid>("AccountId").HasColumnType("uuid");
+                b.Property<int>("AccountType").HasColumnType("integer");
+                b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("CreatedByIp").IsRequired().HasMaxLength(45).HasColumnType("character varying(45)");
+                b.Property<DateTimeOffset>("ExpiresAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("ReplacedByTokenHash").HasMaxLength(64).HasColumnType("character varying(64)");
+                b.Property<DateTimeOffset?>("RevokedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("RevokedByIp").HasMaxLength(45).HasColumnType("character varying(45)");
+                b.Property<string>("TokenHash").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                b.HasKey("Id");
+                b.HasIndex("AccountType", "AccountId");
+                b.HasIndex("ExpiresAt");
+                b.HasIndex("TokenHash").IsUnique();
+                b.ToTable("refresh_tokens");
+            });
 
-            migrationBuilder.CreateTable(
-                name: "login_sessions",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    AccountType = table.Column<int>(type: "integer", nullable: false),
-                    AccountId = table.Column<Guid>(type: "uuid", nullable: false),
-                    IpAddress = table.Column<string>(type: "character varying(45)", maxLength: 45, nullable: false),
-                    LoginTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    LogoutTime = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    OnlineStatus = table.Column<bool>(type: "boolean", nullable: false),
-                    LastSeen = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_login_sessions", x => x.Id);
-                });
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.SatisfactionSurvey", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<Guid>("ClientId").HasColumnType("uuid");
+                b.Property<int>("CommunicationClarityRating").HasColumnType("integer");
+                b.Property<string>("ImprovementFeedback").HasColumnType("text");
+                b.Property<int>("LikelihoodToRecommend").HasColumnType("integer");
+                b.Property<int>("ProfessionalismRating").HasColumnType("integer");
+                b.Property<int>("ResponseSpeedRating").HasColumnType("integer");
+                b.Property<DateTimeOffset>("SubmittedAt").HasColumnType("timestamp with time zone");
+                b.Property<Guid>("TicketId").HasColumnType("uuid");
+                b.HasKey("Id");
+                b.HasIndex("ClientId");
+                b.HasIndex("TicketId").IsUnique();
+                b.ToTable("satisfaction_surveys");
+            });
 
-            migrationBuilder.CreateTable(
-                name: "refresh_tokens",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    AccountType = table.Column<int>(type: "integer", nullable: false),
-                    AccountId = table.Column<Guid>(type: "uuid", nullable: false),
-                    TokenHash = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ExpiresAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    CreatedByIp = table.Column<string>(type: "character varying(45)", maxLength: 45, nullable: false),
-                    RevokedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    RevokedByIp = table.Column<string>(type: "character varying(45)", maxLength: 45, nullable: true),
-                    ReplacedByTokenHash = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_refresh_tokens", x => x.Id);
-                });
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.Ticket", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<Guid>("AgreementId").HasColumnType("uuid");
+                b.Property<Guid?>("AssignedEmployeeId").HasColumnType("uuid");
+                b.Property<DateTimeOffset?>("AssignedAt").HasColumnType("timestamp with time zone");
+                b.Property<int>("Category").HasColumnType("integer");
+                b.Property<bool>("Chargeable").HasColumnType("boolean");
+                b.Property<Guid>("ClientId").HasColumnType("uuid");
+                b.Property<DateTimeOffset?>("ClientConfirmationDeadline").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset?>("ClosedAt").HasColumnType("timestamp with time zone");
+                b.Property<int?>("ClosureReason").HasColumnType("integer");
+                b.Property<DateTimeOffset>("DateSubmitted").HasColumnType("timestamp with time zone");
+                b.Property<string>("Description").IsRequired().HasColumnType("text");
+                b.Property<Guid?>("ForwardedByEmployeeId").HasColumnType("uuid");
+                b.Property<DateTimeOffset?>("ResolvedAt").HasColumnType("timestamp with time zone");
+                b.Property<int?>("SatisfactionScore").HasColumnType("integer");
+                b.Property<int?>("SatisfactionStars").HasColumnType("integer");
+                b.Property<int>("Status").HasColumnType("integer");
+                b.HasKey("Id");
+                b.HasIndex("AgreementId");
+                b.HasIndex("AssignedEmployeeId");
+                b.HasIndex("ClientConfirmationDeadline");
+                b.HasIndex("ClientId");
+                b.HasIndex("ForwardedByEmployeeId");
+                b.HasIndex("Status");
+                b.ToTable("tickets");
+            });
 
-            migrationBuilder.CreateTable(
-                name: "satisfaction_surveys",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    TicketId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ClientId = table.Column<Guid>(type: "uuid", nullable: false),
-                    SubmittedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ResponseSpeedRating = table.Column<int>(type: "integer", nullable: false),
-                    ProfessionalismRating = table.Column<int>(type: "integer", nullable: false),
-                    CommunicationClarityRating = table.Column<int>(type: "integer", nullable: false),
-                    LikelihoodToRecommend = table.Column<int>(type: "integer", nullable: false),
-                    ImprovementFeedback = table.Column<string>(type: "text", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_satisfaction_surveys", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_satisfaction_surveys_clients_ClientId",
-                        column: x => x.ClientId,
-                        principalTable: "clients",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_satisfaction_surveys_tickets_TicketId",
-                        column: x => x.TicketId,
-                        principalTable: "tickets",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.TicketAuditEntry", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<string>("Action").IsRequired().HasColumnType("text");
+                b.Property<string>("Actor").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<Guid>("TicketId").HasColumnType("uuid");
+                b.Property<DateTimeOffset>("Timestamp").HasColumnType("timestamp with time zone");
+                b.HasKey("Id");
+                b.HasIndex("TicketId");
+                b.ToTable("ticket_audit_entries");
+            });
 
-            migrationBuilder.CreateTable(
-                name: "ticket_audit_entries",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    TicketId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Timestamp = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    Actor = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    Action = table.Column<string>(type: "text", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ticket_audit_entries", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_ticket_audit_entries_tickets_TicketId",
-                        column: x => x.TicketId,
-                        principalTable: "tickets",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.TimeLog", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<DateOnly>("Date").HasColumnType("date");
+                b.Property<Guid>("EmployeeId").HasColumnType("uuid");
+                b.Property<DateTimeOffset?>("FinishTime").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset?>("StartTime").HasColumnType("timestamp with time zone");
+                b.Property<double?>("TotalHours").HasColumnType("double precision");
+                b.HasKey("Id");
+                b.HasIndex("EmployeeId", "Date");
+                b.ToTable("time_logs");
+            });
 
-            // --- Indexes ---
+            // --- Relationships ---
 
-            migrationBuilder.CreateIndex(name: "IX_clients_IdNumber", table: "clients", column: "IdNumber", unique: true);
-            migrationBuilder.CreateIndex(name: "IX_clients_Username", table: "clients", column: "Username", unique: true);
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.Agreement", b =>
+            {
+                b.HasOne("DaftechCrm.Domain.Entities.Client", "Client")
+                    .WithMany("Agreements")
+                    .HasForeignKey("ClientId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+                b.Navigation("Client");
+            });
 
-            migrationBuilder.CreateIndex(name: "IX_employees_Email", table: "employees", column: "Email", unique: true);
-            migrationBuilder.CreateIndex(name: "IX_employees_Username", table: "employees", column: "Username", unique: true);
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.DeviceSession", b =>
+            {
+                b.HasOne("DaftechCrm.Domain.Entities.Employee", "Employee")
+                    .WithMany("DeviceSessions")
+                    .HasForeignKey("EmployeeId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+                b.Navigation("Employee");
+            });
 
-            migrationBuilder.CreateIndex(name: "IX_agreements_ClientId", table: "agreements", column: "ClientId");
-            migrationBuilder.CreateIndex(name: "IX_agreements_DocumentNumber", table: "agreements", column: "DocumentNumber", unique: true);
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.LoginRecord", b =>
+            {
+                b.HasOne("DaftechCrm.Domain.Entities.Employee", "Employee")
+                    .WithMany("LoginRecords")
+                    .HasForeignKey("EmployeeId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+                b.Navigation("Employee");
+            });
 
-            migrationBuilder.CreateIndex(name: "IX_device_sessions_EmployeeId", table: "device_sessions", column: "EmployeeId");
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.MaintenanceRecord", b =>
+            {
+                b.HasOne("DaftechCrm.Domain.Entities.Employee", "PerformedByEmployee")
+                    .WithMany("MaintenanceRecords")
+                    .HasForeignKey("PerformedByEmployeeId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+                b.Navigation("PerformedByEmployee");
+            });
 
-            migrationBuilder.CreateIndex(name: "IX_login_records_EmployeeId", table: "login_records", column: "EmployeeId");
-            migrationBuilder.CreateIndex(name: "IX_login_records_Timestamp", table: "login_records", column: "Timestamp");
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.SatisfactionSurvey", b =>
+            {
+                b.HasOne("DaftechCrm.Domain.Entities.Client", "Client")
+                    .WithMany()
+                    .HasForeignKey("ClientId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+                b.HasOne("DaftechCrm.Domain.Entities.Ticket", "Ticket")
+                    .WithMany()
+                    .HasForeignKey("TicketId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+                b.Navigation("Client");
+                b.Navigation("Ticket");
+            });
 
-            migrationBuilder.CreateIndex(name: "IX_time_logs_EmployeeId_Date", table: "time_logs", columns: new[] { "EmployeeId", "Date" });
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.Ticket", b =>
+            {
+                b.HasOne("DaftechCrm.Domain.Entities.Agreement", "Agreement")
+                    .WithMany("Tickets")
+                    .HasForeignKey("AgreementId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+                b.HasOne("DaftechCrm.Domain.Entities.Employee", "AssignedEmployee")
+                    .WithMany("AssignedTickets")
+                    .HasForeignKey("AssignedEmployeeId")
+                    .OnDelete(DeleteBehavior.SetNull);
+                b.HasOne("DaftechCrm.Domain.Entities.Client", "Client")
+                    .WithMany("Tickets")
+                    .HasForeignKey("ClientId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+                b.HasOne("DaftechCrm.Domain.Entities.Employee", "ForwardedByEmployee")
+                    .WithMany()
+                    .HasForeignKey("ForwardedByEmployeeId")
+                    .OnDelete(DeleteBehavior.SetNull);
+                b.Navigation("Agreement");
+                b.Navigation("AssignedEmployee");
+                b.Navigation("Client");
+                b.Navigation("ForwardedByEmployee");
+            });
 
-            migrationBuilder.CreateIndex(name: "IX_maintenance_records_PerformedByEmployeeId", table: "maintenance_records", column: "PerformedByEmployeeId");
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.TicketAuditEntry", b =>
+            {
+                b.HasOne("DaftechCrm.Domain.Entities.Ticket", "Ticket")
+                    .WithMany("AuditTrail")
+                    .HasForeignKey("TicketId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+                b.Navigation("Ticket");
+            });
 
-            migrationBuilder.CreateIndex(name: "IX_tickets_AgreementId", table: "tickets", column: "AgreementId");
-            migrationBuilder.CreateIndex(name: "IX_tickets_ClientId", table: "tickets", column: "ClientId");
-            migrationBuilder.CreateIndex(name: "IX_tickets_AssignedEmployeeId", table: "tickets", column: "AssignedEmployeeId");
-            migrationBuilder.CreateIndex(name: "IX_tickets_ForwardedByEmployeeId", table: "tickets", column: "ForwardedByEmployeeId");
-            migrationBuilder.CreateIndex(name: "IX_tickets_Status", table: "tickets", column: "Status");
-            migrationBuilder.CreateIndex(name: "IX_tickets_ClientConfirmationDeadline", table: "tickets", column: "ClientConfirmationDeadline");
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.TimeLog", b =>
+            {
+                b.HasOne("DaftechCrm.Domain.Entities.Employee", "Employee")
+                    .WithMany("TimeLogs")
+                    .HasForeignKey("EmployeeId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+                b.Navigation("Employee");
+            });
 
-            migrationBuilder.CreateIndex(name: "IX_notifications_RecipientType_RecipientId_ReadStatus", table: "notifications", columns: new[] { "RecipientType", "RecipientId", "ReadStatus" });
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.Agreement", b =>
+            {
+                b.Navigation("Tickets");
+            });
 
-            migrationBuilder.CreateIndex(name: "IX_login_sessions_AccountType_AccountId_OnlineStatus", table: "login_sessions", columns: new[] { "AccountType", "AccountId", "OnlineStatus" });
-            migrationBuilder.CreateIndex(name: "IX_login_sessions_LastSeen", table: "login_sessions", column: "LastSeen");
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.Client", b =>
+            {
+                b.Navigation("Agreements");
+                b.Navigation("Tickets");
+            });
 
-            migrationBuilder.CreateIndex(name: "IX_refresh_tokens_TokenHash", table: "refresh_tokens", column: "TokenHash", unique: true);
-            migrationBuilder.CreateIndex(name: "IX_refresh_tokens_AccountType_AccountId", table: "refresh_tokens", columns: new[] { "AccountType", "AccountId" });
-            migrationBuilder.CreateIndex(name: "IX_refresh_tokens_ExpiresAt", table: "refresh_tokens", column: "ExpiresAt");
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.Employee", b =>
+            {
+                b.Navigation("AssignedTickets");
+                b.Navigation("DeviceSessions");
+                b.Navigation("LoginRecords");
+                b.Navigation("MaintenanceRecords");
+                b.Navigation("TimeLogs");
+            });
 
-            migrationBuilder.CreateIndex(name: "IX_satisfaction_surveys_ClientId", table: "satisfaction_surveys", column: "ClientId");
-            migrationBuilder.CreateIndex(name: "IX_satisfaction_surveys_TicketId", table: "satisfaction_surveys", column: "TicketId", unique: true);
-
-            migrationBuilder.CreateIndex(name: "IX_ticket_audit_entries_TicketId", table: "ticket_audit_entries", column: "TicketId");
-        }
-
-        /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.DropTable(name: "device_sessions");
-            migrationBuilder.DropTable(name: "login_records");
-            migrationBuilder.DropTable(name: "time_logs");
-            migrationBuilder.DropTable(name: "maintenance_records");
-            migrationBuilder.DropTable(name: "notifications");
-            migrationBuilder.DropTable(name: "login_sessions");
-            migrationBuilder.DropTable(name: "refresh_tokens");
-            migrationBuilder.DropTable(name: "satisfaction_surveys");
-            migrationBuilder.DropTable(name: "ticket_audit_entries");
-            migrationBuilder.DropTable(name: "tickets");
-            migrationBuilder.DropTable(name: "agreements");
-            migrationBuilder.DropTable(name: "employees");
-            migrationBuilder.DropTable(name: "clients");
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.Ticket", b =>
+            {
+                b.Navigation("AuditTrail");
+            });
         }
     }
 }

@@ -63,6 +63,20 @@ public class SatisfactionSurveyService : ISatisfactionSurveyService
     public async Task<IReadOnlyList<SatisfactionSurveyDto>> GetAllAsync(CancellationToken ct = default) =>
         (await _db.SatisfactionSurveys.AsNoTracking().OrderByDescending(s => s.SubmittedAt).ToListAsync(ct)).Select(ToDto).ToList();
 
+    public async Task<PagedResult<SatisfactionSurveyDto>> GetAllPagedAsync(PaginationQuery query, CancellationToken ct = default)
+    {
+        var totalCount = await _db.SatisfactionSurveys.CountAsync(ct);
+
+        var items = await _db.SatisfactionSurveys
+            .AsNoTracking()
+            .OrderByDescending(s => s.SubmittedAt)
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .ToListAsync(ct);
+
+        return new PagedResult<SatisfactionSurveyDto>(items.Select(ToDto).ToList(), query.Page, query.PageSize, totalCount);
+    }
+
     private static SatisfactionSurveyDto ToDto(SatisfactionSurvey s) => new(
         s.Id, s.TicketId, s.ClientId, s.SubmittedAt,
         s.ResponseSpeedRating, s.ProfessionalismRating, s.CommunicationClarityRating,

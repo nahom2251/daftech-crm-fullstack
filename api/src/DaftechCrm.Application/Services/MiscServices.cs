@@ -69,7 +69,7 @@ public class MaintenanceService : IMaintenanceService
     }
 
     public async Task<IReadOnlyList<MaintenanceRecordDto>> GetAllAsync(CancellationToken ct = default) =>
-        (await _db.MaintenanceRecords.OrderByDescending(r => r.Date).ToListAsync(ct)).Select(ToDto).ToList();
+        (await _db.MaintenanceRecords.AsNoTracking().OrderByDescending(r => r.Date).ToListAsync(ct)).Select(ToDto).ToList();
 
     private static MaintenanceRecordDto ToDto(MaintenanceRecord r) => new(
         r.Id, r.Date, r.Category, r.Description, r.PerformedByEmployeeId, r.Status, r.Remarks

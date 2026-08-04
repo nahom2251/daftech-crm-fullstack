@@ -249,6 +249,31 @@ public class TicketService : ITicketService
     public async Task<IReadOnlyList<TicketDto>> GetAllAsync(CancellationToken ct = default) =>
         await ProjectAsync(_db.Tickets, ct);
 
+    public async Task<PagedResult<TicketDto>> GetAllPagedAsync(PaginationQuery query, CancellationToken ct = default)
+    {
+        var totalCount = await _db.Tickets.CountAsync(ct);
+
+        var page = await _db.Tickets
+            .AsNoTracking()
+            .Include(t => t.Client)
+            .Include(t => t.AssignedEmployee)
+            .Include(t => t.AuditTrail)
+            .OrderByDescending(t => t.DateSubmitted)
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .ToListAsync(ct);
+
+        var items = page.Select(t => new TicketDto(
+            t.Id, t.ClientId, t.Client.Name, t.AgreementId, t.Description, t.Category, t.DateSubmitted,
+            t.ForwardedByEmployeeId, t.AssignedEmployeeId, t.AssignedEmployee?.FullName, t.AssignedAt,
+            t.Chargeable, t.Status, t.ResolvedAt, t.ClientConfirmationDeadline,
+            t.SatisfactionStars, t.SatisfactionScore, t.ClosureReason,
+            t.AuditTrail.OrderBy(a => a.Timestamp).Select(a => new TicketAuditEntryDto(a.Timestamp, a.Actor, a.Action)).ToList()
+        )).ToList();
+
+        return new PagedResult<TicketDto>(items, query.Page, query.PageSize, totalCount);
+    }
+
     public async Task<TicketDto?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         (await ProjectAsync(_db.Tickets.Where(t => t.Id == id), ct)).FirstOrDefault();
 

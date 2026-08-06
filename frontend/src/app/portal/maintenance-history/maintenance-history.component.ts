@@ -1,0 +1,171 @@
+import { Component, computed, signal, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { SlicePipe } from '@angular/common';
+import { RouterLink, ActivatedRoute } from '@angular/router';
+import { AuthService } from '../../core/services/auth.service';
+import { TicketService } from '../../core/services/ticket.service';
+import { AgreementService } from '../../core/services/agreement.service';
+import { BadgeComponent } from '../../shared/badge.component';
+import { TICKET_CATEGORY_LABELS, TicketCategory, TicketStatus } from '../../core/models';
+
+type FilterKey = 'all' | 'pending' | 'accomplished' | 'escalated';
+
+const PENDING_STATUSES: TicketStatus[] = ['Submitted', 'Forwarded', 'Assigned', 'InProgress', 'Resolved', 'AwaitingClientConfirmation'];
+
+@Component({
+  selector: 'app-maintenance-history',
+  standalone: true,
+  imports: [FormsModule, SlicePipe, RouterLink, BadgeComponent],
+  template: `
+    <div class="head-row">
+      <div>
+        <h1>Maintenance History</h1>
+        <p class="text-muted" style="margin-top:0.3rem;">Every issue you've submitted, who's working on it, and where it stands.</p>
+      </div>
+      <button class="btn btn-primary" (click)="toggleSubmitPanel()">
+        {{ showSubmitPanel() ? 'Cancel' : '+ Submit New Issue' }}
+      </button>
+    </div>
+
+    @if (showSubmitPanel()) {
+      <div class="panel panel-pad" style="margin-top:1.1rem; max-width:520px;">
+        @if (!agreement()) {
+          <p class="text-muted">No active agreement found on your account — please contact DAFTECH directly.</p>
+        } @else {
+          <div class="field">
+            <label>Category</label>
+            <select [ngModel]="category()" (ngModelChange)="category.set($event)">
+              <option value="SqlDatabaseError">SQL/Database error</option>
+              <option value="Bug">Bug</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="field" style="margin-top:0.8rem;">
+            <label>Description</label>
+            <textarea rows="4" [ngModel]="description()" (ngModelChange)="description.set($event)" placeholder="Describe what happened, when, and any error messages…"></textarea>
+          </div>
+          <button class="btn btn-primary" style="margin-top:1rem;" [disabled]="!description().trim()" (click)="submit()">Submit Issue</button>
+          @if (submittedId(); as id) {
+            <div class="success">Submitted — ticket <span class="mono">{{ id.slice(0,8).toUpperCase() }}</span>.</div>
+          }
+        }
+      </div>
+    }
+
+    <div class="filter-row">
+      <button class="chip" [class.active]="filter() === 'all'" (click)="filter.set('all')">All ({{ counts().all }})</button>
+      <button class="chip" [class.active]="filter() === 'pending'" (click)="filter.set('pending')">Pending ({{ counts().pending }})</button>
+      <button class="chip" [class.active]="filter() === 'accomplished'" (click)="filter.set('accomplished')">Accomplished ({{ counts().accomplished }})</button>
+      <button class="chip" [class.active]="filter() === 'escalated'" (click)="filter.set('escalated')">Escalated ({{ counts().escalated }})</button>
+    </div>
+
+    <div class="panel panel-pad" style="margin-top:1rem;">
+      <div class="table-scroll"><table>
+        <thead><tr><th>Ticket #</th><th>Category</th><th>Submitted</th><th>Assigned To</th><th>Chargeable</th><th>Status</th><th>Your Rating</th><th></th></tr></thead>
+        <tbody>
+          @for (t of filteredTickets(); track t.id) {
+            <tr>
+              <td class="mono">{{ t.id.slice(0,8).toUpperCase() }}</td>
+              <td>{{ categoryLabel(t.category) }}</td>
+              <td class="text-muted">{{ t.dateSubmitted | slice:0:10 }}</td>
+              <td class="text-muted">{{ t.assignedEmployeeName || '—' }}</td>
+              <td><app-badge [status]="t.chargeable ? 'Chargeable' : 'Free'"></app-badge></td>
+              <td><app-badge [status]="t.status"></app-badge></td>
+              <td class="text-muted">{{ t.satisfactionStars ? (t.satisfactionStars + '★') : '—' }}</td>
+              <td>
+                @if (t.status === 'AwaitingClientConfirmation') {
+                  <a routerLink="/portal/confirm-resolution" class="btn btn-outline btn-sm">Verify Progress</a>
+                } @else if (t.status === 'Closed') {
+                  <a [routerLink]="['/portal/survey', t.id]" class="btn btn-outline btn-sm">Take Survey</a>
+                }
+              </td>
+            </tr>
+          }
+          @empty { <tr><td colspan="8" class="text-muted" style="text-align:center; padding:1.5rem;">No tickets in this view yet.</td></tr> }
+        </tbody>
+      </table></div>
+    </div>
+  `,
+  styles: [`
+    .head-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+    .field { display: flex; flex-direction: column; gap: 0.3rem; }
+    .field label { font-size: 0.78rem; font-weight: 600; color: var(--slate-500); }
+    textarea { resize: vertical; width: 100%; }
+    select { width: 100%; }
+    .success { margin-top: 1rem; padding: 0.7rem 0.9rem; border-radius: 8px; background: var(--green-bg); color: var(--green); font-size: 0.85rem; }
+    .filter-row { display: flex; gap: 0.5rem; margin-top: 1.25rem; flex-wrap: wrap; }
+    .chip {
+      background: #fff; border: 1px solid var(--slate-200); padding: 0.4rem 0.85rem; border-radius: 999px;
+      font-size: 0.8rem; font-weight: 600; color: var(--slate-500);
+    }
+    .chip.active { background: var(--portal-accent); border-color: var(--portal-accent); color: #fff; }
+  `],
+})
+export class MaintenanceHistoryComponent implements OnInit {
+  showSubmitPanel = signal(false);
+  category = signal<TicketCategory>('Bug');
+  description = signal('');
+  submittedId = signal<string | null>(null);
+  filter = signal<FilterKey>('all');
+
+  constructor(
+    private auth: AuthService,
+    private ticketsSvc: TicketService,
+    private agreementsSvc: AgreementService,
+    private route: ActivatedRoute
+  ) {}
+
+  ngOnInit() {
+    const q = this.route.snapshot.queryParamMap.get('filter') as FilterKey | null;
+    if (q && ['all', 'pending', 'accomplished', 'escalated'].includes(q)) this.filter.set(q);
+  }
+
+  toggleSubmitPanel() {
+    this.showSubmitPanel.update(v => !v);
+    this.submittedId.set(null);
+  }
+
+  agreement = computed(() => {
+    const client = this.auth.currentClient();
+    if (!client) return undefined;
+    return this.agreementsSvc.forClient(client.id).find(a => a.status === 'Active') ?? this.agreementsSvc.forClient(client.id)[0];
+  });
+
+  private myTickets = computed(() => {
+    const client = this.auth.currentClient();
+    return client ? this.ticketsSvc.forClient(client.id) : [];
+  });
+
+  counts = computed(() => {
+    const all = this.myTickets();
+    return {
+      all: all.length,
+      pending: all.filter(t => PENDING_STATUSES.includes(t.status)).length,
+      accomplished: all.filter(t => t.status === 'Closed').length,
+      escalated: all.filter(t => t.status === 'Escalated').length,
+    };
+  });
+
+  filteredTickets = computed(() => {
+    const all = this.myTickets();
+    switch (this.filter()) {
+      case 'pending': return all.filter(t => PENDING_STATUSES.includes(t.status));
+      case 'accomplished': return all.filter(t => t.status === 'Closed');
+      case 'escalated': return all.filter(t => t.status === 'Escalated');
+      default: return all;
+    }
+  });
+
+  categoryLabel(c: string): string {
+    return TICKET_CATEGORY_LABELS[c as keyof typeof TICKET_CATEGORY_LABELS] ?? c;
+  }
+
+  async submit() {
+    const client = this.auth.currentClient();
+    const agreement = this.agreement();
+    if (!client || !agreement || !this.description().trim()) return;
+    const ticket = await this.ticketsSvc.submitFromClient(client.id, agreement.id, this.description().trim(), this.category());
+    this.submittedId.set(ticket.id);
+    this.description.set('');
+  }
+}

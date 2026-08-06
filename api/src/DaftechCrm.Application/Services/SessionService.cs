@@ -11,12 +11,12 @@ namespace DaftechCrm.Application.Services;
 public class SessionService : ISessionService
 {
     private readonly IAppDbContext _db;
-    private readonly SessionOptions _options;
+    private readonly ISystemConfigurationService _config;
 
-    public SessionService(IAppDbContext db, IOptions<SessionOptions> options)
+    public SessionService(IAppDbContext db, ISystemConfigurationService config)
     {
         _db = db;
-        _options = options.Value;
+        _config = config;
     }
 
     public async Task<Guid> OpenSessionAsync(SessionAccountType accountType, Guid accountId, string ipAddress, CancellationToken ct = default)
@@ -70,7 +70,8 @@ public class SessionService : ISessionService
 
     public async Task<int> MarkStaleSessionsOfflineAsync(CancellationToken ct = default)
     {
-        var cutoff = DateTimeOffset.UtcNow.AddMinutes(-_options.OfflineAfterMinutes);
+        var offlineAfterMinutes = await _config.GetIntAsync("Session.OfflineAfterMinutes", ct);
+        var cutoff = DateTimeOffset.UtcNow.AddMinutes(-offlineAfterMinutes);
         var stale = await _db.LoginSessions
             .Where(s => s.OnlineStatus && s.LastSeen < cutoff)
             .ToListAsync(ct);

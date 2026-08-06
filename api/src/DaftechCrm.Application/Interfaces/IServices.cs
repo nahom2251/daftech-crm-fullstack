@@ -75,6 +75,27 @@ public interface IAuthService
 }
 
 /// <summary>
+/// "Forgot password" for both staff and clients. There is no self-service
+/// reset link — every credential in this system is admin-issued and
+/// hand-delivered by email (AccountCredentialService), so a forgotten
+/// password just queues a request for an Admin to review and action with a
+/// fresh one-time password, the same as onboarding a new hire.
+/// </summary>
+public interface IPasswordResetService
+{
+    /// <summary>Anonymous — a requester who forgot their password isn't logged in. Always succeeds from the caller's perspective, even for an unknown username, to avoid username enumeration.</summary>
+    Task<PasswordResetRequestSubmittedResult> SubmitAsync(SubmitPasswordResetRequest request, string ipAddress, CancellationToken ct = default);
+
+    Task<IReadOnlyList<PasswordResetRequestDto>> GetPendingAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<PasswordResetRequestDto>> GetAllAsync(CancellationToken ct = default);
+
+    /// <summary>Generates a fresh OTP, emails it, and sets MustChangePassword — mirrors ResendCredentialEmailAsync for a fresh hire.</summary>
+    Task<PasswordResetOtpIssuedResult> IssueOtpAsync(Guid requestId, string resolvedByName, CancellationToken ct = default);
+
+    Task<PasswordResetRequestDto> DismissAsync(Guid requestId, string resolvedByName, DismissPasswordResetRequest request, CancellationToken ct = default);
+}
+
+/// <summary>
 /// Issues and validates JWT access tokens, and manages refresh-token
 /// persistence/rotation. Kept separate from IAuthService so the
 /// credential-checking logic (passwords, IP allow-lists) stays decoupled
@@ -194,4 +215,25 @@ public interface ISessionService
     Task<IReadOnlyList<SessionActivityDto>> GetSessionActivityAsync(CancellationToken ct = default);
 
     Task<IReadOnlyList<LoginSessionDto>> GetHistoryForAccountAsync(SessionAccountType accountType, Guid accountId, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Admin-editable system configuration (the Settings → Configuration page).
+/// Backed by SystemSetting rows in the DB, overlaid on top of the
+/// appsettings.json defaults — a setting only has a DB row once an Admin
+/// has actually changed it. Other services (TicketService, ReportService,
+/// SessionService, etc.) call the typed Get*Async accessors instead of
+/// reading IOptions directly, so a change here takes effect immediately
+/// without a redeploy.
+/// </summary>
+public interface ISystemConfigurationService
+{
+    /// <summary>All settings across every category, each filled in with its current effective value (DB override if present, else the appsettings.json default).</summary>
+    Task<IReadOnlyList<SystemSettingDto>> GetAllAsync(CancellationToken ct = default);
+
+    /// <summary>Saves one or more settings in a single request. Unknown keys are rejected.</summary>
+    Task<IReadOnlyList<SystemSettingDto>> UpdateAsync(UpdateSystemSettingsRequest request, string updatedByName, CancellationToken ct = default);
+
+    Task<int> GetIntAsync(string key, CancellationToken ct = default);
+    Task<bool> GetBoolAsync(string key, CancellationToken ct = default);
 }

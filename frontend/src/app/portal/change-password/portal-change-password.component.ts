@@ -73,7 +73,7 @@ export class PortalChangePasswordComponent {
     this.submitting.set(true);
     try {
       await this.auth.changeClientPassword(this.currentPassword(), this.newPassword(), this.confirmPassword());
-      this.router.navigateByUrl('/portal/my-tickets');
+      this.router.navigateByUrl('/portal/dashboard');
     } catch (e: any) {
       this.error.set(e?.error?.text ?? e?.error ?? 'Could not change password — check your current password and try again.');
     } finally {

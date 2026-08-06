@@ -13,18 +13,18 @@ public class TicketService : ITicketService
     private readonly IAppDbContext _db;
     private readonly ITicketAssignmentService _assignment;
     private readonly INotificationService _notifications;
-    private readonly TicketWorkflowOptions _options;
+    private readonly ISystemConfigurationService _config;
 
     public TicketService(
         IAppDbContext db,
         ITicketAssignmentService assignment,
         INotificationService notifications,
-        IOptions<TicketWorkflowOptions> options)
+        ISystemConfigurationService config)
     {
         _db = db;
         _assignment = assignment;
         _notifications = notifications;
-        _options = options.Value;
+        _config = config;
     }
 
     public async Task<TicketDto> SubmitFromClientAsync(SubmitTicketRequest request, CancellationToken ct = default)
@@ -105,7 +105,8 @@ public class TicketService : ITicketService
             // confirmation window. The employee's "done" isn't the final word.
             ticket.Status = TicketStatus.AwaitingClientConfirmation;
             ticket.ResolvedAt = DateTimeOffset.UtcNow;
-            ticket.ClientConfirmationDeadline = ticket.ResolvedAt.Value.AddDays(_options.ClientConfirmationWindowDays);
+            var confirmationWindowDays = await _config.GetIntAsync("TicketWorkflow.ClientConfirmationWindowDays", ct);
+            ticket.ClientConfirmationDeadline = ticket.ResolvedAt.Value.AddDays(confirmationWindowDays);
             ticket.AuditTrail.Add(new TicketAuditEntry
             {
                 TicketId = ticket.Id,
@@ -172,7 +173,8 @@ public class TicketService : ITicketService
         ticket.SatisfactionStars = stars;
         ticket.SatisfactionScore = score;
 
-        if (score >= _options.MinimumSatisfactionScore)
+        var minimumSatisfactionScore = await _config.GetIntAsync("TicketWorkflow.MinimumSatisfactionScore", ct);
+        if (score >= minimumSatisfactionScore)
         {
             ticket.Status = TicketStatus.Closed;
             ticket.ClosureReason = ClosureReason.ClientConfirmedSatisfied;
@@ -221,6 +223,8 @@ public class TicketService : ITicketService
                         && t.ClientConfirmationDeadline <= now)
             .ToListAsync(ct);
 
+        var confirmationWindowDays = await _config.GetIntAsync("TicketWorkflow.ClientConfirmationWindowDays", ct);
+
         foreach (var ticket in overdue)
         {
             ticket.Status = TicketStatus.Closed;
@@ -232,7 +236,7 @@ public class TicketService : ITicketService
             {
                 TicketId = ticket.Id,
                 Actor = "System",
-                Action = $"Auto-closed after {_options.ClientConfirmationWindowDays} days with no client response"
+                Action = $"Auto-closed after {confirmationWindowDays} days with no client response"
             });
             _db.Update(ticket);
 

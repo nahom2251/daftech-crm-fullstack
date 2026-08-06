@@ -286,3 +286,43 @@ export interface PagedResult<T> {
   hasPreviousPage: boolean;
   hasNextPage: boolean;
 }
+
+/** One admin-configurable value on the Settings → Configuration page. Mirrors SystemSettingDto. */
+export interface SystemSetting {
+  key: string;
+  value: string;
+  category: string;
+  label: string;
+  description: string;
+  valueType: 'int' | 'bool' | 'string';
+  updatedAt?: string;
+  updatedByName?: string;
+}
+
+export type PasswordResetRequestStatus = 'Pending' | 'OtpIssued' | 'Dismissed';
+
+/** A "forgot password" request awaiting Admin action — no self-service reset link, an Admin issues a fresh OTP by hand. Mirrors PasswordResetRequestDto. */
+export interface PasswordResetRequest {
+  id: string;
+  accountType: SessionAccountType;
+  accountId: string;
+  username: string;
+  note?: string;
+  requestIpAddress: string;
+  status: PasswordResetRequestStatus;
+  requestedAt: string;
+  resolvedAt?: string;
+  resolvedByName?: string;
+  dismissReason?: string;
+  displayName: string;
+  email: string;
+}
+
+/** Shown once, right after an Admin issues a fresh OTP — never retrievable again after this response. */
+export interface PasswordResetOtpIssuedResult {
+  username: string;
+  oneTimePassword: string;
+  emailSent: boolean;
+  emailError?: string;
+}
+

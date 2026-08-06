@@ -269,6 +269,28 @@ public class ReportsController : ControllerBase
 }
 
 [ApiController]
+[Route("api/system-configuration")]
+[Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+public class SystemConfigurationController : ControllerBase
+{
+    private readonly ISystemConfigurationService _config;
+    public SystemConfigurationController(ISystemConfigurationService config) => _config = config;
+
+    /// <summary>All admin-configurable settings, grouped by Category, for the Settings → Configuration page.</summary>
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<SystemSettingDto>>> GetAll(CancellationToken ct) => Ok(await _config.GetAllAsync(ct));
+
+    /// <summary>Saves one or more settings at once. Admin-only; the caller's name is recorded against each changed value.</summary>
+    [HttpPut]
+    public async Task<ActionResult<IReadOnlyList<SystemSettingDto>>> Update([FromBody] UpdateSystemSettingsRequest request, CancellationToken ct)
+    {
+        var callerName = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.UniqueName)?.Value ?? "Admin";
+        try { return Ok(await _config.UpdateAsync(request, callerName, ct)); }
+        catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+    }
+}
+
+[ApiController]
 [Route("api/satisfaction-surveys")]
 [Authorize(Policy = AuthorizationPolicies.AnyAuthenticated)]
 public class SatisfactionSurveysController : ControllerBase

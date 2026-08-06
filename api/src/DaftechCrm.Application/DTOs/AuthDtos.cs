@@ -24,3 +24,37 @@ public record IssuedTokenPair(string AccessToken, string RefreshTokenPlainText, 
 
 /// <summary>Minimal identity used to issue a token — enough to build JWT claims for either account type.</summary>
 public record TokenSubject(SessionAccountType AccountType, Guid AccountId, string Username, IReadOnlyList<EmployeeRole> Roles);
+
+/// <summary>
+/// Self-service "forgot password" — submitted anonymously from either login
+/// screen. There is no emailed reset link; this just queues the request for
+/// an Admin to action (see PasswordResetRequest). AccountType tells the API
+/// which table to resolve Username against.
+/// </summary>
+public record SubmitPasswordResetRequest(SessionAccountType AccountType, string Username, string? Note);
+
+/// <summary>
+/// Always returns the same generic acknowledgement regardless of whether
+/// Username matched a real account — this endpoint is anonymous, so
+/// confirming or denying account existence here would let it be used to
+/// enumerate valid usernames.
+/// </summary>
+public record PasswordResetRequestSubmittedResult(string Message);
+
+public record PasswordResetRequestDto(
+    Guid Id, SessionAccountType AccountType, Guid AccountId, string Username, string? Note,
+    string RequestIpAddress, PasswordResetRequestStatus Status, DateTimeOffset RequestedAt,
+    DateTimeOffset? ResolvedAt, string? ResolvedByName, string? DismissReason,
+    string DisplayName, string Email
+);
+
+public record DismissPasswordResetRequest(string Reason);
+
+/// <summary>
+/// Returned once, right after an Admin issues a fresh OTP for a reset
+/// request. OneTimePassword is never retrievable again after this response
+/// — same one-time-visibility rule as EmployeeRegisteredResult /
+/// ClientRegisteredResult. Also flips MustChangePassword back on for the
+/// account, exactly like ResendCredentialEmailAsync does for a fresh hire.
+/// </summary>
+public record PasswordResetOtpIssuedResult(string Username, string OneTimePassword, bool EmailSent, string? EmailError);

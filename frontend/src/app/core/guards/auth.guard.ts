@@ -49,7 +49,7 @@ export const clientMustChangePasswordGuard: CanActivateFn = async () => {
   const router = inject(Router);
   await awaitSessionRestore(auth);
   if (!auth.isClientAuthenticated()) return router.parseUrl('/portal/login');
-  if (!auth.clientMustChangePassword()) return router.parseUrl('/portal/my-tickets');
+  if (!auth.clientMustChangePassword()) return router.parseUrl('/portal/dashboard');
   return true;
 };
 

@@ -104,27 +104,12 @@ import { NotificationRecipientType } from '../../core/models';
     }
   `,
   styles: [`
-    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1.4rem; }
-    .card {
-      display: block; position: relative; overflow: hidden;
-      transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), border-color 0.2s var(--ease);
-    }
-    .card::after {
-      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-      background: var(--grad-hairline); opacity: 0; transition: opacity 0.2s var(--ease);
-    }
-    .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--slate-300); }
-    .card:hover::after { opacity: 1; }
-    .card-label {
-      font-size: 0.72rem; color: var(--slate-500); font-weight: 700;
-      letter-spacing: 0.055em; text-transform: uppercase; margin-bottom: 0.55rem;
-    }
-    .card-value {
-      font-size: 2rem; font-weight: 750; color: var(--navy-900);
-      letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1.1;
-    }
-    .card-value.warn { color: var(--brand-red); }
-    .card-value.clock-status { font-size: 1.15rem; letter-spacing: -0.015em; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; margin-top: 1.25rem; }
+    .card { display: block; }
+    .card-label { font-size: 0.78rem; color: var(--slate-500); font-weight: 600; margin-bottom: 0.4rem; }
+    .card-value { font-size: 1.9rem; font-weight: 700; color: var(--navy-900); }
+    .card-value.warn { color: var(--amber); }
+    .card-value.clock-status { font-size: 1.15rem; }
   `],
 })
 export class DashboardComponent {

@@ -241,3 +241,35 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
         b.HasIndex(x => x.ExpiresAt);
     }
 }
+
+/// <summary>Admin-editable configuration overrides — see SystemSetting for the key/value model.</summary>
+public class SystemSettingConfiguration : IEntityTypeConfiguration<SystemSetting>
+{
+    public void Configure(EntityTypeBuilder<SystemSetting> b)
+    {
+        b.ToTable("system_settings");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Key).HasMaxLength(150).IsRequired();
+        b.Property(x => x.Value).HasMaxLength(500).IsRequired();
+        b.Property(x => x.Category).HasMaxLength(100).IsRequired();
+        b.Property(x => x.UpdatedByName).HasMaxLength(200);
+        b.HasIndex(x => x.Key).IsUnique();
+    }
+}
+
+/// <summary>Admin's "Password Reset Requests" queue — see PasswordResetRequest.</summary>
+public class PasswordResetRequestConfiguration : IEntityTypeConfiguration<PasswordResetRequest>
+{
+    public void Configure(EntityTypeBuilder<PasswordResetRequest> b)
+    {
+        b.ToTable("password_reset_requests");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Username).HasMaxLength(50).IsRequired();
+        b.Property(x => x.Note).HasMaxLength(500);
+        b.Property(x => x.RequestIpAddress).HasMaxLength(45).IsRequired();
+        b.Property(x => x.ResolvedByName).HasMaxLength(200);
+        b.Property(x => x.DismissReason).HasMaxLength(500);
+        b.HasIndex(x => new { x.AccountType, x.AccountId, x.Status });
+        b.HasIndex(x => x.Status);
+    }
+}

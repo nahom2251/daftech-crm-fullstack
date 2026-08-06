@@ -111,6 +111,7 @@ public static class DependencyInjection
         services.AddScoped<ITicketService, TicketService>();
         services.AddScoped<IEmployeeService, EmployeeService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IPasswordResetService, PasswordResetService>();
         services.AddScoped<IClientService, ClientService>();
         services.AddScoped<IAgreementService, AgreementService>();
         services.AddScoped<INotificationService, NotificationService>();
@@ -125,6 +126,8 @@ public static class DependencyInjection
         services.AddHttpClient<IAiNarrativeReportService, AnthropicNarrativeReportService>();
 
         services.AddScoped<ISatisfactionSurveyService, SatisfactionSurveyService>();
+
+        services.AddScoped<ISystemConfigurationService, SystemConfigurationService>();
 
         return services;
     }

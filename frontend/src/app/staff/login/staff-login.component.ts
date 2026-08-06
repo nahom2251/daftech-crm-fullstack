@@ -66,33 +66,9 @@ import { ForgotPasswordModalComponent } from '../../shared/forgot-password-modal
   styles: [`
     .wrap {
       min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 1rem;
-      background:
-        radial-gradient(720px 420px at 50% -10%, rgba(52,87,178,0.35), transparent 62%),
-        radial-gradient(560px 360px at 82% 110%, rgba(224,52,43,0.22), transparent 60%),
-        var(--gradient-ink);
-      position: relative; overflow: hidden;
+      background: var(--navy-950); padding: 1rem;
     }
-    .wrap::after {
-      content: ''; position: absolute; inset: 0; pointer-events: none;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
-      background-size: 46px 46px;
-      mask-image: radial-gradient(circle at 50% 40%, #000 0%, transparent 72%);
-      -webkit-mask-image: radial-gradient(circle at 50% 40%, #000 0%, transparent 72%);
-    }
-    .card {
-      width: 400px; max-width: 100%; text-align: center; position: relative; z-index: 1;
-      border-radius: 18px; padding: 2rem 1.75rem;
-      box-shadow: var(--shadow-lg);
-      border-color: rgba(255,255,255,0.5);
-      background: rgba(255,255,255,0.97);
-    }
-    .card::before {
-      content: ''; position: absolute; top: 0; left: 18%; right: 18%; height: 2px;
-      border-radius: 999px; background: var(--gradient-mark);
-    }
+    .card { width: 380px; max-width: 100%; text-align: center; }
     .card .lbl, .card .input-group, .card .result { text-align: left; }
     .lbl { display: block; font-size: 0.78rem; font-weight: 600; color: var(--slate-500); margin-bottom: 0.3rem; }
     .input-group { position: relative; display: flex; align-items: center; }
@@ -112,7 +88,7 @@ import { ForgotPasswordModalComponent } from '../../shared/forgot-password-modal
       display: block; margin: 0.85rem auto 0; background: none; border: none; padding: 0;
       color: var(--slate-500); font-size: 0.8rem; cursor: pointer; text-decoration: underline;
     }
-    .link-btn:hover { color: var(--accent); }
+    .link-btn:hover { color: var(--slate-700); }
     .app-footer { margin-top: 1.25rem; font-size: 0.75rem; color: var(--slate-400); text-align: center; }
   `],
 })

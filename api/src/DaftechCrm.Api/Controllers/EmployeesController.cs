@@ -194,4 +194,59 @@ public class AuthController : ControllerBase
         await _auth.RevokeRefreshTokenAsync(request, ip, ct);
         return NoContent();
     }
+
+    /// <summary>
+    /// "Forgot password" — there's no emailed reset link in this system, so
+    /// this just queues the request for an Admin to review (see
+    /// PasswordResetController). Always returns the same generic message,
+    /// whether or not the username matched a real account, so this
+    /// anonymous endpoint can't be used to enumerate valid usernames.
+    /// </summary>
+    [HttpPost("forgot-password")]
+    public async Task<ActionResult<PasswordResetRequestSubmittedResult>> ForgotPassword(
+        [FromBody] SubmitPasswordResetRequest request, [FromServices] IPasswordResetService resetService, CancellationToken ct)
+    {
+        var ip = _requestContext.ResolveClientIpAddress();
+        return Ok(await resetService.SubmitAsync(request, ip, ct));
+    }
+}
+
+/// <summary>
+/// Admin's "Password Reset Requests" queue — reviews forgot-password
+/// requests submitted anonymously from either login screen and either
+/// issues a fresh one-time password (emailed, same as onboarding) or
+/// dismisses the request.
+/// </summary>
+[ApiController]
+[Route("api/password-reset-requests")]
+[Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+public class PasswordResetController : ControllerBase
+{
+    private readonly IPasswordResetService _resets;
+    public PasswordResetController(IPasswordResetService resets) => _resets = resets;
+
+    [HttpGet("pending")]
+    public async Task<ActionResult<IReadOnlyList<PasswordResetRequestDto>>> GetPending(CancellationToken ct) =>
+        Ok(await _resets.GetPendingAsync(ct));
+
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<PasswordResetRequestDto>>> GetAll(CancellationToken ct) =>
+        Ok(await _resets.GetAllAsync(ct));
+
+    /// <summary>Issues a fresh one-time password and emails it to the account on file. The response's OneTimePassword is shown only once — same rule as registering a new hire.</summary>
+    [HttpPost("{id:guid}/issue-otp")]
+    public async Task<ActionResult<PasswordResetOtpIssuedResult>> IssueOtp(Guid id, CancellationToken ct)
+    {
+        var callerName = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.UniqueName)?.Value ?? "Admin";
+        try { return Ok(await _resets.IssueOtpAsync(id, callerName, ct)); }
+        catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+    }
+
+    [HttpPost("{id:guid}/dismiss")]
+    public async Task<ActionResult<PasswordResetRequestDto>> Dismiss(Guid id, [FromBody] DismissPasswordResetRequest request, CancellationToken ct)
+    {
+        var callerName = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.UniqueName)?.Value ?? "Admin";
+        try { return Ok(await _resets.DismissAsync(id, callerName, request, ct)); }
+        catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+    }
 }

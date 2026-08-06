@@ -40,6 +40,11 @@ export const routes: Routes = [
         loadComponent: () => import('./staff/signup-requests/signup-requests.component').then(m => m.SignupRequestsComponent),
       },
       {
+        path: 'password-reset-requests',
+        canActivate: [adminRoleGuard],
+        loadComponent: () => import('./staff/password-reset-requests/password-reset-requests.component').then(m => m.PasswordResetRequestsComponent),
+      },
+      {
         path: 'agreements',
         canActivate: [roleGuard(['ItSupport'])],
         loadComponent: () => import('./staff/agreements/agreements.component').then(m => m.AgreementsComponent),
@@ -76,6 +81,7 @@ export const routes: Routes = [
         canActivate: [adminRoleGuard],
         loadComponent: () => import('./staff/session-activity/session-activity.component').then(m => m.SessionActivityComponent),
       },
+      { path: 'settings', loadComponent: () => import('./staff/settings/settings.component').then(m => m.SettingsComponent) },
     ],
   },
 
@@ -98,11 +104,14 @@ export const routes: Routes = [
     canActivate: [clientAuthGuard],
     loadComponent: () => import('./portal/shell/portal-shell.component').then(m => m.PortalShellComponent),
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'my-tickets' },
-      { path: 'submit-issue', loadComponent: () => import('./portal/submit-issue/submit-issue.component').then(m => m.SubmitIssueComponent) },
+      { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+      { path: 'dashboard', loadComponent: () => import('./portal/dashboard/dashboard.component').then(m => m.PortalDashboardComponent) },
+      { path: 'maintenance-history', loadComponent: () => import('./portal/maintenance-history/maintenance-history.component').then(m => m.MaintenanceHistoryComponent) },
+      { path: 'reports', loadComponent: () => import('./portal/reports/reports.component').then(m => m.PortalReportsComponent) },
+      { path: 'submit-issue', redirectTo: 'maintenance-history', pathMatch: 'full' },
+      { path: 'my-tickets', redirectTo: 'maintenance-history', pathMatch: 'full' },
       { path: 'confirm-resolution', loadComponent: () => import('./portal/confirm-resolution/confirm-resolution.component').then(m => m.ConfirmResolutionComponent) },
       { path: 'survey/:ticketId', loadComponent: () => import('./portal/satisfaction-survey/satisfaction-survey.component').then(m => m.SatisfactionSurveyComponent) },
-      { path: 'my-tickets', loadComponent: () => import('./portal/my-tickets/my-tickets.component').then(m => m.MyTicketsComponent) },
       { path: 'notifications', loadComponent: () => import('./portal/notifications/portal-notifications.component').then(m => m.PortalNotificationsComponent) },
     ],
   },

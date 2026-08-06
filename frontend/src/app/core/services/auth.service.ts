@@ -159,6 +159,19 @@ export class AuthService {
     if (result.tokens) this.tokenStorage.setTokens(result.tokens);
   }
 
+  /**
+   * "Forgot password" — there's no emailed reset link in this system; this
+   * just queues the request for an Admin to review and issue a fresh
+   * one-time password. Always resolves with the same generic message,
+   * whether or not the username matched a real account.
+   */
+  async forgotPassword(accountType: 'Employee' | 'Client', username: string, note?: string): Promise<string> {
+    const result = await firstValueFrom(
+      this.http.post<{ message: string }>(`${API_BASE_URL}/auth/forgot-password`, { accountType, username, note })
+    );
+    return result.message;
+  }
+
   refreshTokens(): Observable<void> {
     const refreshToken = this.tokenStorage.refreshToken;
     if (!refreshToken) {

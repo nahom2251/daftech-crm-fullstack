@@ -241,6 +241,38 @@ namespace DaftechCrm.Infrastructure.Migrations
                 b.ToTable("time_logs");
             });
 
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.SystemSetting", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<string>("Category").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
+                b.Property<string>("Key").IsRequired().HasMaxLength(150).HasColumnType("character varying(150)");
+                b.Property<DateTimeOffset>("UpdatedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("UpdatedByName").HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<string>("Value").IsRequired().HasMaxLength(500).HasColumnType("character varying(500)");
+                b.HasKey("Id");
+                b.HasIndex("Key").IsUnique();
+                b.ToTable("system_settings");
+            });
+
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.PasswordResetRequest", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<int>("AccountType").HasColumnType("integer");
+                b.Property<Guid>("AccountId").HasColumnType("uuid");
+                b.Property<string>("Username").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)");
+                b.Property<string>("Note").HasMaxLength(500).HasColumnType("character varying(500)");
+                b.Property<string>("RequestIpAddress").IsRequired().HasMaxLength(45).HasColumnType("character varying(45)");
+                b.Property<int>("Status").HasColumnType("integer");
+                b.Property<DateTimeOffset>("RequestedAt").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset?>("ResolvedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("ResolvedByName").HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<string>("DismissReason").HasMaxLength(500).HasColumnType("character varying(500)");
+                b.HasKey("Id");
+                b.HasIndex("AccountType", "AccountId", "Status");
+                b.HasIndex("Status");
+                b.ToTable("password_reset_requests");
+            });
+
             // --- Relationships ---
 
             modelBuilder.Entity("DaftechCrm.Domain.Entities.Agreement", b =>

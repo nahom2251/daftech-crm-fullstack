@@ -21,6 +21,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<SatisfactionSurvey> SatisfactionSurveysSet => Set<SatisfactionSurvey>();
     public DbSet<LoginSession> LoginSessionsSet => Set<LoginSession>();
     public DbSet<RefreshToken> RefreshTokensSet => Set<RefreshToken>();
+    public DbSet<SystemSetting> SystemSettingsSet => Set<SystemSetting>();
+    public DbSet<PasswordResetRequest> PasswordResetRequestsSet => Set<PasswordResetRequest>();
 
     // IAppDbContext — exposed as IQueryable so Application services never depend on DbSet<T> directly.
     public IQueryable<Client> Clients => ClientsSet;
@@ -36,6 +38,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public IQueryable<SatisfactionSurvey> SatisfactionSurveys => SatisfactionSurveysSet;
     public IQueryable<LoginSession> LoginSessions => LoginSessionsSet;
     public IQueryable<RefreshToken> RefreshTokens => RefreshTokensSet;
+    public IQueryable<SystemSetting> SystemSettings => SystemSettingsSet;
+    public IQueryable<PasswordResetRequest> PasswordResetRequests => PasswordResetRequestsSet;
 
     public void Add<TEntity>(TEntity entity) where TEntity : class => Set<TEntity>().Add(entity);
     public void Update<TEntity>(TEntity entity) where TEntity : class => Set<TEntity>().Update(entity);

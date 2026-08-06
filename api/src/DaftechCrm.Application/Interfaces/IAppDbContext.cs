@@ -22,6 +22,8 @@ public interface IAppDbContext
     IQueryable<SatisfactionSurvey> SatisfactionSurveys { get; }
     IQueryable<LoginSession> LoginSessions { get; }
     IQueryable<RefreshToken> RefreshTokens { get; }
+    IQueryable<SystemSetting> SystemSettings { get; }
+    IQueryable<PasswordResetRequest> PasswordResetRequests { get; }
 
     void Add<TEntity>(TEntity entity) where TEntity : class;
     void Update<TEntity>(TEntity entity) where TEntity : class;

@@ -44,3 +44,10 @@ public enum SessionAccountType
     Employee,
     Client
 }
+
+public enum PasswordResetRequestStatus
+{
+    Pending,
+    OtpIssued,
+    Dismissed
+}

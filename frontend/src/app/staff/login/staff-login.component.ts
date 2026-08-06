@@ -2,11 +2,12 @@ import { Component, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
+import { ForgotPasswordModalComponent } from '../../shared/forgot-password-modal.component';
 
 @Component({
   selector: 'app-staff-login',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, ForgotPasswordModalComponent],
   template: `
     <div class="wrap">
       <div class="card panel panel-pad">
@@ -50,16 +51,41 @@ import { AuthService } from '../../core/services/auth.service';
             }
           </div>
         }
+
+        <button type="button" class="link-btn" (click)="showForgotPassword.set(true)">Forgot password?</button>
       </div>
       <footer class="app-footer">© {{ year }} DAFTECH Computer Engineering. All rights reserved.</footer>
     </div>
+
+    <app-forgot-password-modal
+      [open]="showForgotPassword()"
+      accountType="Employee"
+      (close)="showForgotPassword.set(false)"
+    />
   `,
   styles: [`
     .wrap {
       min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: var(--navy-950); padding: 1rem;
+      background: var(--navy-950); padding: 1rem; position: relative; overflow: hidden;
     }
-    .card { width: 380px; max-width: 100%; text-align: center; }
+    /* Brand aura — the red/blue of the logo mark, diffused behind the card */
+    .wrap::before {
+      content: ''; position: absolute; inset: -20%;
+      background:
+        radial-gradient(42rem 28rem at 22% 18%, rgba(52, 87, 178, 0.30), transparent 62%),
+        radial-gradient(34rem 24rem at 82% 84%, rgba(224, 52, 43, 0.20), transparent 62%);
+      pointer-events: none;
+    }
+    .card {
+      width: 388px; max-width: 100%; text-align: center; position: relative;
+      border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: var(--shadow-lg); padding: 2rem 1.75rem; overflow: hidden;
+    }
+    .card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--grad-hairline);
+    }
+    .card h2 { font-size: 1.22rem; }
     .card .lbl, .card .input-group, .card .result { text-align: left; }
     .lbl { display: block; font-size: 0.78rem; font-weight: 600; color: var(--slate-500); margin-bottom: 0.3rem; }
     .input-group { position: relative; display: flex; align-items: center; }
@@ -75,7 +101,12 @@ import { AuthService } from '../../core/services/auth.service';
     .input-group:has(.visibility-toggle) input { padding-right: 2.4rem; }
     .result { margin-top: 1rem; padding: 0.7rem 0.85rem; border-radius: 8px; background: var(--green-bg); color: var(--green); font-size: 0.85rem; }
     .result.blocked { background: var(--red-bg); color: var(--red); }
-    .app-footer { margin-top: 1.25rem; font-size: 0.75rem; color: var(--slate-400); text-align: center; }
+    .link-btn {
+      display: block; margin: 0.85rem auto 0; background: none; border: none; padding: 0;
+      color: var(--slate-500); font-size: 0.8rem; cursor: pointer; text-decoration: underline;
+    }
+    .link-btn:hover { color: var(--slate-700); }
+    .app-footer { margin-top: 1.35rem; font-size: 0.75rem; color: rgba(255,255,255,0.42); text-align: center; position: relative; }
   `],
 })
 export class StaffLoginComponent {
@@ -84,6 +115,7 @@ export class StaffLoginComponent {
   showPassword = signal(false);
   submitting = signal(false);
   result = signal<{ success: boolean; message?: string } | null>(null);
+  showForgotPassword = signal(false);
   readonly year = new Date().getFullYear();
 
   constructor(private auth: AuthService, private router: Router) {}

@@ -26,8 +26,8 @@ import { TicketService } from '../../core/services/ticket.service';
         </button>
 
         <nav [class.open]="menuOpen()">
-          <a routerLink="/portal/submit-issue" routerLinkActive="active" (click)="closeMenu()">Submit Issue</a>
-          <a routerLink="/portal/my-tickets" routerLinkActive="active" (click)="closeMenu()">My Tickets</a>
+          <a routerLink="/portal/dashboard" routerLinkActive="active" (click)="closeMenu()">Dashboard</a>
+          <a routerLink="/portal/maintenance-history" routerLinkActive="active" (click)="closeMenu()">Maintenance History</a>
           <a routerLink="/portal/confirm-resolution" routerLinkActive="active" class="bell" (click)="closeMenu()">
             Confirm Resolution
             @if (awaitingCount() > 0) { <span class="bell-count">{{ awaitingCount() }}</span> }
@@ -36,6 +36,7 @@ import { TicketService } from '../../core/services/ticket.service';
             Notifications
             @if (unread() > 0) { <span class="bell-count">{{ unread() }}</span> }
           </a>
+          <a routerLink="/portal/reports" routerLinkActive="active" (click)="closeMenu()">Reports</a>
           <div class="who mobile-who">
             <span>{{ auth.currentClient()?.name }}</span>
             <button class="btn btn-outline btn-sm" (click)="logout()">Log out</button>
@@ -57,21 +58,34 @@ import { TicketService } from '../../core/services/ticket.service';
     .shell { min-height: 100vh; background: var(--portal-bg); }
     .backdrop { display: none; }
     .topbar {
-      background: #fff; border-bottom: 1px solid var(--slate-200); padding: 0.8rem 1.5rem;
-      display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; position: relative;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: saturate(150%) blur(10px);
+      border-bottom: 1px solid var(--slate-200); padding: 0.75rem 1.75rem;
+      display: flex; align-items: center; gap: 1.75rem; flex-wrap: wrap;
+      position: sticky; top: 0; z-index: 40;
     }
-    .brand { display: flex; align-items: center; gap: 0.55rem; }
-    .brand-name { font-weight: 600; font-size: 0.9rem; }
-    nav { display: flex; gap: 1.2rem; flex: 1; }
-    nav a { font-size: 0.86rem; color: var(--slate-500); font-weight: 500; padding: 0.3rem 0; position: relative; }
-    nav a.active { color: var(--portal-accent); }
+    /* Brand hairline drawn from the logo's blue + red */
+    .topbar::before {
+      content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+      background: var(--grad-hairline);
+    }
+    .brand { display: flex; align-items: center; gap: 0.6rem; }
+    .brand-name { font-weight: 700; font-size: 0.9rem; letter-spacing: -0.01em; }
+    nav { display: flex; gap: 0.35rem; flex: 1; }
+    nav a {
+      font-size: 0.855rem; color: var(--slate-500); font-weight: 550;
+      padding: 0.4rem 0.7rem; border-radius: 999px; position: relative;
+      transition: background 0.18s var(--ease), color 0.18s var(--ease);
+    }
+    nav a:hover { color: var(--navy-900); background: var(--slate-100); }
+    nav a.active { color: var(--portal-accent); background: var(--portal-accent-soft); font-weight: 650; }
     .bell-count {
       background: var(--red); color: #fff; font-size: 0.62rem; font-weight: 700;
       border-radius: 999px; padding: 0.05rem 0.35rem; margin-left: 0.3rem;
     }
     .who { display: flex; align-items: center; gap: 0.7rem; font-size: 0.85rem; }
     .mobile-who { display: none; }
-    .content { padding: 2rem 1.5rem; max-width: 900px; margin: 0 auto; }
+    .content { padding: 2.25rem 1.5rem 2.75rem; max-width: 940px; margin: 0 auto; }
     .app-footer {
       padding: 0.9rem 1.5rem; font-size: 0.75rem; color: var(--slate-400);
       border-top: 1px solid var(--slate-200); text-align: center;
@@ -92,7 +106,7 @@ import { TicketService } from '../../core/services/ticket.service';
         gap: 0; padding: 0.5rem 0; box-shadow: 0 8px 16px rgba(0,0,0,0.08);
       }
       nav.open { display: flex; }
-      nav a { padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--slate-100); }
+      nav a { padding: 0.8rem 1.5rem; border-radius: 0; border-bottom: 1px solid var(--slate-100); }
       .mobile-who {
         display: flex; justify-content: space-between; align-items: center;
         padding: 0.9rem 1.5rem 0.6rem; margin-top: 0.3rem; border-top: 1px solid var(--slate-200);

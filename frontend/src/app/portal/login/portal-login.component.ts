@@ -2,11 +2,12 @@ import { Component, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
+import { ForgotPasswordModalComponent } from '../../shared/forgot-password-modal.component';
 
 @Component({
   selector: 'app-portal-login',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, ForgotPasswordModalComponent],
   template: `
     <div class="wrap">
       <div class="card panel panel-pad">
@@ -43,18 +44,41 @@ import { AuthService } from '../../core/services/auth.service';
 
         @if (error(); as e) { <div class="err">{{ e }}</div> }
 
+        <button type="button" class="link-btn" (click)="showForgotPassword.set(true)">Forgot password?</button>
+
         <p class="alt-link">Don't have an account yet? Ask DAFTECH to register you, or request access below.</p>
         <a routerLink="/portal/signup" class="btn btn-outline btn-sm" style="width:100%;">Request Access</a>
       </div>
       <footer class="app-footer">© {{ year }} DAFTECH Computer Engineering. All rights reserved.</footer>
     </div>
+
+    <app-forgot-password-modal
+      [open]="showForgotPassword()"
+      accountType="Client"
+      (close)="showForgotPassword.set(false)"
+    />
   `,
   styles: [`
     .wrap {
       min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: var(--portal-bg); padding: 1rem;
+      background: var(--portal-bg); padding: 1rem; position: relative; overflow: hidden;
     }
-    .card { width: 380px; max-width: 100%; text-align: center; }
+    .wrap::before {
+      content: ''; position: absolute; inset: -20%;
+      background:
+        radial-gradient(40rem 26rem at 18% 12%, rgba(52, 87, 178, 0.10), transparent 62%),
+        radial-gradient(32rem 22rem at 86% 88%, rgba(224, 52, 43, 0.07), transparent 62%);
+      pointer-events: none;
+    }
+    .card {
+      width: 388px; max-width: 100%; text-align: center; position: relative;
+      box-shadow: var(--shadow-md); padding: 2rem 1.75rem; overflow: hidden;
+    }
+    .card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--grad-hairline);
+    }
+    .card h2 { font-size: 1.22rem; }
     .card .lbl, .card .input-group, .card .err { text-align: left; }
     .brand-logo-img { margin: 0 auto 0.75rem; }
     .lbl { display: block; font-size: 0.78rem; font-weight: 600; color: var(--slate-500); margin-bottom: 0.3rem; }
@@ -70,8 +94,13 @@ import { AuthService } from '../../core/services/auth.service';
     .visibility-toggle:hover { color: var(--slate-600); background: var(--slate-100); }
     .input-group:has(.visibility-toggle) input { padding-right: 2.4rem; }
     .err { margin-top: 0.9rem; padding: 0.65rem 0.8rem; border-radius: 8px; background: var(--red-bg); color: var(--red); font-size: 0.83rem; }
+    .link-btn {
+      display: block; margin: 0.85rem auto 0; background: none; border: none; padding: 0;
+      color: var(--slate-500); font-size: 0.8rem; cursor: pointer; text-decoration: underline;
+    }
+    .link-btn:hover { color: var(--slate-700); }
     .alt-link { font-size: 0.78rem; margin: 1rem 0 0.6rem; text-align: center; color: var(--slate-500); }
-    .app-footer { margin-top: 1.25rem; font-size: 0.75rem; color: var(--slate-400); text-align: center; }
+    .app-footer { margin-top: 1.35rem; font-size: 0.75rem; color: var(--slate-400); text-align: center; position: relative; }
   `],
 })
 export class PortalLoginComponent {
@@ -80,6 +109,7 @@ export class PortalLoginComponent {
   showPassword = signal(false);
   submitting = signal(false);
   error = signal<string | null>(null);
+  showForgotPassword = signal(false);
   readonly year = new Date().getFullYear();
 
   constructor(private auth: AuthService, private router: Router) {}
@@ -91,7 +121,7 @@ export class PortalLoginComponent {
       const res = await this.auth.loginClient(this.username().trim(), this.password());
       if (res.success) {
         this.error.set(null);
-        const dest = this.auth.clientMustChangePassword() ? '/portal/change-password' : '/portal/my-tickets';
+        const dest = this.auth.clientMustChangePassword() ? '/portal/change-password' : '/portal/dashboard';
         this.router.navigateByUrl(dest);
       } else {
         this.error.set(res.message ?? 'Unable to log in.');

@@ -61,24 +61,20 @@ import { ForgotPasswordModalComponent } from '../../shared/forgot-password-modal
   styles: [`
     .wrap {
       min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: var(--portal-bg); padding: 1rem; position: relative; overflow: hidden;
-    }
-    .wrap::before {
-      content: ''; position: absolute; inset: -20%;
+      padding: 1rem; position: relative; overflow: hidden;
       background:
-        radial-gradient(40rem 26rem at 18% 12%, rgba(52, 87, 178, 0.10), transparent 62%),
-        radial-gradient(32rem 22rem at 86% 88%, rgba(224, 52, 43, 0.07), transparent 62%);
-      pointer-events: none;
+        radial-gradient(760px 420px at 50% -12%, rgba(52,87,178,0.16), transparent 62%),
+        radial-gradient(560px 340px at 88% 108%, rgba(224,52,43,0.10), transparent 60%),
+        var(--portal-bg);
     }
     .card {
-      width: 388px; max-width: 100%; text-align: center; position: relative;
-      box-shadow: var(--shadow-md); padding: 2rem 1.75rem; overflow: hidden;
+      width: 400px; max-width: 100%; text-align: center; position: relative; z-index: 1;
+      border-radius: 18px; padding: 2rem 1.75rem; box-shadow: var(--shadow-lg);
     }
     .card::before {
-      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-      background: var(--grad-hairline);
+      content: ''; position: absolute; top: 0; left: 18%; right: 18%; height: 2px;
+      border-radius: 999px; background: var(--gradient-mark);
     }
-    .card h2 { font-size: 1.22rem; }
     .card .lbl, .card .input-group, .card .err { text-align: left; }
     .brand-logo-img { margin: 0 auto 0.75rem; }
     .lbl { display: block; font-size: 0.78rem; font-weight: 600; color: var(--slate-500); margin-bottom: 0.3rem; }
@@ -98,9 +94,9 @@ import { ForgotPasswordModalComponent } from '../../shared/forgot-password-modal
       display: block; margin: 0.85rem auto 0; background: none; border: none; padding: 0;
       color: var(--slate-500); font-size: 0.8rem; cursor: pointer; text-decoration: underline;
     }
-    .link-btn:hover { color: var(--slate-700); }
+    .link-btn:hover { color: var(--accent); }
     .alt-link { font-size: 0.78rem; margin: 1rem 0 0.6rem; text-align: center; color: var(--slate-500); }
-    .app-footer { margin-top: 1.35rem; font-size: 0.75rem; color: var(--slate-400); text-align: center; position: relative; }
+    .app-footer { margin-top: 1.25rem; font-size: 0.75rem; color: var(--slate-400); text-align: center; }
   `],
 })
 export class PortalLoginComponent {

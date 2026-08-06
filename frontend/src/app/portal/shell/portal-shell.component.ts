@@ -55,39 +55,47 @@ import { TicketService } from '../../core/services/ticket.service';
     </div>
   `,
   styles: [`
-    .shell { min-height: 100vh; background: var(--portal-bg); }
+    .shell {
+      min-height: 100vh;
+      background:
+        radial-gradient(900px 420px at 12% -8%, rgba(52,87,178,0.09), transparent 60%),
+        radial-gradient(700px 380px at 95% 0%, rgba(224,52,43,0.06), transparent 60%),
+        var(--portal-bg);
+      display: flex; flex-direction: column;
+    }
     .backdrop { display: none; }
     .topbar {
-      background: rgba(255, 255, 255, 0.85);
-      backdrop-filter: saturate(150%) blur(10px);
-      border-bottom: 1px solid var(--slate-200); padding: 0.75rem 1.75rem;
+      background: rgba(255,255,255,0.85); backdrop-filter: saturate(180%) blur(12px);
+      border-bottom: 1px solid var(--slate-200); padding: 0.85rem 1.75rem;
       display: flex; align-items: center; gap: 1.75rem; flex-wrap: wrap;
-      position: sticky; top: 0; z-index: 40;
-    }
-    /* Brand hairline drawn from the logo's blue + red */
-    .topbar::before {
-      content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
-      background: var(--grad-hairline);
+      position: sticky; top: 0; z-index: 40; box-shadow: var(--shadow-xs);
     }
     .brand { display: flex; align-items: center; gap: 0.6rem; }
-    .brand-name { font-weight: 700; font-size: 0.9rem; letter-spacing: -0.01em; }
+    .brand .brand-logo-img { border-radius: 9px; }
+    .brand-name {
+      font-family: var(--font-display); font-weight: 600; font-size: 0.92rem;
+      letter-spacing: -0.01em;
+    }
     nav { display: flex; gap: 0.35rem; flex: 1; }
     nav a {
-      font-size: 0.855rem; color: var(--slate-500); font-weight: 550;
-      padding: 0.4rem 0.7rem; border-radius: 999px; position: relative;
+      font-size: 0.85rem; color: var(--slate-500); font-weight: 500;
+      padding: 0.42rem 0.7rem; border-radius: 9px; position: relative;
       transition: background 0.18s var(--ease), color 0.18s var(--ease);
     }
-    nav a:hover { color: var(--navy-900); background: var(--slate-100); }
-    nav a.active { color: var(--portal-accent); background: var(--portal-accent-soft); font-weight: 650; }
+    nav a:hover { background: var(--slate-100); color: var(--navy-800); }
+    nav a.active { color: var(--portal-accent); background: var(--portal-accent-soft); font-weight: 600; }
     .bell-count {
       background: var(--red); color: #fff; font-size: 0.62rem; font-weight: 700;
       border-radius: 999px; padding: 0.05rem 0.35rem; margin-left: 0.3rem;
     }
-    .who { display: flex; align-items: center; gap: 0.7rem; font-size: 0.85rem; }
+    .who { display: flex; align-items: center; gap: 0.7rem; font-size: 0.85rem; font-weight: 500; }
     .mobile-who { display: none; }
-    .content { padding: 2.25rem 1.5rem 2.75rem; max-width: 940px; margin: 0 auto; }
+    .content {
+      padding: 2.25rem 1.5rem; max-width: 980px; margin: 0 auto; width: 100%; flex: 1;
+      animation: daftech-rise 0.32s var(--ease) both;
+    }
     .app-footer {
-      padding: 0.9rem 1.5rem; font-size: 0.75rem; color: var(--slate-400);
+      padding: 1rem 1.5rem; font-size: 0.75rem; color: var(--slate-400);
       border-top: 1px solid var(--slate-200); text-align: center;
     }
     .hamburger {
@@ -98,22 +106,23 @@ import { TicketService } from '../../core/services/ticket.service';
 
     /* Mobile: nav collapses into a hamburger-triggered dropdown panel */
     @media (max-width: 720px) {
+      .topbar { padding: 0.75rem 1rem; }
       .hamburger { display: flex; }
       .desktop-who { display: none; }
       nav {
         display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 40;
         background: #fff; border-bottom: 1px solid var(--slate-200); flex-direction: column;
-        gap: 0; padding: 0.5rem 0; box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+        gap: 0; padding: 0.5rem 0; box-shadow: var(--shadow-md);
       }
       nav.open { display: flex; }
-      nav a { padding: 0.8rem 1.5rem; border-radius: 0; border-bottom: 1px solid var(--slate-100); }
+      nav a { padding: 0.75rem 1.25rem; border-radius: 0; border-bottom: 1px solid var(--slate-100); }
       .mobile-who {
         display: flex; justify-content: space-between; align-items: center;
-        padding: 0.9rem 1.5rem 0.6rem; margin-top: 0.3rem; border-top: 1px solid var(--slate-200);
+        padding: 0.9rem 1.25rem 0.6rem; margin-top: 0.3rem; border-top: 1px solid var(--slate-200);
       }
       .backdrop { display: block; position: fixed; inset: 0; background: rgba(15,23,42,0.35); z-index: 30; }
-      .content { padding: 1.25rem 1rem; }
-      .app-footer { padding: 0.8rem 1rem; }
+      .content { padding: 1.35rem 1rem; }
+      .app-footer { padding: 0.85rem 1rem; }
     }
   `],
 })

@@ -48,6 +48,8 @@ import { ForgotPasswordModalComponent } from '../../shared/forgot-password-modal
 
         <p class="alt-link">Don't have an account yet? Ask DAFTECH to register you, or request access below.</p>
         <a routerLink="/portal/signup" class="btn btn-outline btn-sm" style="width:100%;">Request Access</a>
+
+        <p class="alt-link">Admin or Staff? <a routerLink="/admin/login">Click here to sign in</a>.</p>
       </div>
       <footer class="app-footer">© {{ year }} DAFTECH Computer Engineering. All rights reserved.</footer>
     </div>
@@ -85,6 +87,7 @@ import { ForgotPasswordModalComponent } from '../../shared/forgot-password-modal
     }
     .link-btn:hover { color: var(--slate-700); }
     .alt-link { font-size: 0.78rem; margin: 1rem 0 0.6rem; text-align: center; color: var(--slate-500); }
+    .alt-link a { color: var(--navy-600, #2563eb); text-decoration: underline; }
     .app-footer { margin-top: 1.25rem; font-size: 0.75rem; color: var(--slate-400); text-align: center; }
   `],
 })

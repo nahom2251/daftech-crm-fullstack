@@ -86,9 +86,9 @@ export class TicketService {
   }
 
   /** Client submits an issue via the portal. */
-  async submitFromClient(clientId: string, agreementId: string, description: string, category: TicketCategory): Promise<Ticket> {
+  async submitFromClient(clientId: string, agreementId: string, description: string, category: TicketCategory, failureTypeId?: string): Promise<Ticket> {
     const ticket = await firstValueFrom(
-      this.http.post<Ticket>(`${API_BASE_URL}/tickets`, { clientId, agreementId, description, category })
+      this.http.post<Ticket>(`${API_BASE_URL}/tickets`, { clientId, agreementId, description, category, failureTypeId })
     );
     await Promise.all([this.refresh(), this.refreshPaged()]);
     return ticket;

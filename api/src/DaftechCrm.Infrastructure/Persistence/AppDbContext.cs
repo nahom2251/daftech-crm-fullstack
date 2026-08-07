@@ -23,6 +23,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<RefreshToken> RefreshTokensSet => Set<RefreshToken>();
     public DbSet<SystemSetting> SystemSettingsSet => Set<SystemSetting>();
     public DbSet<PasswordResetRequest> PasswordResetRequestsSet => Set<PasswordResetRequest>();
+    public DbSet<LocationEntry> LocationEntriesSet => Set<LocationEntry>();
+    public DbSet<FailureType> FailureTypesSet => Set<FailureType>();
 
     // IAppDbContext — exposed as IQueryable so Application services never depend on DbSet<T> directly.
     public IQueryable<Client> Clients => ClientsSet;
@@ -40,9 +42,12 @@ public class AppDbContext : DbContext, IAppDbContext
     public IQueryable<RefreshToken> RefreshTokens => RefreshTokensSet;
     public IQueryable<SystemSetting> SystemSettings => SystemSettingsSet;
     public IQueryable<PasswordResetRequest> PasswordResetRequests => PasswordResetRequestsSet;
+    public IQueryable<LocationEntry> LocationEntries => LocationEntriesSet;
+    public IQueryable<FailureType> FailureTypes => FailureTypesSet;
 
     public void Add<TEntity>(TEntity entity) where TEntity : class => Set<TEntity>().Add(entity);
     public void Update<TEntity>(TEntity entity) where TEntity : class => Set<TEntity>().Update(entity);
+    public void Remove<TEntity>(TEntity entity) where TEntity : class => Set<TEntity>().Remove(entity);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

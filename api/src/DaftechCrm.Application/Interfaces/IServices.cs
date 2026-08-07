@@ -237,3 +237,32 @@ public interface ISystemConfigurationService
     Task<int> GetIntAsync(string key, CancellationToken ct = default);
     Task<bool> GetBoolAsync(string key, CancellationToken ct = default);
 }
+
+/// <summary>
+/// Admin-managed dropdown/checklist options: Region / City / Woreda
+/// (client forms), Specialization and CustomRole (employee form). Five
+/// independent flat lists — not a hierarchy.
+/// </summary>
+public interface ILocationService
+{
+    /// <summary>All five lists at once, alphabetized. Public — the self-signup portal is unauthenticated.</summary>
+    Task<LocationOptionsDto> GetAllAsync(CancellationToken ct = default);
+
+    Task<LocationEntryDto> CreateAsync(CreateLocationEntryRequest request, CancellationToken ct = default);
+    Task<LocationEntryDto> UpdateAsync(Guid id, UpdateLocationEntryRequest request, CancellationToken ct = default);
+    Task DeleteAsync(Guid id, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Admin-managed list of client-system failure types, each with an
+/// expected resolution duration (hours/days/months). Clients pick one on
+/// ticket submission; the on-time/late report uses that ticket's duration
+/// instead of the global OnTimeResolutionTargetDays when set.
+/// </summary>
+public interface IFailureTypeService
+{
+    Task<IReadOnlyList<FailureTypeDto>> GetAllAsync(CancellationToken ct = default);
+    Task<FailureTypeDto> CreateAsync(CreateFailureTypeRequest request, CancellationToken ct = default);
+    Task<FailureTypeDto> UpdateAsync(Guid id, UpdateFailureTypeRequest request, CancellationToken ct = default);
+    Task DeleteAsync(Guid id, CancellationToken ct = default);
+}

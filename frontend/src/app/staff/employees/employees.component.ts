@@ -1,6 +1,7 @@
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { EmployeeService } from '../../core/services/employee.service';
+import { LocationService } from '../../core/services/location.service';
 import { BadgeComponent } from '../../shared/badge.component';
 import { PaginationComponent } from '../../shared/pagination.component';
 import { EmployeeRegisteredResult, EmployeeRole, EMPLOYEE_ROLE_LABELS } from '../../core/models';
@@ -27,7 +28,15 @@ const ALL_ROLES: EmployeeRole[] = ['Admin', 'ItSupport', 'EmployeeTechnician'];
             <div class="field"><label>Full Name</label><input type="text" [ngModel]="form.fullName" (ngModelChange)="form.fullName = $event" /></div>
             <div class="field"><label>Phone Number</label><input type="text" [ngModel]="form.phoneNumber" (ngModelChange)="form.phoneNumber = $event" /></div>
             <div class="field"><label>Email</label><input type="email" [ngModel]="form.email" (ngModelChange)="form.email = $event" placeholder="used to send login credentials" /></div>
-            <div class="field"><label>Specialization</label><input type="text" [ngModel]="form.specialization" (ngModelChange)="form.specialization = $event" placeholder="e.g. Networking, SQL…" /></div>
+            <div class="field">
+              <label>Specialization</label>
+              <select [ngModel]="form.specialization" (ngModelChange)="form.specialization = $event">
+                <option value="">Select specialization…</option>
+                @for (s of locations.options().specializations; track s.id) {
+                  <option [value]="s.name">{{ s.name }}</option>
+                }
+              </select>
+            </div>
             <div class="field"><label>Allowed IP Addresses (optional)</label><input type="text" [ngModel]="form.allowedIpAddressesRaw" (ngModelChange)="form.allowedIpAddressesRaw = $event" placeholder="comma-separated — blank = no restriction" /></div>
             <div class="field">
               <label>Roles</label>
@@ -40,6 +49,20 @@ const ALL_ROLES: EmployeeRole[] = ['Admin', 'ItSupport', 'EmployeeTechnician'];
                 }
               </div>
             </div>
+            @if (locations.options().customRoles.length > 0) {
+              <div class="field">
+                <label>Additional Roles</label>
+                <p class="text-muted" style="font-size:0.72rem; margin: -0.1rem 0 0.3rem;">Descriptive only — these don't change what the employee can access.</p>
+                <div class="role-checks">
+                  @for (r of locations.options().customRoles; track r.id) {
+                    <label class="role-check">
+                      <input type="checkbox" [checked]="form.extraRoleLabels.includes(r.name)" (change)="toggleExtraRole(r.name)" />
+                      {{ r.name }}
+                    </label>
+                  }
+                </div>
+              </div>
+            }
           </div>
           @if (registerError()) {
             <p class="register-error" style="margin-top:0.75rem;">{{ registerError() }}</p>
@@ -93,7 +116,7 @@ const ALL_ROLES: EmployeeRole[] = ['Admin', 'ItSupport', 'EmployeeTechnician'];
               <td>{{ e.fullName }}</td>
               <td class="text-muted">{{ e.email }}</td>
               <td>{{ e.specialization }}</td>
-              <td>{{ e.roles.map(roleLabel).join(', ') }}</td>
+              <td>{{ [...e.roles.map(roleLabel), ...e.extraRoleLabels].join(', ') }}</td>
               <td class="mono">{{ e.openTicketCount }}</td>
               <td><app-badge [status]="e.accountStatus"></app-badge></td>
               <td>
@@ -164,10 +187,10 @@ export class EmployeesComponent {
 
   form = {
     fullName: '', phoneNumber: '', email: '', specialization: '',
-    allowedIpAddressesRaw: '', roles: [] as EmployeeRole[],
+    allowedIpAddressesRaw: '', roles: [] as EmployeeRole[], extraRoleLabels: [] as string[],
   };
 
-  constructor(public employeeService: EmployeeService) {}
+  constructor(public employeeService: EmployeeService, public locations: LocationService) {}
 
   roleLabel = (r: EmployeeRole) => EMPLOYEE_ROLE_LABELS[r];
 
@@ -198,6 +221,12 @@ export class EmployeesComponent {
     else this.form.roles = this.form.roles.filter(x => x !== r);
   }
 
+  toggleExtraRole(name: string) {
+    const idx = this.form.extraRoleLabels.indexOf(name);
+    if (idx === -1) this.form.extraRoleLabels = [...this.form.extraRoleLabels, name];
+    else this.form.extraRoleLabels = this.form.extraRoleLabels.filter(x => x !== name);
+  }
+
   async submit() {
     if (!this.form.fullName || this.form.roles.length === 0) return;
     this.registering.set(true);
@@ -211,10 +240,11 @@ export class EmployeesComponent {
         phoneNumber: this.form.phoneNumber,
         specialization: this.form.specialization,
         roles: this.form.roles,
+        extraRoleLabels: this.form.extraRoleLabels,
         allowedIpAddresses,
       });
       this.justRegistered.set(result);
-      this.form = { fullName: '', phoneNumber: '', email: '', specialization: '', allowedIpAddressesRaw: '', roles: [] };
+      this.form = { fullName: '', phoneNumber: '', email: '', specialization: '', allowedIpAddressesRaw: '', roles: [], extraRoleLabels: [] };
     } catch (err: any) {
       this.registerError.set(err?.error?.error ?? 'Registration failed — please check the details and try again.');
     } finally {

@@ -116,7 +116,7 @@ export class EmployeeService {
    */
   async registerEmployee(data: {
     fullName: string; email: string; phoneNumber: string; specialization: string;
-    roles: EmployeeRole[]; allowedIpAddresses: string[];
+    roles: EmployeeRole[]; extraRoleLabels: string[]; allowedIpAddresses: string[];
   }): Promise<EmployeeRegisteredResult> {
     const result = await firstValueFrom(this.http.post<EmployeeRegisteredResult>(`${API_BASE_URL}/employees`, data));
     await Promise.all([this.refresh(), this.refreshPaged()]);

@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
 import { AgreementService } from '../../core/services/agreement.service';
 import { TicketService } from '../../core/services/ticket.service';
+import { FailureTypeService } from '../../core/services/failure-type.service';
 import { TicketCategory } from '../../core/models';
 
 @Component({
@@ -25,6 +26,17 @@ import { TicketCategory } from '../../core/models';
             <option value="Other">Other</option>
           </select>
         </div>
+        @if (failureTypes.types().length > 0) {
+          <div class="field" style="margin-top:0.8rem;">
+            <label>What kind of failure is this? (optional)</label>
+            <select [ngModel]="failureTypeId()" (ngModelChange)="failureTypeId.set($event)">
+              <option value="">Not sure / other…</option>
+              @for (f of failureTypes.types(); track f.id) {
+                <option [value]="f.id">{{ f.name }}</option>
+              }
+            </select>
+          </div>
+        }
         <div class="field" style="margin-top:0.8rem;">
           <label>Description</label>
           <textarea rows="5" [ngModel]="description()" (ngModelChange)="description.set($event)" placeholder="Describe what happened, when, and any error messages…"></textarea>
@@ -46,10 +58,11 @@ import { TicketCategory } from '../../core/models';
 })
 export class SubmitIssueComponent {
   category = signal<TicketCategory>('Bug');
+  failureTypeId = signal<string>('');
   description = signal('');
   submittedId = signal<string | null>(null);
 
-  constructor(private auth: AuthService, private agreements: AgreementService, private tickets: TicketService) {}
+  constructor(private auth: AuthService, private agreements: AgreementService, private tickets: TicketService, public failureTypes: FailureTypeService) {}
 
   agreement = computed(() => {
     const client = this.auth.currentClient();
@@ -61,8 +74,12 @@ export class SubmitIssueComponent {
     const client = this.auth.currentClient();
     const agreement = this.agreement();
     if (!client || !agreement || !this.description().trim()) return;
-    const ticket = await this.tickets.submitFromClient(client.id, agreement.id, this.description().trim(), this.category());
+    const ticket = await this.tickets.submitFromClient(
+      client.id, agreement.id, this.description().trim(), this.category(),
+      this.failureTypeId() || undefined
+    );
     this.submittedId.set(ticket.id);
     this.description.set('');
+    this.failureTypeId.set('');
   }
 }

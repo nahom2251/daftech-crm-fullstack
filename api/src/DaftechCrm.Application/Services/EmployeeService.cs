@@ -30,6 +30,7 @@ public class EmployeeService : IEmployeeService
             PhoneNumber = request.PhoneNumber,
             Specialization = request.Specialization,
             Roles = request.Roles.ToList(),
+            ExtraRoleLabels = request.ExtraRoleLabels.ToList(),
             AllowedIpAddresses = request.AllowedIpAddresses.ToList(),
             Username = issued.Username,
             PasswordHash = PasswordHasher.Hash(issued.OneTimePassword),
@@ -84,7 +85,7 @@ public class EmployeeService : IEmployeeService
             .ToDictionaryAsync(x => x.EmployeeId, x => (double?)x.Avg, ct);
 
         return employees.Select(e => new EmployeeDto(
-            e.Id, e.FullName, e.Email, e.PhoneNumber, e.Specialization, e.Roles, e.AccountStatus, e.AllowedIpAddresses,
+            e.Id, e.FullName, e.Email, e.PhoneNumber, e.Specialization, e.Roles, e.ExtraRoleLabels, e.AccountStatus, e.AllowedIpAddresses,
             e.DisabledAt, e.DisabledReason,
             openCounts.GetValueOrDefault(e.Id, 0), avgScores.GetValueOrDefault(e.Id),
             e.Username, e.MustChangePassword
@@ -118,7 +119,7 @@ public class EmployeeService : IEmployeeService
             .ToDictionaryAsync(x => x.EmployeeId, x => (double?)x.Avg, ct);
 
         var items = employees.Select(e => new EmployeeDto(
-            e.Id, e.FullName, e.Email, e.PhoneNumber, e.Specialization, e.Roles, e.AccountStatus, e.AllowedIpAddresses,
+            e.Id, e.FullName, e.Email, e.PhoneNumber, e.Specialization, e.Roles, e.ExtraRoleLabels, e.AccountStatus, e.AllowedIpAddresses,
             e.DisabledAt, e.DisabledReason,
             openCounts.GetValueOrDefault(e.Id, 0), avgScores.GetValueOrDefault(e.Id),
             e.Username, e.MustChangePassword
@@ -227,7 +228,7 @@ public class EmployeeService : IEmployeeService
         double? avgScore = scores.Count > 0 ? scores.Average() : null;
 
         return new EmployeeDto(
-            e.Id, e.FullName, e.Email, e.PhoneNumber, e.Specialization, e.Roles, e.AccountStatus, e.AllowedIpAddresses,
+            e.Id, e.FullName, e.Email, e.PhoneNumber, e.Specialization, e.Roles, e.ExtraRoleLabels, e.AccountStatus, e.AllowedIpAddresses,
             e.DisabledAt, e.DisabledReason, openCount, avgScore, e.Username, e.MustChangePassword
         );
     }

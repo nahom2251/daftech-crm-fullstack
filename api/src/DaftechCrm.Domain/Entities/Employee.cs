@@ -17,6 +17,16 @@ public class Employee
     /// <summary>Stored as a comma-separated list of EmployeeRole values (see EF config).</summary>
     public List<EmployeeRole> Roles { get; set; } = new();
 
+    /// <summary>
+    /// Additional, purely-descriptive role labels an Admin has defined via
+    /// the Settings → Locations tab (LocationEntry, Type=CustomRole) and
+    /// assigned to this employee. These carry NO authorization meaning —
+    /// every [Authorize] policy in the app checks only the hardcoded
+    /// Roles/EmployeeRole above, unchanged. Purely for org-chart/labeling
+    /// purposes until (if ever) a real permission system is built on top.
+    /// </summary>
+    public List<string> ExtraRoleLabels { get; set; } = new();
+
     public EmployeeAccountStatus AccountStatus { get; set; } = EmployeeAccountStatus.Active;
 
     /// <summary>

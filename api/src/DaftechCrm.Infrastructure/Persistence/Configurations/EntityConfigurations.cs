@@ -90,6 +90,7 @@ public class TicketConfiguration : IEntityTypeConfiguration<Ticket>
         b.HasOne(x => x.Agreement).WithMany(a => a.Tickets).HasForeignKey(x => x.AgreementId);
         b.HasOne(x => x.AssignedEmployee).WithMany(e => e.AssignedTickets).HasForeignKey(x => x.AssignedEmployeeId).OnDelete(DeleteBehavior.SetNull);
         b.HasOne(x => x.ForwardedByEmployee).WithMany().HasForeignKey(x => x.ForwardedByEmployeeId).OnDelete(DeleteBehavior.SetNull);
+        b.HasOne(x => x.FailureType).WithMany().HasForeignKey(x => x.FailureTypeId).OnDelete(DeleteBehavior.SetNull);
         b.HasMany(x => x.AuditTrail).WithOne(a => a.Ticket).HasForeignKey(a => a.TicketId);
         b.HasIndex(x => x.Status);
         b.HasIndex(x => x.ClientConfirmationDeadline);
@@ -131,6 +132,11 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         b.Property(x => x.AllowedIpAddresses)
             .HasConversion(ValueConverters.StringListConverter)
             .HasColumnType("varchar(1000)")
+            .Metadata.SetValueComparer(ValueConverters.StringListComparer);
+
+        b.Property(x => x.ExtraRoleLabels)
+            .HasConversion(ValueConverters.StringListConverter)
+            .HasColumnType("varchar(500)")
             .Metadata.SetValueComparer(ValueConverters.StringListComparer);
 
         b.HasMany(x => x.DeviceSessions).WithOne(d => d.Employee).HasForeignKey(d => d.EmployeeId);
@@ -271,5 +277,30 @@ public class PasswordResetRequestConfiguration : IEntityTypeConfiguration<Passwo
         b.Property(x => x.DismissReason).HasMaxLength(500);
         b.HasIndex(x => new { x.AccountType, x.AccountId, x.Status });
         b.HasIndex(x => x.Status);
+    }
+}
+/// <summary>Admin-managed options for the Region / City / Woreda dropdowns on client forms.</summary>
+public class LocationEntryConfiguration : IEntityTypeConfiguration<LocationEntry>
+{
+    public void Configure(EntityTypeBuilder<LocationEntry> b)
+    {
+        b.ToTable("location_entries");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Type).HasConversion<string>().HasMaxLength(20).IsRequired();
+        b.Property(x => x.Name).HasMaxLength(150).IsRequired();
+        b.HasIndex(x => new { x.Type, x.Name }).IsUnique();
+    }
+}
+
+/// <summary>Admin-managed failure types with expected resolution durations, chosen by clients on ticket submission.</summary>
+public class FailureTypeConfiguration : IEntityTypeConfiguration<FailureType>
+{
+    public void Configure(EntityTypeBuilder<FailureType> b)
+    {
+        b.ToTable("failure_types");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Name).HasMaxLength(150).IsRequired();
+        b.HasIndex(x => x.Name).IsUnique();
+        b.Property(x => x.DurationUnit).HasConversion<string>().HasMaxLength(20).IsRequired();
     }
 }

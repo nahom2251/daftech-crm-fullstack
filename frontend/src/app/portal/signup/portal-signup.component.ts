@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ClientService } from '../../core/services/client.service';
+import { LocationService } from '../../core/services/location.service';
 
 @Component({
   selector: 'app-portal-signup',
@@ -20,9 +21,30 @@ import { ClientService } from '../../core/services/client.service';
           <div class="field"><label>Email</label><input type="email" [ngModel]="form.email" (ngModelChange)="form.email = $event" /></div>
           <div class="field"><label>Office</label><input type="text" [ngModel]="form.office" (ngModelChange)="form.office = $event" /></div>
           <div class="field"><label>Location</label><input type="text" [ngModel]="form.location" (ngModelChange)="form.location = $event" /></div>
-          <div class="field"><label>Region</label><input type="text" [ngModel]="form.region" (ngModelChange)="form.region = $event" /></div>
-          <div class="field"><label>City</label><input type="text" [ngModel]="form.city" (ngModelChange)="form.city = $event" /></div>
-          <div class="field"><label>Woreda</label><input type="text" [ngModel]="form.woreda" (ngModelChange)="form.woreda = $event" /></div>
+          <div class="field"><label>Region</label>
+            <select [ngModel]="form.region" (ngModelChange)="form.region = $event">
+              <option value="">Select region…</option>
+              @for (r of locations.options().regions; track r.id) {
+                <option [value]="r.name">{{ r.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="field"><label>City</label>
+            <select [ngModel]="form.city" (ngModelChange)="form.city = $event">
+              <option value="">Select city…</option>
+              @for (c of locations.options().cities; track c.id) {
+                <option [value]="c.name">{{ c.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="field"><label>Woreda</label>
+            <select [ngModel]="form.woreda" (ngModelChange)="form.woreda = $event">
+              <option value="">Select woreda…</option>
+              @for (w of locations.options().woredas; track w.id) {
+                <option [value]="w.name">{{ w.name }}</option>
+              }
+            </select>
+          </div>
 
           <button class="btn btn-primary" style="width:100%; margin-top:1rem;" (click)="submit()">Submit Request</button>
           <p class="alt-link">Already approved? <a routerLink="/portal/login">Log in</a></p>
@@ -44,7 +66,7 @@ import { ClientService } from '../../core/services/client.service';
     .brand-logo-img { margin: 0 auto 0.75rem; }
     .field { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.7rem; }
     .field label { font-size: 0.78rem; font-weight: 600; color: var(--slate-500); }
-    .field input { width: 100%; }
+    .field input, .field select { width: 100%; }
     .alt-link { font-size: 0.82rem; margin-top: 0.9rem; text-align: center; }
     .alt-link a { color: var(--portal-accent); font-weight: 600; }
   `],
@@ -53,7 +75,7 @@ export class PortalSignupComponent {
   submitted = signal(false);
   form = { name: '', phoneNumber: '', email: '', office: '', location: '', region: '', city: '', woreda: '' };
 
-  constructor(private clients: ClientService) {}
+  constructor(private clients: ClientService, public locations: LocationService) {}
 
   async submit() {
     if (!this.form.name) return;

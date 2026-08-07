@@ -323,3 +323,77 @@ public class SatisfactionSurveysController : ControllerBase
         catch (ArgumentOutOfRangeException ex) { return BadRequest(ex.Message); }
     }
 }
+
+[ApiController]
+[Route("api/locations")]
+public class LocationsController : ControllerBase
+{
+    private readonly ILocationService _locations;
+    public LocationsController(ILocationService locations) => _locations = locations;
+
+    /// <summary>All admin-managed dropdown/checklist options (Region/City/Woreda/Specialization/CustomRole). Public (no [Authorize]) — the client self-signup portal needs Region/City/Woreda while unauthenticated.</summary>
+    [HttpGet]
+    [AllowAnonymous]
+    public async Task<ActionResult<LocationOptionsDto>> GetAll(CancellationToken ct) => Ok(await _locations.GetAllAsync(ct));
+
+    [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<ActionResult<LocationEntryDto>> Create([FromBody] CreateLocationEntryRequest request, CancellationToken ct)
+    {
+        try { return Ok(await _locations.CreateAsync(request, ct)); }
+        catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+    }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<ActionResult<LocationEntryDto>> Update(Guid id, [FromBody] UpdateLocationEntryRequest request, CancellationToken ct)
+    {
+        try { return Ok(await _locations.UpdateAsync(id, request, ct)); }
+        catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        try { await _locations.DeleteAsync(id, ct); return NoContent(); }
+        catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+    }
+}
+
+[ApiController]
+[Route("api/failure-types")]
+public class FailureTypesController : ControllerBase
+{
+    private readonly IFailureTypeService _failureTypes;
+    public FailureTypesController(IFailureTypeService failureTypes) => _failureTypes = failureTypes;
+
+    /// <summary>Public — the client portal's Submit Issue form needs this list to populate the dropdown.</summary>
+    [HttpGet]
+    [AllowAnonymous]
+    public async Task<ActionResult<IReadOnlyList<FailureTypeDto>>> GetAll(CancellationToken ct) => Ok(await _failureTypes.GetAllAsync(ct));
+
+    [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<ActionResult<FailureTypeDto>> Create([FromBody] CreateFailureTypeRequest request, CancellationToken ct)
+    {
+        try { return Ok(await _failureTypes.CreateAsync(request, ct)); }
+        catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+    }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<ActionResult<FailureTypeDto>> Update(Guid id, [FromBody] UpdateFailureTypeRequest request, CancellationToken ct)
+    {
+        try { return Ok(await _failureTypes.UpdateAsync(id, request, ct)); }
+        catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        try { await _failureTypes.DeleteAsync(id, ct); return NoContent(); }
+        catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+    }
+}

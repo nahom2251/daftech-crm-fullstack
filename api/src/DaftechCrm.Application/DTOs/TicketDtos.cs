@@ -1,4 +1,5 @@
 using DaftechCrm.Domain.Enums;
+using DaftechCrm.Domain.Entities;
 
 namespace DaftechCrm.Application.DTOs;
 
@@ -9,11 +10,15 @@ public record TicketDto(
     Guid AgreementId,
     string Description,
     TicketCategory Category,
+    Guid? FailureTypeId,
+    string? FailureTypeName,
     DateTimeOffset DateSubmitted,
     Guid? ForwardedByEmployeeId,
     Guid? AssignedEmployeeId,
     string? AssignedEmployeeName,
     DateTimeOffset? AssignedAt,
+    /// <summary>AssignedAt + the ticket's FailureType duration, or null if no FailureType was chosen (falls back to the global on-time target in reporting — see ReportService).</summary>
+    DateTimeOffset? ExpectedResolutionBy,
     bool Chargeable,
     TicketStatus Status,
     DateTimeOffset? ResolvedAt,
@@ -26,7 +31,7 @@ public record TicketDto(
 
 public record TicketAuditEntryDto(DateTimeOffset Timestamp, string Actor, string Action);
 
-public record SubmitTicketRequest(Guid ClientId, Guid AgreementId, string Description, TicketCategory Category);
+public record SubmitTicketRequest(Guid ClientId, Guid AgreementId, string Description, TicketCategory Category, Guid? FailureTypeId);
 
 public record ForwardTicketRequest(Guid ForwardedByEmployeeId);
 

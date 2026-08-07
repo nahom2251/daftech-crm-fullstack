@@ -129,6 +129,9 @@ public static class DependencyInjection
 
         services.AddScoped<ISystemConfigurationService, SystemConfigurationService>();
 
+        services.AddScoped<ILocationService, LocationService>();
+        services.AddScoped<IFailureTypeService, FailureTypeService>();
+
         return services;
     }
 

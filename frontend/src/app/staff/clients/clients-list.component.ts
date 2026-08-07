@@ -2,6 +2,7 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ClientService } from '../../core/services/client.service';
+import { LocationService } from '../../core/services/location.service';
 import { BadgeComponent } from '../../shared/badge.component';
 import { PaginationComponent } from '../../shared/pagination.component';
 import { ClientRegisteredResult } from '../../core/models';
@@ -28,9 +29,30 @@ import { ClientRegisteredResult } from '../../core/models';
             <div class="field"><label>Email</label><input type="email" [ngModel]="form.email" (ngModelChange)="form.email = $event" placeholder="used to send login credentials" /></div>
             <div class="field"><label>Office</label><input type="text" [ngModel]="form.office" (ngModelChange)="form.office = $event" /></div>
             <div class="field"><label>Location</label><input type="text" [ngModel]="form.location" (ngModelChange)="form.location = $event" /></div>
-            <div class="field"><label>Region</label><input type="text" [ngModel]="form.region" (ngModelChange)="form.region = $event" /></div>
-            <div class="field"><label>City</label><input type="text" [ngModel]="form.city" (ngModelChange)="form.city = $event" /></div>
-            <div class="field"><label>Woreda</label><input type="text" [ngModel]="form.woreda" (ngModelChange)="form.woreda = $event" /></div>
+            <div class="field"><label>Region</label>
+              <select [ngModel]="form.region" (ngModelChange)="form.region = $event">
+                <option value="">Select region…</option>
+                @for (r of locations.options().regions; track r.id) {
+                  <option [value]="r.name">{{ r.name }}</option>
+                }
+              </select>
+            </div>
+            <div class="field"><label>City</label>
+              <select [ngModel]="form.city" (ngModelChange)="form.city = $event">
+                <option value="">Select city…</option>
+                @for (c of locations.options().cities; track c.id) {
+                  <option [value]="c.name">{{ c.name }}</option>
+                }
+              </select>
+            </div>
+            <div class="field"><label>Woreda</label>
+              <select [ngModel]="form.woreda" (ngModelChange)="form.woreda = $event">
+                <option value="">Select woreda…</option>
+                @for (w of locations.options().woredas; track w.id) {
+                  <option [value]="w.name">{{ w.name }}</option>
+                }
+              </select>
+            </div>
             <div class="field"><label>KYC Type</label><input type="text" [ngModel]="form.kycType" (ngModelChange)="form.kycType = $event" placeholder="Business License…" /></div>
             <div class="field"><label>KYC Contact</label><input type="text" [ngModel]="form.kycContact" (ngModelChange)="form.kycContact = $event" placeholder="Name — phone/email" /></div>
             <div class="field"><label>IT Support Contact (optional)</label><input type="text" [ngModel]="form.itSupportContact" (ngModelChange)="form.itSupportContact = $event" /></div>
@@ -143,7 +165,7 @@ export class ClientsListComponent {
 
   form = { name: '', phoneNumber: '', email: '', office: '', location: '', region: '', city: '', woreda: '', kycType: '', kycContact: '', itSupportContact: '' };
 
-  constructor(public clients: ClientService) {}
+  constructor(public clients: ClientService, public locations: LocationService) {}
 
   filtered = computed(() => {
     const q = this.query().toLowerCase().trim();

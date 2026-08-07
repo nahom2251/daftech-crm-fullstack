@@ -14,6 +14,19 @@ public class Ticket
 
     public string Description { get; set; } = default!;
     public TicketCategory Category { get; set; }
+
+    /// <summary>
+    /// Admin-defined failure type the client selected on submission (e.g.
+    /// "Server Down"), separate from and additional to Category above —
+    /// Category and its existing reporting are unchanged. Null for
+    /// tickets submitted before this field existed, or if the client
+    /// picked nothing. Drives the per-ticket on-time deadline in
+    /// ReportService when set; falls back to the global
+    /// OnTimeResolutionTargetDays otherwise.
+    /// </summary>
+    public Guid? FailureTypeId { get; set; }
+    public FailureType? FailureType { get; set; }
+
     public DateTimeOffset DateSubmitted { get; set; } = DateTimeOffset.UtcNow;
 
     public Guid? ForwardedByEmployeeId { get; set; }

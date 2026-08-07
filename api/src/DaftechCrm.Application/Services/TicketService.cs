@@ -40,6 +40,7 @@ public class TicketService : ITicketService
             AgreementId = request.AgreementId,
             Description = request.Description,
             Category = request.Category,
+            FailureTypeId = request.FailureTypeId,
             Chargeable = chargeable,
             Status = TicketStatus.Submitted,
         };
@@ -262,14 +263,17 @@ public class TicketService : ITicketService
             .Include(t => t.Client)
             .Include(t => t.AssignedEmployee)
             .Include(t => t.AuditTrail)
+            .Include(t => t.FailureType)
             .OrderByDescending(t => t.DateSubmitted)
             .Skip(query.Skip)
             .Take(query.PageSize)
             .ToListAsync(ct);
 
         var items = page.Select(t => new TicketDto(
-            t.Id, t.ClientId, t.Client.Name, t.AgreementId, t.Description, t.Category, t.DateSubmitted,
+            t.Id, t.ClientId, t.Client.Name, t.AgreementId, t.Description, t.Category,
+            t.FailureTypeId, t.FailureType?.Name, t.DateSubmitted,
             t.ForwardedByEmployeeId, t.AssignedEmployeeId, t.AssignedEmployee?.FullName, t.AssignedAt,
+            ExpectedResolutionBy(t),
             t.Chargeable, t.Status, t.ResolvedAt, t.ClientConfirmationDeadline,
             t.SatisfactionStars, t.SatisfactionScore, t.ClosureReason,
             t.AuditTrail.OrderBy(a => a.Timestamp).Select(a => new TicketAuditEntryDto(a.Timestamp, a.Actor, a.Action)).ToList()
@@ -303,15 +307,22 @@ public class TicketService : ITicketService
             .Include(t => t.Client)
             .Include(t => t.AssignedEmployee)
             .Include(t => t.AuditTrail)
+            .Include(t => t.FailureType)
             .OrderByDescending(t => t.DateSubmitted)
             .ToListAsync(ct);
 
         return tickets.Select(t => new TicketDto(
-            t.Id, t.ClientId, t.Client.Name, t.AgreementId, t.Description, t.Category, t.DateSubmitted,
+            t.Id, t.ClientId, t.Client.Name, t.AgreementId, t.Description, t.Category,
+            t.FailureTypeId, t.FailureType?.Name, t.DateSubmitted,
             t.ForwardedByEmployeeId, t.AssignedEmployeeId, t.AssignedEmployee?.FullName, t.AssignedAt,
+            ExpectedResolutionBy(t),
             t.Chargeable, t.Status, t.ResolvedAt, t.ClientConfirmationDeadline,
             t.SatisfactionStars, t.SatisfactionScore, t.ClosureReason,
             t.AuditTrail.OrderBy(a => a.Timestamp).Select(a => new TicketAuditEntryDto(a.Timestamp, a.Actor, a.Action)).ToList()
         )).ToList();
     }
+
+    /// <summary>AssignedAt + the ticket's FailureType duration. Null until the ticket is assigned, or if no FailureType was chosen — reporting falls back to the global OnTimeResolutionTargetDays in that case (see ReportService.IsOnTime).</summary>
+    private static DateTimeOffset? ExpectedResolutionBy(Ticket t) =>
+        t.AssignedAt is null || t.FailureType is null ? null : t.AssignedAt.Value + t.FailureType.ToTimeSpan();
 }

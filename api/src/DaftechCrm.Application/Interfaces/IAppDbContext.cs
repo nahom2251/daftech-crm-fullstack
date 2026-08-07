@@ -24,8 +24,11 @@ public interface IAppDbContext
     IQueryable<RefreshToken> RefreshTokens { get; }
     IQueryable<SystemSetting> SystemSettings { get; }
     IQueryable<PasswordResetRequest> PasswordResetRequests { get; }
+    IQueryable<LocationEntry> LocationEntries { get; }
+    IQueryable<FailureType> FailureTypes { get; }
 
     void Add<TEntity>(TEntity entity) where TEntity : class;
     void Update<TEntity>(TEntity entity) where TEntity : class;
+    void Remove<TEntity>(TEntity entity) where TEntity : class;
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

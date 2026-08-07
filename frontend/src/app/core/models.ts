@@ -102,10 +102,15 @@ export interface Ticket {
   agreementId: string;
   description: string;
   category: TicketCategory;
+  failureTypeId?: string;
+  failureTypeName?: string;
   dateSubmitted: string; // ISO datetime
   forwardedByEmployeeId?: string;
   assignedEmployeeId?: string;
   assignedEmployeeName?: string;
+  assignedAt?: string; // ISO datetime — timer start; SLA deadline is assignedAt + failure type duration
+  /** assignedAt + the ticket's failure type duration. Undefined until assigned, or if no failure type was chosen. */
+  expectedResolutionBy?: string; // ISO datetime
   chargeable: boolean;
   status: TicketStatus;
   resolvedAt?: string;
@@ -155,6 +160,8 @@ export interface Employee {
   phoneNumber: string;
   specialization: string;
   roles: EmployeeRole[];
+  /** Additional, purely-descriptive role labels an Admin has defined and assigned — carry no permission meaning. */
+  extraRoleLabels: string[];
   accountStatus: EmployeeAccountStatus;
   allowedIpAddresses: string[]; // empty = no IP restriction
   disabledAt?: string;
@@ -326,3 +333,30 @@ export interface PasswordResetOtpIssuedResult {
   emailError?: string;
 }
 
+export type LocationType = 'Region' | 'City' | 'Woreda' | 'Specialization' | 'CustomRole';
+
+/** One admin-managed dropdown/checklist option (Region, City, Woreda, Specialization, or CustomRole). */
+export interface LocationEntry {
+  id: string;
+  type: LocationType;
+  name: string;
+}
+
+/** All five option lists in one response — see LocationsController.GetAll. */
+export interface LocationOptions {
+  regions: LocationEntry[];
+  cities: LocationEntry[];
+  woredas: LocationEntry[];
+  specializations: LocationEntry[];
+  customRoles: LocationEntry[];
+}
+
+export type DurationUnit = 'Hours' | 'Days' | 'Months';
+
+/** Admin-defined kind of client-system failure with an expected resolution duration, chosen by the client on ticket submission. */
+export interface FailureType {
+  id: string;
+  name: string;
+  durationValue: number;
+  durationUnit: DurationUnit;
+}

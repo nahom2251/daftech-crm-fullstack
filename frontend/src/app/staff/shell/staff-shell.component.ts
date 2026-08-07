@@ -93,14 +93,20 @@ const NAV_ITEMS: NavItem[] = [
     .sidebar {
       width: 240px; flex-shrink: 0; background: var(--navy-950); color: #fff;
       display: flex; flex-direction: column; padding: 1.1rem 0.9rem;
-      position: sticky; top: 0; height: 100vh;
+      position: sticky; top: 0; height: 100vh; overflow: hidden;
     }
-    .brand { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.4rem 1.2rem; }
+    .brand { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.4rem 1.2rem; flex-shrink: 0; }
     .brand .brand-logo-img { background: #fff; border-radius: 8px; padding: 3px; }
     .brand-name { font-weight: 700; font-size: 0.95rem; color: #fff; }
     .brand-sub { font-size: 0.7rem; color: var(--slate-400); }
     .close-btn { display: none; margin-left: auto; background: none; border: none; color: #fff; font-size: 1.1rem; padding: 0.3rem; }
-    nav { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; }
+    nav {
+      display: flex; flex-direction: column; gap: 0.15rem; flex: 1;
+      overflow-y: auto; min-height: 0;
+      scrollbar-width: thin; scrollbar-color: var(--navy-700) transparent;
+    }
+    nav::-webkit-scrollbar { width: 6px; }
+    nav::-webkit-scrollbar-thumb { background: var(--navy-700); border-radius: 3px; }
     .nav-link {
       display: flex; align-items: center; gap: 0.65rem; padding: 0.55rem 0.7rem; border-radius: 8px;
       color: var(--slate-300); font-size: 0.87rem; font-weight: 500;
@@ -110,7 +116,7 @@ const NAV_ITEMS: NavItem[] = [
     .nav-icon { font-size: 0.95rem; width: 1.2rem; text-align: center; }
     .sidebar-footer {
       display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
-      padding-top: 0.9rem; border-top: 1px solid var(--navy-700);
+      padding-top: 0.9rem; border-top: 1px solid var(--navy-700); flex-shrink: 0;
     }
     .who-name { font-size: 0.82rem; font-weight: 600; color: #fff; }
     .who-role { font-size: 0.7rem; color: var(--slate-400); }

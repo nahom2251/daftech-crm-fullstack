@@ -3,8 +3,11 @@ import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
 import { SystemConfigurationService } from '../../core/services/system-configuration.service';
+import { LocationService } from '../../core/services/location.service';
+import { FailureTypeService } from '../../core/services/failure-type.service';
+import { LocationType, DurationUnit } from '../../core/models';
 
-type SettingsTab = 'password' | 'configuration' | 'appearance';
+type SettingsTab = 'password' | 'configuration' | 'appearance' | 'locations' | 'failureTypes';
 
 @Component({
   selector: 'app-staff-settings',
@@ -19,6 +22,8 @@ type SettingsTab = 'password' | 'configuration' | 'appearance';
       <button class="tab" [class.active]="tab() === 'appearance'" (click)="tab.set('appearance')">Appearance</button>
       @if (isAdmin()) {
         <button class="tab" [class.active]="tab() === 'configuration'" (click)="tab.set('configuration')">Configuration</button>
+        <button class="tab" [class.active]="tab() === 'locations'" (click)="tab.set('locations')">Locations</button>
+        <button class="tab" [class.active]="tab() === 'failureTypes'" (click)="tab.set('failureTypes')">Failure Types &amp; SLA</button>
       }
     </div>
 
@@ -100,6 +105,114 @@ type SettingsTab = 'password' | 'configuration' | 'appearance';
         }
       </div>
     }
+
+    @if (tab() === 'locations' && isAdmin()) {
+      <div class="section locations-grid">
+        @for (group of locationGroups; track group.type) {
+          <div class="panel panel-pad">
+            <h3>{{ group.label }}</h3>
+            <p class="text-muted hint">Options shown in the {{ group.label }} dropdown on client registration and signup.</p>
+
+            <div class="add-row">
+              <input
+                type="text"
+                [placeholder]="'Add ' + group.label + '…'"
+                [ngModel]="newEntryName(group.type)"
+                (ngModelChange)="setNewEntryName(group.type, $event)"
+                (keydown.enter)="addEntry(group.type)"
+              />
+              <button class="btn btn-primary btn-sm" [disabled]="savingLocations()" (click)="addEntry(group.type)">Add</button>
+            </div>
+
+            <ul class="entry-list">
+              @for (entry of entriesFor(group.type); track entry.id) {
+                <li class="entry-row">
+                  @if (editingId() === entry.id) {
+                    <input
+                      type="text"
+                      class="edit-input"
+                      [ngModel]="editingName()"
+                      (ngModelChange)="editingName.set($event)"
+                      (keydown.enter)="saveEdit(entry.id)"
+                    />
+                    <div class="entry-actions">
+                      <button class="btn btn-primary btn-sm" [disabled]="savingLocations()" (click)="saveEdit(entry.id)">Save</button>
+                      <button class="btn btn-outline btn-sm" (click)="cancelEdit()">Cancel</button>
+                    </div>
+                  } @else {
+                    <span class="entry-name">{{ entry.name }}</span>
+                    <div class="entry-actions">
+                      <button class="btn btn-outline btn-sm" (click)="startEdit(entry.id, entry.name)">Edit</button>
+                      <button class="btn btn-outline btn-sm btn-danger" [disabled]="savingLocations()" (click)="deleteEntry(entry.id)">Delete</button>
+                    </div>
+                  }
+                </li>
+              }
+              @empty {
+                <li class="text-muted" style="padding: 0.6rem 0; font-size: 0.82rem;">No {{ group.label.toLowerCase() }} added yet.</li>
+              }
+            </ul>
+          </div>
+        }
+        @if (locationsError()) { <div class="err" style="margin-top:0.5rem;">{{ locationsError() }}</div> }
+      </div>
+    }
+
+    @if (tab() === 'failureTypes' && isAdmin()) {
+      <div class="section" style="max-width: 640px;">
+        <div class="panel panel-pad">
+          <h3>Failure Types &amp; Expected Resolution Time</h3>
+          <p class="text-muted hint">
+            Define the kinds of failures clients can report, and how long each should take to resolve.
+            Clients pick one when submitting a ticket; the on-time/late report uses that ticket's own target
+            instead of the general Ticket Workflow target above once it's assigned to a technician.
+          </p>
+
+          <div class="ft-add-row">
+            <input type="text" placeholder="Failure type name…" [ngModel]="newFtName()" (ngModelChange)="newFtName.set($event)" />
+            <input type="number" min="1" placeholder="Duration" [ngModel]="newFtValue()" (ngModelChange)="newFtValue.set($event)" />
+            <select [ngModel]="newFtUnit()" (ngModelChange)="newFtUnit.set($event)">
+              <option value="Hours">Hours</option>
+              <option value="Days">Days</option>
+              <option value="Months">Months</option>
+            </select>
+            <button class="btn btn-primary btn-sm" [disabled]="savingFailureTypes()" (click)="addFailureType()">Add</button>
+          </div>
+
+          <ul class="entry-list">
+            @for (ft of failureTypes.types(); track ft.id) {
+              <li class="entry-row">
+                @if (editingFtId() === ft.id) {
+                  <div class="ft-edit-row">
+                    <input type="text" [ngModel]="editingFtName()" (ngModelChange)="editingFtName.set($event)" />
+                    <input type="number" min="1" [ngModel]="editingFtValue()" (ngModelChange)="editingFtValue.set($event)" />
+                    <select [ngModel]="editingFtUnit()" (ngModelChange)="editingFtUnit.set($event)">
+                      <option value="Hours">Hours</option>
+                      <option value="Days">Days</option>
+                      <option value="Months">Months</option>
+                    </select>
+                  </div>
+                  <div class="entry-actions">
+                    <button class="btn btn-primary btn-sm" [disabled]="savingFailureTypes()" (click)="saveFtEdit(ft.id)">Save</button>
+                    <button class="btn btn-outline btn-sm" (click)="cancelFtEdit()">Cancel</button>
+                  </div>
+                } @else {
+                  <span class="entry-name">{{ ft.name }} — {{ ft.durationValue }} {{ ft.durationUnit.toLowerCase() }}</span>
+                  <div class="entry-actions">
+                    <button class="btn btn-outline btn-sm" (click)="startFtEdit(ft)">Edit</button>
+                    <button class="btn btn-outline btn-sm btn-danger" [disabled]="savingFailureTypes()" (click)="deleteFailureType(ft.id)">Delete</button>
+                  </div>
+                }
+              </li>
+            }
+            @empty {
+              <li class="text-muted" style="padding: 0.6rem 0; font-size: 0.82rem;">No failure types added yet — clients will only see the Category field until you add some.</li>
+            }
+          </ul>
+          @if (failureTypesError()) { <div class="err" style="margin-top:0.5rem;">{{ failureTypesError() }}</div> }
+        </div>
+      </div>
+    }
   `,
   styles: [`
     .tabs { display: flex; gap: 0.4rem; margin: 1.25rem 0 1.1rem; border-bottom: 1px solid var(--slate-200); flex-wrap: wrap; }
@@ -126,6 +239,23 @@ type SettingsTab = 'password' | 'configuration' | 'appearance';
     .setting-desc { font-size: 0.78rem; margin-top: 0.15rem; line-height: 1.4; }
     .setting-meta { font-size: 0.7rem; margin-top: 0.3rem; }
     .setting-control { width: 110px; flex-shrink: 0; }
+
+    .locations-grid { max-width: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+    .add-row { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; }
+    .add-row input { flex: 1; }
+    .entry-list { list-style: none; padding: 0; margin: 0; max-height: 320px; overflow-y: auto; }
+    .entry-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
+      padding: 0.55rem 0; border-top: 1px solid var(--slate-100);
+    }
+    .entry-row:first-of-type { border-top: none; }
+    .entry-name { font-size: 0.85rem; color: var(--navy-900); }
+    .entry-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+    .edit-input { width: auto; flex: 1; }
+    .btn-danger { color: var(--red); border-color: var(--red); }
+
+    .ft-add-row { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 0.5rem; margin-bottom: 0.9rem; }
+    .ft-edit-row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 0.4rem; flex: 1; }
   `],
 })
 export class SettingsComponent implements OnInit {
@@ -146,9 +276,23 @@ export class SettingsComponent implements OnInit {
   configSuccess = signal(false);
   private drafts = signal<Record<string, string>>({});
 
+  // --- Locations tab ---
+  readonly locationGroups: { type: LocationType; label: string }[] = [
+    { type: 'Region', label: 'Regions' },
+    { type: 'City', label: 'Cities' },
+    { type: 'Woreda', label: 'Woredas' },
+    { type: 'Specialization', label: 'Specializations' },
+    { type: 'CustomRole', label: 'Additional Roles' },
+  ];
+  savingLocations = signal(false);
+  locationsError = signal<string | null>(null);
+  private newEntryNames = signal<Record<LocationType, string>>({ Region: '', City: '', Woreda: '', Specialization: '', CustomRole: '' });
+  editingId = signal<string | null>(null);
+  editingName = signal('');
+
   isAdmin = computed(() => this.auth.currentEmployee()?.roles.includes('Admin') ?? false);
 
-  constructor(public auth: AuthService, public config: SystemConfigurationService) {}
+  constructor(public auth: AuthService, public config: SystemConfigurationService, public locations: LocationService, public failureTypes: FailureTypeService) {}
 
   async ngOnInit() {
     if (this.isAdmin()) {
@@ -233,6 +377,150 @@ export class SettingsComponent implements OnInit {
       this.passwordError.set(e?.error?.text ?? e?.error ?? 'Could not change password — check your current password and try again.');
     } finally {
       this.savingPassword.set(false);
+    }
+  }
+
+  // --- Locations tab ---
+
+  entriesFor(type: LocationType) {
+    const opts = this.locations.options();
+    if (type === 'Region') return opts.regions;
+    if (type === 'City') return opts.cities;
+    if (type === 'Woreda') return opts.woredas;
+    if (type === 'Specialization') return opts.specializations;
+    return opts.customRoles;
+  }
+
+  newEntryName(type: LocationType): string {
+    return this.newEntryNames()[type];
+  }
+
+  setNewEntryName(type: LocationType, value: string) {
+    this.newEntryNames.update(m => ({ ...m, [type]: value }));
+  }
+
+  async addEntry(type: LocationType) {
+    const name = this.newEntryNames()[type].trim();
+    if (!name) return;
+
+    this.locationsError.set(null);
+    this.savingLocations.set(true);
+    try {
+      await this.locations.create(type, name);
+      this.setNewEntryName(type, '');
+    } catch (e: any) {
+      this.locationsError.set(e?.error ?? 'Could not add this entry — it may already exist.');
+    } finally {
+      this.savingLocations.set(false);
+    }
+  }
+
+  startEdit(id: string, currentName: string) {
+    this.editingId.set(id);
+    this.editingName.set(currentName);
+    this.locationsError.set(null);
+  }
+
+  cancelEdit() {
+    this.editingId.set(null);
+    this.editingName.set('');
+  }
+
+  async saveEdit(id: string) {
+    const name = this.editingName().trim();
+    if (!name) return;
+
+    this.locationsError.set(null);
+    this.savingLocations.set(true);
+    try {
+      await this.locations.update(id, name);
+      this.cancelEdit();
+    } catch (e: any) {
+      this.locationsError.set(e?.error ?? 'Could not save this change — the name may already exist.');
+    } finally {
+      this.savingLocations.set(false);
+    }
+  }
+
+  async deleteEntry(id: string) {
+    this.locationsError.set(null);
+    this.savingLocations.set(true);
+    try {
+      await this.locations.remove(id);
+    } catch (e: any) {
+      this.locationsError.set(e?.error ?? 'Could not delete this entry.');
+    } finally {
+      this.savingLocations.set(false);
+    }
+  }
+
+  // --- Failure Types tab ---
+
+  newFtName = signal('');
+  newFtValue = signal<number>(1);
+  newFtUnit = signal<DurationUnit>('Days');
+  savingFailureTypes = signal(false);
+  failureTypesError = signal<string | null>(null);
+  editingFtId = signal<string | null>(null);
+  editingFtName = signal('');
+  editingFtValue = signal<number>(1);
+  editingFtUnit = signal<DurationUnit>('Days');
+
+  async addFailureType() {
+    const name = this.newFtName().trim();
+    if (!name || !this.newFtValue() || this.newFtValue() <= 0) return;
+
+    this.failureTypesError.set(null);
+    this.savingFailureTypes.set(true);
+    try {
+      await this.failureTypes.create(name, this.newFtValue(), this.newFtUnit());
+      this.newFtName.set('');
+      this.newFtValue.set(1);
+      this.newFtUnit.set('Days');
+    } catch (e: any) {
+      this.failureTypesError.set(e?.error ?? 'Could not add this failure type — the name may already exist.');
+    } finally {
+      this.savingFailureTypes.set(false);
+    }
+  }
+
+  startFtEdit(ft: { id: string; name: string; durationValue: number; durationUnit: DurationUnit }) {
+    this.editingFtId.set(ft.id);
+    this.editingFtName.set(ft.name);
+    this.editingFtValue.set(ft.durationValue);
+    this.editingFtUnit.set(ft.durationUnit);
+    this.failureTypesError.set(null);
+  }
+
+  cancelFtEdit() {
+    this.editingFtId.set(null);
+  }
+
+  async saveFtEdit(id: string) {
+    const name = this.editingFtName().trim();
+    if (!name || !this.editingFtValue() || this.editingFtValue() <= 0) return;
+
+    this.failureTypesError.set(null);
+    this.savingFailureTypes.set(true);
+    try {
+      await this.failureTypes.update(id, name, this.editingFtValue(), this.editingFtUnit());
+      this.cancelFtEdit();
+    } catch (e: any) {
+      this.failureTypesError.set(e?.error ?? 'Could not save this change — the name may already exist.');
+    } finally {
+      this.savingFailureTypes.set(false);
+    }
+  }
+
+  async deleteFailureType(id: string) {
+    this.failureTypesError.set(null);
+    this.savingFailureTypes.set(true);
+    try {
+      await this.failureTypes.remove(id);
+    } catch (e: any) {
+      this.failureTypesError.set(e?.error ?? 'Could not delete this failure type.');
+    } finally {
+      this.savingFailureTypes.set(false);
     }
   }
 }

@@ -22,22 +22,26 @@ public class ReportService : IReportService
     }
 
     /// <summary>
-    /// "On time" = ResolvedAt - AssignedAt is within OnTimeResolutionTargetDays.
-    /// Only tickets that have both AssignedAt and ResolvedAt set are counted
-    /// (i.e. tickets that actually reached Resolved at some point) —
-    /// tickets still in progress or never assigned don't factor in yet.
+    /// "On time" = ResolvedAt - AssignedAt is within the ticket's own
+    /// FailureType duration if one was chosen, otherwise the global
+    /// OnTimeResolutionTargetDays fallback. Only tickets that have both
+    /// AssignedAt and ResolvedAt set are counted (i.e. tickets that
+    /// actually reached Resolved at some point) — tickets still in
+    /// progress or never assigned don't factor in yet.
     /// </summary>
     public async Task<OnTimeReportDto> GetOnTimeResolutionReportAsync(CancellationToken ct = default)
     {
-        var targetSpan = TimeSpan.FromDays(_options.OnTimeResolutionTargetDays);
+        var fallbackSpan = TimeSpan.FromDays(_options.OnTimeResolutionTargetDays);
 
         var resolvedTickets = await _db.Tickets
             .AsNoTracking()
             .Include(t => t.AssignedEmployee)
+            .Include(t => t.FailureType)
             .Where(t => t.AssignedAt != null && t.ResolvedAt != null)
             .ToListAsync(ct);
 
-        bool IsOnTime(Ticket t) => (t.ResolvedAt!.Value - t.AssignedAt!.Value) <= targetSpan;
+        TimeSpan TargetFor(Ticket t) => t.FailureType?.ToTimeSpan() ?? fallbackSpan;
+        bool IsOnTime(Ticket t) => (t.ResolvedAt!.Value - t.AssignedAt!.Value) <= TargetFor(t);
 
         var onTime = resolvedTickets.Count(IsOnTime);
         var late = resolvedTickets.Count - onTime;
@@ -72,7 +76,7 @@ public class ReportService : IReportService
         var employee = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId, ct)
             ?? throw new InvalidOperationException("Employee not found.");
 
-        var assignedTickets = await _db.Tickets.AsNoTracking().Where(t => t.AssignedEmployeeId == employeeId).ToListAsync(ct);
+        var assignedTickets = await _db.Tickets.AsNoTracking().Include(t => t.FailureType).Where(t => t.AssignedEmployeeId == employeeId).ToListAsync(ct);
         var resolvedOrClosed = assignedTickets.Where(t => t.ResolvedAt != null).ToList();
 
         double? avgResolutionHours = null;
@@ -80,8 +84,9 @@ public class ReportService : IReportService
         if (withBothTimestamps.Count > 0)
             avgResolutionHours = withBothTimestamps.Average(t => (t.ResolvedAt!.Value - t.AssignedAt!.Value).TotalHours);
 
-        var targetSpan = TimeSpan.FromDays(_options.OnTimeResolutionTargetDays);
-        var onTimeCount = withBothTimestamps.Count(t => (t.ResolvedAt!.Value - t.AssignedAt!.Value) <= targetSpan);
+        var fallbackSpan = TimeSpan.FromDays(_options.OnTimeResolutionTargetDays);
+        TimeSpan TargetFor(Ticket t) => t.FailureType?.ToTimeSpan() ?? fallbackSpan;
+        var onTimeCount = withBothTimestamps.Count(t => (t.ResolvedAt!.Value - t.AssignedAt!.Value) <= TargetFor(t));
         var onTimeRate = withBothTimestamps.Count > 0 ? Math.Round(onTimeCount * 100.0 / withBothTimestamps.Count, 1) : 0;
 
         var scores = assignedTickets.Where(t => t.SatisfactionScore != null).Select(t => t.SatisfactionScore!.Value).ToList();

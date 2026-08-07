@@ -116,7 +116,7 @@ const ALL_ROLES: EmployeeRole[] = ['Admin', 'ItSupport', 'EmployeeTechnician'];
               <td>{{ e.fullName }}</td>
               <td class="text-muted">{{ e.email }}</td>
               <td>{{ e.specialization }}</td>
-              <td>{{ [...e.roles.map(roleLabel), ...e.extraRoleLabels].join(', ') }}</td>
+              <td>{{ allRoleLabels(e) }}</td>
               <td class="mono">{{ e.openTicketCount }}</td>
               <td><app-badge [status]="e.accountStatus"></app-badge></td>
               <td>
@@ -193,6 +193,11 @@ export class EmployeesComponent {
   constructor(public employeeService: EmployeeService, public locations: LocationService) {}
 
   roleLabel = (r: EmployeeRole) => EMPLOYEE_ROLE_LABELS[r];
+
+  /** Hardcoded roles + any admin-defined extra role labels, comma-joined for the table cell. Angular templates can't use spread syntax, so this lives here instead of inline. */
+  allRoleLabels(e: { roles: EmployeeRole[]; extraRoleLabels: string[] }): string {
+    return e.roles.map(this.roleLabel).concat(e.extraRoleLabels).join(', ');
+  }
 
   filtered = computed(() => {
     const q = this.query().toLowerCase().trim();

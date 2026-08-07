@@ -195,7 +195,7 @@ public class AuthService : IAuthService
         double? avgScore = scores.Count > 0 ? scores.Average() : null;
 
         return new EmployeeDto(
-            e.Id, e.FullName, e.Email, e.PhoneNumber, e.Specialization, e.Roles, e.AccountStatus, e.AllowedIpAddresses,
+            e.Id, e.FullName, e.Email, e.PhoneNumber, e.Specialization, e.Roles, e.ExtraRoleLabels, e.AccountStatus, e.AllowedIpAddresses,
             e.DisabledAt, e.DisabledReason, openCount, avgScore, e.Username, e.MustChangePassword
         );
     }

@@ -274,6 +274,27 @@ namespace DaftechCrm.Infrastructure.Migrations
                 b.ToTable("password_reset_requests");
             });
 
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.LocationEntry", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<string>("Type").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
+                b.Property<string>("Name").IsRequired().HasMaxLength(150).HasColumnType("character varying(150)");
+                b.HasKey("Id");
+                b.HasIndex("Type", "Name").IsUnique();
+                b.ToTable("location_entries");
+            });
+
+            modelBuilder.Entity("DaftechCrm.Domain.Entities.FailureType", b =>
+            {
+                b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<string>("Name").IsRequired().HasMaxLength(150).HasColumnType("character varying(150)");
+                b.Property<int>("DurationValue").HasColumnType("integer");
+                b.Property<string>("DurationUnit").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
+                b.HasKey("Id");
+                b.HasIndex("Name").IsUnique();
+                b.ToTable("failure_types");
+            });
+
             // --- Relationships ---
 
             modelBuilder.Entity("DaftechCrm.Domain.Entities.Agreement", b =>

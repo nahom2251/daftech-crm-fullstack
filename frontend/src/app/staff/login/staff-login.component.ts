@@ -1,5 +1,5 @@
 import { Component, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
 import { ForgotPasswordModalComponent } from '../../shared/forgot-password-modal.component';
@@ -7,7 +7,7 @@ import { ForgotPasswordModalComponent } from '../../shared/forgot-password-modal
 @Component({
   selector: 'app-staff-login',
   standalone: true,
-  imports: [FormsModule, ForgotPasswordModalComponent],
+  imports: [FormsModule, RouterLink, ForgotPasswordModalComponent],
   template: `
     <div class="wrap">
       <div class="card panel panel-pad">
@@ -53,6 +53,8 @@ import { ForgotPasswordModalComponent } from '../../shared/forgot-password-modal
         }
 
         <button type="button" class="link-btn" (click)="showForgotPassword.set(true)">Forgot password?</button>
+
+        <p class="alt-link">Client? <a routerLink="/portal/login">Click here to sign in to the Client Portal</a>.</p>
       </div>
       <footer class="app-footer">© {{ year }} DAFTECH Computer Engineering. All rights reserved.</footer>
     </div>
@@ -89,6 +91,8 @@ import { ForgotPasswordModalComponent } from '../../shared/forgot-password-modal
       color: var(--slate-500); font-size: 0.8rem; cursor: pointer; text-decoration: underline;
     }
     .link-btn:hover { color: var(--slate-700); }
+    .alt-link { font-size: 0.78rem; margin: 1rem 0 0; text-align: center; color: var(--slate-500); }
+    .alt-link a { color: var(--navy-600, #2563eb); text-decoration: underline; }
     .app-footer { margin-top: 1.25rem; font-size: 0.75rem; color: var(--slate-400); text-align: center; }
   `],
 })

@@ -111,7 +111,7 @@ type SettingsTab = 'password' | 'configuration' | 'appearance' | 'locations' | '
         @for (group of locationGroups; track group.type) {
           <div class="panel panel-pad">
             <h3>{{ group.label }}</h3>
-            <p class="text-muted hint">Options shown in the {{ group.label }} dropdown on client registration and signup.</p>
+            <p class="text-muted hint">Options shown in the {{ group.label }} dropdown on {{ group.context }}.</p>
 
             <div class="add-row">
               <input
@@ -277,12 +277,12 @@ export class SettingsComponent implements OnInit {
   private drafts = signal<Record<string, string>>({});
 
   // --- Locations tab ---
-  readonly locationGroups: { type: LocationType; label: string }[] = [
-    { type: 'Region', label: 'Regions' },
-    { type: 'City', label: 'Cities' },
-    { type: 'Woreda', label: 'Woredas' },
-    { type: 'Specialization', label: 'Specializations' },
-    { type: 'CustomRole', label: 'Additional Roles' },
+  readonly locationGroups: { type: LocationType; label: string; context: string }[] = [
+    { type: 'Region', label: 'Regions', context: 'client registration and signup' },
+    { type: 'City', label: 'Cities', context: 'client registration and signup' },
+    { type: 'Woreda', label: 'Woredas', context: 'client registration and signup' },
+    { type: 'Specialization', label: 'Specializations', context: 'the employee form' },
+    { type: 'CustomRole', label: 'Additional Roles', context: 'the employee form' },
   ];
   savingLocations = signal(false);
   locationsError = signal<string | null>(null);

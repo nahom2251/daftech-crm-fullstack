@@ -409,7 +409,7 @@ export class SettingsComponent implements OnInit {
       await this.locations.create(type, name);
       this.setNewEntryName(type, '');
     } catch (e: any) {
-      this.locationsError.set(e?.error ?? 'Could not add this entry — it may already exist.');
+      this.locationsError.set(this.extractErrorMessage(e, 'Could not add this entry — it may already exist.'));
     } finally {
       this.savingLocations.set(false);
     }
@@ -436,7 +436,7 @@ export class SettingsComponent implements OnInit {
       await this.locations.update(id, name);
       this.cancelEdit();
     } catch (e: any) {
-      this.locationsError.set(e?.error ?? 'Could not save this change — the name may already exist.');
+      this.locationsError.set(this.extractErrorMessage(e, 'Could not save this change — the name may already exist.'));
     } finally {
       this.savingLocations.set(false);
     }
@@ -448,10 +448,36 @@ export class SettingsComponent implements OnInit {
     try {
       await this.locations.remove(id);
     } catch (e: any) {
-      this.locationsError.set(e?.error ?? 'Could not delete this entry.');
+      this.locationsError.set(this.extractErrorMessage(e, 'Could not delete this entry.'));
     } finally {
       this.savingLocations.set(false);
     }
+  }
+
+  /**
+   * Angular's HttpErrorResponse.error holds the parsed response body, which
+   * can be a plain string (controllers here mostly do BadRequest(ex.Message))
+   * or an object — e.g. ASP.NET's built-in [ApiController] model validation
+   * returns a ProblemDetails object ({ title, status, errors }) before the
+   * action method ever runs. Rendering that object directly in the template
+   * produced the "[object Object]" bug. This normalizes either shape to a
+   * safe display string.
+   */
+  private extractErrorMessage(e: any, fallback: string): string {
+    const body = e?.error;
+    if (typeof body === 'string' && body.trim()) return body;
+    if (body && typeof body === 'object') {
+      if (typeof body.title === 'string' && body.title.trim()) {
+        if (body.errors && typeof body.errors === 'object') {
+          const firstField = Object.values(body.errors)[0];
+          const firstMessage = Array.isArray(firstField) ? firstField[0] : firstField;
+          if (typeof firstMessage === 'string' && firstMessage.trim()) return firstMessage;
+        }
+        return body.title;
+      }
+      if (typeof body.message === 'string' && body.message.trim()) return body.message;
+    }
+    return fallback;
   }
 
   // --- Failure Types tab ---

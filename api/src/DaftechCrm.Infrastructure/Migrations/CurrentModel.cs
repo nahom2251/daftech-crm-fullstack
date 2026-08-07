@@ -78,6 +78,7 @@ namespace DaftechCrm.Infrastructure.Migrations
                 b.Property<DateTimeOffset?>("DisabledAt").HasColumnType("timestamp with time zone");
                 b.Property<string>("DisabledReason").HasMaxLength(500).HasColumnType("character varying(500)");
                 b.Property<string>("Email").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
+                b.Property<string>("ExtraRoleLabels").IsRequired().HasMaxLength(500).HasColumnType("character varying(500)");
                 b.Property<string>("FullName").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
                 b.Property<bool>("MustChangePassword").HasColumnType("boolean");
                 b.Property<string>("PasswordHash").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");

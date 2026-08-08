@@ -203,6 +203,7 @@ namespace DaftechCrm.Infrastructure.Migrations
                 b.Property<DateTimeOffset>("DateSubmitted").HasColumnType("timestamp with time zone");
                 b.Property<string>("Description").IsRequired().HasColumnType("text");
                 b.Property<Guid?>("ForwardedByEmployeeId").HasColumnType("uuid");
+                b.Property<Guid?>("FailureTypeId").HasColumnType("uuid");
                 b.Property<DateTimeOffset?>("ResolvedAt").HasColumnType("timestamp with time zone");
                 b.Property<int?>("SatisfactionScore").HasColumnType("integer");
                 b.Property<int?>("SatisfactionStars").HasColumnType("integer");
@@ -213,6 +214,7 @@ namespace DaftechCrm.Infrastructure.Migrations
                 b.HasIndex("ClientConfirmationDeadline");
                 b.HasIndex("ClientId");
                 b.HasIndex("ForwardedByEmployeeId");
+                b.HasIndex("FailureTypeId");
                 b.HasIndex("Status");
                 b.ToTable("tickets");
             });
@@ -373,10 +375,15 @@ namespace DaftechCrm.Infrastructure.Migrations
                     .WithMany()
                     .HasForeignKey("ForwardedByEmployeeId")
                     .OnDelete(DeleteBehavior.SetNull);
+                b.HasOne("DaftechCrm.Domain.Entities.FailureType", "FailureType")
+                    .WithMany()
+                    .HasForeignKey("FailureTypeId")
+                    .OnDelete(DeleteBehavior.SetNull);
                 b.Navigation("Agreement");
                 b.Navigation("AssignedEmployee");
                 b.Navigation("Client");
                 b.Navigation("ForwardedByEmployee");
+                b.Navigation("FailureType");
             });
 
             modelBuilder.Entity("DaftechCrm.Domain.Entities.TicketAuditEntry", b =>

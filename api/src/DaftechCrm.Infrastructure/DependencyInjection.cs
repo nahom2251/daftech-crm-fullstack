@@ -1,6 +1,7 @@
 using DaftechCrm.Application.Interfaces;
 using DaftechCrm.Application.Options;
 using DaftechCrm.Application.Services;
+using DaftechCrm.Domain.Enums;
 using DaftechCrm.Infrastructure.Ai;
 using DaftechCrm.Infrastructure.Auth;
 using DaftechCrm.Infrastructure.Email;
@@ -93,7 +94,16 @@ public static class DependencyInjection
         services.Configure<SmtpOptions>(
             configuration.GetSection(SmtpOptions.SectionName));
 
-        services.AddScoped<IEmailSender, MailKitEmailSender>();
+        services.Configure<BrevoApiOptions>(
+            configuration.GetSection(BrevoApiOptions.SectionName));
+
+        var emailOptions = configuration.GetSection(EmailOptions.SectionName).Get<EmailOptions>() ?? new EmailOptions();
+        services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
+
+        if (emailOptions.Provider == EmailProvider.BrevoApi)
+            services.AddHttpClient<IEmailSender, BrevoApiEmailSender>();
+        else
+            services.AddScoped<IEmailSender, MailKitEmailSender>();
 
         services.Configure<JwtOptions>(
             configuration.GetSection(JwtOptions.SectionName));

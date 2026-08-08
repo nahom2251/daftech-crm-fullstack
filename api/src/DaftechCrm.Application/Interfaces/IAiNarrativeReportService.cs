@@ -15,4 +15,7 @@ namespace DaftechCrm.Application.Interfaces;
 public interface IAiNarrativeReportService
 {
     Task<AiPerformanceSummaryResult> SummarizeEmployeePerformanceAsync(EmployeePerformanceMetrics metrics, CancellationToken ct = default);
+
+    /// <summary>Narrates any tabular report (Reports page) already computed and shown on screen. Same degrade-gracefully contract as above.</summary>
+    Task<AiPerformanceSummaryResult> SummarizeTabularReportAsync(TabularReportData data, CancellationToken ct = default);
 }

@@ -7,6 +7,7 @@ using DaftechCrm.Api.Middleware;
 using DaftechCrm.Api.Services;
 using DaftechCrm.Application.Interfaces;
 using DaftechCrm.Application.Options;
+using DaftechCrm.Domain.Enums;
 using DaftechCrm.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -62,11 +63,17 @@ builder.Services.AddDaftechRateLimiting();
 // decide whether to restart the container.
 // "ready" = can this instance actually serve traffic — checked against
 // hard dependencies (DB, storage). Email is intentionally NOT tagged
-// "ready" (see EmailHealthCheck) since it's a soft dependency.
-builder.Services.AddHealthChecks()
+// "ready" (see EmailHealthCheck/BrevoApiHealthCheck) since it's a soft
+// dependency.
+var emailProvider = builder.Configuration.GetSection(EmailOptions.SectionName).Get<EmailOptions>()?.Provider ?? EmailProvider.Smtp;
+var healthChecksBuilder = builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"])
-    .AddCheck<StorageHealthCheck>("storage", tags: ["ready"])
-    .AddCheck<EmailHealthCheck>("email", tags: ["email"]);
+    .AddCheck<StorageHealthCheck>("storage", tags: ["ready"]);
+
+if (emailProvider == EmailProvider.BrevoApi)
+    healthChecksBuilder.AddCheck<BrevoApiHealthCheck>("email", tags: ["email"]);
+else
+    healthChecksBuilder.AddCheck<EmailHealthCheck>("email", tags: ["email"]);
 
 builder.Services.AddHostedService<AutoCloseTicketsHostedService>();
 builder.Services.AddHostedService<SessionSweepHostedService>();

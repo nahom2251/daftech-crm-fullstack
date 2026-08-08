@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -31,6 +32,18 @@ public class AnthropicNarrativeReportService : IAiNarrativeReportService
 
     public async Task<AiPerformanceSummaryResult> SummarizeEmployeePerformanceAsync(EmployeePerformanceMetrics metrics, CancellationToken ct = default)
     {
+        var prompt = BuildPrompt(metrics);
+        return await CallAsync(prompt, ct);
+    }
+
+    public async Task<AiPerformanceSummaryResult> SummarizeTabularReportAsync(TabularReportData data, CancellationToken ct = default)
+    {
+        var prompt = BuildPrompt(data);
+        return await CallAsync(prompt, ct);
+    }
+
+    private async Task<AiPerformanceSummaryResult> CallAsync(string prompt, CancellationToken ct)
+    {
         if (!_options.Enabled || string.IsNullOrWhiteSpace(_options.ApiKey))
             return new AiPerformanceSummaryResult(false, null, "AI reporting is not configured.");
 
@@ -38,8 +51,6 @@ public class AnthropicNarrativeReportService : IAiNarrativeReportService
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(_options.TimeoutSeconds));
-
-            var prompt = BuildPrompt(metrics);
 
             var requestBody = new
             {
@@ -97,6 +108,32 @@ public class AnthropicNarrativeReportService : IAiNarrativeReportService
             On-time resolution rate: {m.OnTimeRate:0}%
             Average client satisfaction score: {m.AverageSatisfactionScore?.ToString("0") ?? "no ratings yet"} / 100
             Total hours worked (period): {m.TotalHoursWorked:0.0}
+            """;
+    }
+
+    private static string BuildPrompt(TabularReportData data)
+    {
+        const int maxRows = 200;
+        var rows = data.Rows.Count > maxRows ? data.Rows.Take(maxRows).ToList() : data.Rows;
+
+        var table = new StringBuilder();
+        table.AppendLine(string.Join(" | ", data.Columns));
+        foreach (var row in rows)
+            table.AppendLine(string.Join(" | ", row));
+
+        var truncatedNote = data.Rows.Count > maxRows
+            ? $"\n(Table truncated to the first {maxRows} of {data.Rows.Count} rows for this summary — mention this if row count is relevant.)"
+            : "";
+
+        return $"""
+            Write a brief (3-5 sentence) narrative summary of the following report table for a
+            support-operations manager. Be factual and neutral — call out notable totals, trends,
+            or outliers only if the data supports them. Do not invent numbers not present in the
+            table below.
+
+            Report: {data.Title}
+
+            {table}{truncatedNote}
             """;
     }
 

@@ -96,9 +96,9 @@ import { NotificationRecipientType } from '../../core/models';
           <div class="card-label">Unread Notifications</div>
           <div class="card-value" [class.warn]="unreadNotifications() > 0">{{ unreadNotifications() }}</div>
         </a>
-        <a routerLink="/admin/time-tracking" class="panel panel-pad card">
-          <div class="card-label">Today</div>
-          <div class="card-value clock-status">{{ todayClockStatus() }}</div>
+        <a routerLink="/admin/tickets" class="panel panel-pad card">
+          <div class="card-label">Escalated Tickets</div>
+          <div class="card-value" [class.warn]="myEscalatedTickets() > 0">{{ myEscalatedTickets() }}</div>
         </a>
       </div>
     }
@@ -109,7 +109,6 @@ import { NotificationRecipientType } from '../../core/models';
     .card-label { font-size: 0.78rem; color: var(--slate-500); font-weight: 600; margin-bottom: 0.4rem; }
     .card-value { font-size: 1.9rem; font-weight: 700; color: var(--navy-900); }
     .card-value.warn { color: var(--amber); }
-    .card-value.clock-status { font-size: 1.15rem; }
   `],
 })
 export class DashboardComponent {
@@ -151,14 +150,11 @@ export class DashboardComponent {
     return this.ticketsSvc.forEmployee(emp.id).filter(t => DashboardComponent.OPEN_STATUSES.includes(t.status)).length;
   });
 
-  private hasOpenLogToday = computed(() => {
+  myEscalatedTickets = computed(() => {
     const emp = this.auth.currentEmployee();
-    if (!emp) return false;
-    const today = new Date().toISOString().slice(0, 10);
-    return this.employees.timeLogs().some(l => l.employeeId === emp.id && l.date === today && !l.finishTime);
+    if (!emp) return 0;
+    return this.ticketsSvc.forEmployee(emp.id).filter(t => t.status === 'Escalated').length;
   });
-
-  todayClockStatus = computed(() => (this.hasOpenLogToday() ? 'Clocked in' : 'Not clocked in'));
 
   private recipientKey = computed((): { type: NotificationRecipientType; id: string } | null => {
     const emp = this.auth.currentEmployee();

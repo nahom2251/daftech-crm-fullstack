@@ -181,6 +181,13 @@ public interface IReportService
     /// The narrative is always best-effort — see IAiNarrativeReportService.
     /// </summary>
     Task<EmployeePerformanceReportDto> GetEmployeePerformanceReportAsync(Guid employeeId, bool includeAiNarrative, CancellationToken ct = default);
+
+    /// <summary>
+    /// AI narrative summary for any report table already built and shown
+    /// on the Reports page. Always best-effort — see
+    /// IAiNarrativeReportService for the degrade-gracefully contract.
+    /// </summary>
+    Task<AiPerformanceSummaryResult> SummarizeTabularReportAsync(TabularReportData data, CancellationToken ct = default);
 }
 
 public interface ISatisfactionSurveyService

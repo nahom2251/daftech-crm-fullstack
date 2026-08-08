@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { OnTimeReport, EmployeePerformanceReport } from '../models';
+import { OnTimeReport, EmployeePerformanceReport, AiSummaryResult } from '../models';
 import { API_BASE_URL } from './api-base';
 
 @Injectable({ providedIn: 'root' })
@@ -23,6 +23,19 @@ export class ReportService {
       this.http.get<EmployeePerformanceReport>(`${API_BASE_URL}/reports/employee-performance/${employeeId}`, {
         params: { includeAiNarrative },
       })
+    );
+  }
+
+  /**
+   * AI narrative summary for any report table on the Reports page. Sends
+   * the same columns/rows already rendered on screen — this is
+   * best-effort and may return available:false, which callers should
+   * treat as "no summary shown", never as an error blocking the table.
+   */
+  async summarizeTabularReport(title: string, columns: string[], rows: (string | number)[][]): Promise<AiSummaryResult> {
+    const stringRows = rows.map(row => row.map(cell => String(cell)));
+    return firstValueFrom(
+      this.http.post<AiSummaryResult>(`${API_BASE_URL}/reports/summarize`, { title, columns, rows: stringRows })
     );
   }
 }

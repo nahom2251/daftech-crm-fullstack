@@ -37,7 +37,12 @@ public class BrevoApiEmailSender : IEmailSender
         _logger = logger;
         _retryPipeline = BuildRetryPipeline(_options, logger);
 
-        _http.BaseAddress = new Uri(_options.ApiBaseUrl);
+        // Uri's relative-combination rules drop the last base segment when
+        // the base address has no trailing slash (e.g. ".../v3" + "smtp/email"
+        // => ".../smtp/email", losing "/v3" -> Brevo returns 404). Force a
+        // trailing slash so "v3" is treated as a directory, not a filename.
+        var baseUrl = _options.ApiBaseUrl.EndsWith('/') ? _options.ApiBaseUrl : _options.ApiBaseUrl + "/";
+        _http.BaseAddress = new Uri(baseUrl);
         _http.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
     }
 

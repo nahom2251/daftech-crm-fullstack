@@ -9,7 +9,7 @@ import { MaintenanceService } from '../../core/services/maintenance.service';
 import { EmployeeService } from '../../core/services/employee.service';
 import { SatisfactionSurveyService } from '../../core/services/satisfaction-survey.service';
 import { PdfExportService, PdfReportSpec } from '../../core/services/pdf-export.service';
-import { OnTimeReport } from '../../core/models';
+import { OnTimeReport, AiSummaryResult } from '../../core/models';
 
 interface ReportDef {
   id: string;
@@ -63,20 +63,66 @@ const REPORTS: ReportDef[] = [
       }
     </div>
 
-    <div class="grid" style="margin-top:1.25rem;">
+    <div class="stack" style="margin-top:1.25rem;">
       @for (r of reports; track r.id) {
         <div class="panel panel-pad">
-          <h3>{{ r.title }}</h3>
-          <p class="text-muted" style="font-size:0.83rem; margin-top:0.4rem;">{{ r.description }}</p>
-          <button class="btn btn-secondary btn-sm" style="margin-top:0.9rem;" (click)="download(r.id)" [disabled]="generating() === r.id">
-            {{ generating() === r.id ? 'Generating…' : 'Download as PDF' }}
-          </button>
+          <div class="report-header">
+            <div>
+              <h3>{{ r.title }}</h3>
+              <p class="text-muted" style="font-size:0.83rem; margin-top:0.4rem;">{{ r.description }}</p>
+            </div>
+            <div class="report-actions">
+              <button class="btn btn-secondary btn-sm" (click)="toggle(r.id)" [disabled]="generating() === r.id">
+                {{ generating() === r.id ? 'Loading…' : (isOpen(r.id) ? 'Hide' : 'View Report') }}
+              </button>
+              <button class="btn btn-outline btn-sm" (click)="downloadPdf(r.id)" [disabled]="generating() === r.id">
+                Download as PDF
+              </button>
+            </div>
+          </div>
+
+          @if (isOpen(r.id)) {
+            @if (specCache().get(r.id); as spec) {
+              @for (section of spec.sections; track section.heading ?? ''; let first = $first) {
+                @if (section.heading) { <h4 class="section-heading">{{ section.heading }}</h4> }
+
+                @if (first) {
+                  <div class="ai-summary" [class.unavailable]="!summaryFor(r.id)?.available">
+                    @if (summaryLoading() === r.id) {
+                      <p class="text-muted" style="margin:0;">Generating AI summary…</p>
+                    } @else if (summaryFor(r.id)?.available) {
+                      <p style="margin:0;">🤖 {{ summaryFor(r.id)?.narrative }}</p>
+                    } @else if (summaryFor(r.id)) {
+                      <p class="text-muted" style="margin:0; font-size:0.82rem;">AI summary unavailable — {{ summaryFor(r.id)?.unavailableReason ?? 'try again later.' }}</p>
+                    }
+                  </div>
+                }
+
+                <div class="table-scroll">
+                  <table>
+                    <thead><tr>@for (col of section.columns; track col) { <th>{{ col }}</th> }</tr></thead>
+                    <tbody>
+                      @for (row of section.rows; track $index) {
+                        <tr>@for (cell of row; track $index) { <td>{{ cell }}</td> }</tr>
+                      }
+                      @empty { <tr><td [attr.colspan]="section.columns.length" class="text-muted" style="text-align:center; padding:1.5rem;">No data yet.</td></tr> }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            }
+          }
         </div>
       }
     </div>
   `,
   styles: [`
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+    .stack { display: flex; flex-direction: column; gap: 1rem; }
+    .report-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+    .report-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+    .section-heading { margin: 1.1rem 0 0.6rem; font-size: 0.85rem; color: var(--navy-800); }
+    .ai-summary { background: var(--slate-50, #f8fafc); border: 1px solid var(--slate-200, #e2e8f0); border-radius: 8px; padding: 0.75rem 0.9rem; margin-bottom: 0.75rem; font-size: 0.87rem; }
+    .ai-summary.unavailable { background: transparent; border-style: dashed; }
     .chart-header { display: flex; justify-content: space-between; align-items: flex-start; }
     .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.5rem; align-items: start; }
     .chart-cell h4 { font-size: 0.82rem; margin-bottom: 0.9rem; color: var(--navy-800); }
@@ -86,6 +132,11 @@ const REPORTS: ReportDef[] = [
 export class ReportsComponent {
   reports = REPORTS;
   generating = signal<string | null>(null);
+
+  openIds = signal<Set<string>>(new Set());
+  specCache = signal<Map<string, PdfReportSpec>>(new Map());
+  summaries = signal<Map<string, AiSummaryResult>>(new Map());
+  summaryLoading = signal<string | null>(null);
 
   report = signal<OnTimeReport | null>(null);
   loading = signal(true);
@@ -163,10 +214,63 @@ export class ReportsComponent {
     return total === 0 ? 0 : Math.round((r.summary.onTimeCount / total) * 100);
   }
 
-  async download(id: string) {
+  isOpen(id: string): boolean {
+    return this.openIds().has(id);
+  }
+
+  summaryFor(id: string): AiSummaryResult | undefined {
+    return this.summaries().get(id);
+  }
+
+  async toggle(id: string) {
+    const open = new Set(this.openIds());
+    if (open.has(id)) {
+      open.delete(id);
+      this.openIds.set(open);
+      return;
+    }
+    open.add(id);
+    this.openIds.set(open);
+
+    if (this.specCache().has(id)) return;
+
     this.generating.set(id);
     try {
       const spec = await this.buildSpec(id);
+      if (!spec) return;
+      const cache = new Map(this.specCache());
+      cache.set(id, spec);
+      this.specCache.set(cache);
+
+      void this.loadSummary(id, spec);
+    } finally {
+      this.generating.set(null);
+    }
+  }
+
+  private async loadSummary(id: string, spec: PdfReportSpec) {
+    const section = spec.sections[0];
+    if (!section || section.rows.length === 0) return;
+
+    this.summaryLoading.set(id);
+    try {
+      const result = await this.reportsSvc.summarizeTabularReport(spec.title, section.columns, section.rows);
+      const map = new Map(this.summaries());
+      map.set(id, result);
+      this.summaries.set(map);
+    } catch {
+      const map = new Map(this.summaries());
+      map.set(id, { available: false, unavailableReason: 'Could not reach the AI summary service.' });
+      this.summaries.set(map);
+    } finally {
+      this.summaryLoading.set(null);
+    }
+  }
+
+  async downloadPdf(id: string) {
+    this.generating.set(id);
+    try {
+      const spec = this.specCache().get(id) ?? await this.buildSpec(id);
       if (spec) this.pdf.export(spec, id);
     } finally {
       this.generating.set(null);

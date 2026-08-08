@@ -266,6 +266,23 @@ public class ReportsController : ControllerBase
         try { return Ok(await _reports.GetEmployeePerformanceReportAsync(employeeId, includeAiNarrative, ct)); }
         catch (InvalidOperationException ex) { return NotFound(ex.Message); }
     }
+
+    /// <summary>
+    /// AI narrative summary for any report table already rendered on the
+    /// Reports page (staff or client portal). The frontend sends the same
+    /// columns/rows it's already showing on screen — this never recomputes
+    /// numbers, it only narrates what's given. Always best-effort: a
+    /// non-2xx or Available=false response should never block the table
+    /// itself from displaying.
+    /// </summary>
+    [HttpPost("summarize")]
+    public async Task<ActionResult<AiPerformanceSummaryResult>> Summarize([FromBody] TabularReportData data, CancellationToken ct)
+    {
+        if (data.Rows.Count > 5000)
+            return BadRequest("Report is too large to summarize in one request.");
+
+        return Ok(await _reports.SummarizeTabularReportAsync(data, ct));
+    }
 }
 
 [ApiController]

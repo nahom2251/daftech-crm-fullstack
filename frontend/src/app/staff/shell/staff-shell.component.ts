@@ -20,7 +20,6 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Agreements', path: '/admin/agreements', icon: '📄', rolesAllowed: ['Admin', 'ItSupport'] },
   { label: 'Tickets', path: '/admin/tickets', icon: '🎫' },
   { label: 'Employees', path: '/admin/employees', icon: '👥', rolesAllowed: ['Admin'] },
-  { label: 'Time Tracking', path: '/admin/time-tracking', icon: '⏱️', rolesAllowed: ['Admin', 'EmployeeTechnician'] },
   { label: 'Employee Performance', path: '/admin/employee-performance', icon: '📈', rolesAllowed: ['Admin'] },
   { label: 'Maintenance History', path: '/admin/maintenance', icon: '🛠️', rolesAllowed: ['Admin', 'ItSupport'] },
   { label: 'Notifications', path: '/admin/notifications', icon: '🔔' },

@@ -56,11 +56,6 @@ export const routes: Routes = [
         loadComponent: () => import('./staff/employees/employees.component').then(m => m.EmployeesComponent),
       },
       {
-        path: 'time-tracking',
-        canActivate: [roleGuard(['EmployeeTechnician'])],
-        loadComponent: () => import('./staff/time-tracking/time-tracking.component').then(m => m.TimeTrackingComponent),
-      },
-      {
         path: 'employee-performance',
         canActivate: [adminRoleGuard],
         loadComponent: () => import('./staff/employee-performance/employee-performance.component').then(m => m.EmployeePerformanceComponent),

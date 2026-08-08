@@ -118,4 +118,12 @@ public class ReportService : IReportService
             aiAvailable, narrative, unavailableReason
         );
     }
+
+    public async Task<AiPerformanceSummaryResult> SummarizeTabularReportAsync(TabularReportData data, CancellationToken ct = default)
+    {
+        if (data.Rows.Count == 0)
+            return new AiPerformanceSummaryResult(false, null, "No data to summarize yet.");
+
+        return await _aiNarrative.SummarizeTabularReportAsync(data, ct);
+    }
 }

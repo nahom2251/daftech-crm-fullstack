@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { firstValueFrom, Observable, catchError, map, of, tap } from 'rxjs';
+import { firstValueFrom, Observable, catchError, map, of, tap, throwError } from 'rxjs';
 import { Employee, Client, DeviceType } from '../models';
 import { API_BASE_URL } from './api-base';
 import { SessionService } from './session.service';
@@ -175,7 +175,12 @@ export class AuthService {
   refreshTokens(): Observable<void> {
     const refreshToken = this.tokenStorage.refreshToken;
     if (!refreshToken) {
-      throw new Error('No refresh token available.');
+      // Must be an RxJS error (not a synchronous throw) so it flows through
+      // the interceptor's catchError -> forceLogoutAfterRefreshFailure().
+      // A synchronous throw here bypassed that path entirely, leaving the
+      // app stuck retrying every request with a dead token forever instead
+      // of logging the user out cleanly.
+      return throwError(() => new Error('No refresh token available.'));
     }
 
     return this.http.post<AuthTokenResultDto>(`${API_BASE_URL}/auth/refresh`, { refreshToken }).pipe(

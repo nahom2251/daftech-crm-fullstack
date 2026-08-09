@@ -46,6 +46,16 @@ public class Employee
     /// </summary>
     public bool MustChangePassword { get; set; } = true;
 
+    /// <summary>
+    /// Deadline for the current one-time password, set only when an Admin
+    /// issues a password-RESET OTP (PasswordResetService.IssueOtpAsync).
+    /// Null for the initial signup OTP, which never expires — an employee
+    /// who hasn't onboarded yet shouldn't get locked out before they've
+    /// even logged in once. Checked at login; past this point the OTP is
+    /// rejected with a message pointing to "Forgot password?".
+    /// </summary>
+    public DateTimeOffset? OtpExpiresAt { get; set; }
+
     /// <summary>Empty = no IP restriction, this account may log in from any IP.</summary>
     public List<string> AllowedIpAddresses { get; set; } = new();
 

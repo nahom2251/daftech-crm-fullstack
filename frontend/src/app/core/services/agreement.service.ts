@@ -35,7 +35,7 @@ export class AgreementService {
     // API — calling them with a client token always 403s. Only auto-fetch
     // the full list for a logged-in employee; the client portal fetches
     // its own agreements explicitly via refreshMyAgreements() instead.
-    if (this.auth.isEmployeeAuthenticated()) {
+    if (this.auth.isStaffAuthenticated()) {
       void this.refresh();
       void this.refreshPaged();
     }

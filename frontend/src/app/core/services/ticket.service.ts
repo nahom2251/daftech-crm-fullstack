@@ -36,7 +36,7 @@ export class TicketService {
     // calling them with a client token always 403s. Only auto-fetch the
     // full list for a logged-in employee; the client portal fetches its
     // own tickets explicitly via refreshMyTickets() instead.
-    if (this.auth.isEmployeeAuthenticated()) {
+    if (this.auth.isStaffAuthenticated()) {
       void this.refresh();
       void this.refreshPaged();
     }
@@ -119,7 +119,7 @@ export class TicketService {
     // Refresh whichever cache the caller actually has access to — a client
     // token can't call refresh()/refreshPaged() (staff-only, 403), so only
     // do those for an employee; always refresh the client's own list.
-    if (this.auth.isEmployeeAuthenticated()) {
+    if (this.auth.isStaffAuthenticated()) {
       await Promise.all([this.refresh(), this.refreshPaged()]);
     }
     await this.refreshMyTickets(clientId);
@@ -161,7 +161,7 @@ export class TicketService {
     );
     // Same as submitFromClient — refresh() is staff-only; a client caller
     // refreshes their own list via ticket.clientId instead.
-    if (this.auth.isEmployeeAuthenticated()) {
+    if (this.auth.isStaffAuthenticated()) {
       await Promise.all([this.refresh(), this.refreshPaged()]);
     } else {
       await this.refreshMyTickets(ticket.clientId);

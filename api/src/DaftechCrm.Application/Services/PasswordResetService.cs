@@ -17,12 +17,14 @@ public class PasswordResetService : IPasswordResetService
     private readonly IAppDbContext _db;
     private readonly AccountCredentialService _credentials;
     private readonly INotificationService _notifications;
+    private readonly ISystemConfigurationService _config;
 
-    public PasswordResetService(IAppDbContext db, AccountCredentialService credentials, INotificationService notifications)
+    public PasswordResetService(IAppDbContext db, AccountCredentialService credentials, INotificationService notifications, ISystemConfigurationService config)
     {
         _db = db;
         _credentials = credentials;
         _notifications = notifications;
+        _config = config;
     }
 
     public async Task<PasswordResetRequestSubmittedResult> SubmitAsync(SubmitPasswordResetRequest request, string ipAddress, CancellationToken ct = default)
@@ -83,6 +85,8 @@ public class PasswordResetService : IPasswordResetService
             throw new InvalidOperationException("This request has already been actioned.");
 
         var newOneTimePassword = await _credentials.RegenerateOneTimePasswordAsync(ct);
+        var otpExpiryMinutes = await _config.GetIntAsync("Auth.OtpExpiryMinutes", ct);
+        var otpExpiresAt = DateTimeOffset.UtcNow.AddMinutes(otpExpiryMinutes > 0 ? otpExpiryMinutes : 15);
         bool sent;
         string? error;
 
@@ -93,10 +97,11 @@ public class PasswordResetService : IPasswordResetService
 
             employee.PasswordHash = PasswordHasher.Hash(newOneTimePassword);
             employee.MustChangePassword = true;
+            employee.OtpExpiresAt = otpExpiresAt;
             _db.Update(employee);
             await _db.SaveChangesAsync(ct);
 
-            (sent, error) = await _credentials.SendCredentialEmailAsync(employee.Email, employee.FullName, employee.Username, newOneTimePassword, ct);
+            (sent, error) = await _credentials.SendCredentialEmailAsync(employee.Email, employee.FullName, employee.Username, newOneTimePassword, ct, otpExpiryMinutes);
             await _notifications.NotifyAsync(NotificationRecipientType.Employee, employee.Id.ToString(), "password_reset_issued",
                 "An Admin issued you a new temporary password. Check your email.", ct);
         }
@@ -107,10 +112,11 @@ public class PasswordResetService : IPasswordResetService
 
             client.PasswordHash = PasswordHasher.Hash(newOneTimePassword);
             client.MustChangePassword = true;
+            client.OtpExpiresAt = otpExpiresAt;
             _db.Update(client);
             await _db.SaveChangesAsync(ct);
 
-            (sent, error) = await _credentials.SendCredentialEmailAsync(client.Email, client.Name, client.Username ?? reset.Username, newOneTimePassword, ct);
+            (sent, error) = await _credentials.SendCredentialEmailAsync(client.Email, client.Name, client.Username ?? reset.Username, newOneTimePassword, ct, otpExpiryMinutes);
             await _notifications.NotifyAsync(NotificationRecipientType.Client, client.Id.ToString(), "password_reset_issued",
                 "An Admin issued you a new temporary password. Check your email.", ct);
         }

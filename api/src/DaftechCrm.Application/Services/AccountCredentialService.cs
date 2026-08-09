@@ -51,20 +51,29 @@ public class AccountCredentialService
     /// block registration; the caller still has the plaintext to show the
     /// Admin on-screen as a fallback, and the Admin can retry later.
     /// </summary>
+    /// <param name="expiresInMinutes">
+    /// Pass the reset OTP's expiry window (from Auth.OtpExpiryMinutes) when
+    /// this is a password-RESET email, so the wording matches
+    /// AuthService's actual enforcement. Leave null for the initial signup
+    /// email — that OTP never expires, so the email shouldn't claim it does.
+    /// </param>
     public async Task<(bool Sent, string? Error)> SendCredentialEmailAsync(
-        string recipientEmail, string recipientName, string username, string oneTimePassword, CancellationToken ct = default)
+        string recipientEmail, string recipientName, string username, string oneTimePassword, CancellationToken ct = default, int? expiresInMinutes = null)
     {
         if (string.IsNullOrWhiteSpace(recipientEmail))
             return (false, "No email address on file.");
 
         var subject = "Your DAFTECH CRM Account Activation";
+        var expiryNotice = expiresInMinutes is { } minutes
+            ? $" This temporary password will expire in {minutes} minutes — please log in before then, or you will need to request a new one."
+            : "";
         var html = $@"
             <p>Dear {System.Net.WebUtility.HtmlEncode(recipientName)},</p>
             <p>We are pleased to inform you that an account has been successfully created for you on the DAFTECH Customer Relationship Management (CRM) system.</p>
             <p>Below are your login credentials:</p>
             <p>&middot; <b>Username:</b> {System.Net.WebUtility.HtmlEncode(username)}<br/>
                &middot; <b>Temporary Password:</b> {System.Net.WebUtility.HtmlEncode(oneTimePassword)}</p>
-            <p>Please note that the temporary password is for single-use only. Upon your first login, you will be required to create a new password for security purposes. We kindly ask that you keep your credentials confidential and refrain from sharing this email with others.</p>
+            <p>Please note that the temporary password is for single-use only.{expiryNotice} Upon your first login, you will be required to create a new password for security purposes. We kindly ask that you keep your credentials confidential and refrain from sharing this email with others.</p>
             <p>Should you have any questions or require further assistance, please do not hesitate to contact our support team.</p>
             <p>Thank you for choosing DAFTECH.</p>
             <p>Yours sincerely,<br/>The DAFTECH Team</p>";

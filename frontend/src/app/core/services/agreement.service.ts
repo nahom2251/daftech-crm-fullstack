@@ -3,11 +3,19 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { Agreement, BillingTier, PagedResult } from '../models';
 import { API_BASE_URL } from './api-base';
+import { AuthService } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class AgreementService {
   private readonly _agreements = signal<Agreement[]>([]);
   readonly agreements = this._agreements.asReadonly();
+
+  // A logged-in client's own agreements, fetched via the client-scoped
+  // endpoint. Kept separate from _agreements (the staff-only full list,
+  // which 403s for a client token) so the portal never depends on that
+  // call succeeding.
+  private readonly _myAgreements = signal<Agreement[]>([]);
+  readonly myAgreements = this._myAgreements.asReadonly();
 
   // Paged state for the Agreements table. Kept separate from the full-list
   // cache above, which forClient()/expiringSoon() still rely on.
@@ -22,9 +30,15 @@ export class AgreementService {
   readonly totalCount = this._totalCount.asReadonly();
   readonly totalPages = this._totalPages.asReadonly();
 
-  constructor(private http: HttpClient) {
-    void this.refresh();
-    void this.refreshPaged();
+  constructor(private http: HttpClient, private auth: AuthService) {
+    // /agreements and /agreements/paged are staff-only (AnyEmployee) on the
+    // API — calling them with a client token always 403s. Only auto-fetch
+    // the full list for a logged-in employee; the client portal fetches
+    // its own agreements explicitly via refreshMyAgreements() instead.
+    if (this.auth.isEmployeeAuthenticated()) {
+      void this.refresh();
+      void this.refreshPaged();
+    }
   }
 
   async refresh(): Promise<void> {
@@ -49,11 +63,23 @@ export class AgreementService {
   }
 
   getById(id: string): Agreement | undefined {
-    return this._agreements().find(a => a.id === id);
+    return this._agreements().find(a => a.id === id) ?? this._myAgreements().find(a => a.id === id);
   }
 
+  /**
+   * Fetches the logged-in client's own agreements via the client-scoped
+   * API endpoint (GET /agreements/client/{id}), which any authenticated
+   * client may call. Call this from the client portal instead of relying
+   * on forClient() over the staff-only full list.
+   */
+  async refreshMyAgreements(clientId: string): Promise<void> {
+    const list = await firstValueFrom(this.http.get<Agreement[]>(`${API_BASE_URL}/agreements/client/${clientId}`));
+    this._myAgreements.set(list);
+  }
+
+  /** Client-side filter over myAgreements() — call refreshMyAgreements() first to populate it. */
   forClient(clientId: string): Agreement[] {
-    return this._agreements().filter(a => a.clientId === clientId);
+    return this._myAgreements().filter(a => a.clientId === clientId);
   }
 
   /** Agreements expiring within 30 days, or already past expiry. */

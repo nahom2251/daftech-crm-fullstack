@@ -1,114 +1,171 @@
-import { Component, computed } from '@angular/core';
+import { Component, computed, effect } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { SlicePipe } from '@angular/common';
-import { AuthService } from '../../core/services/auth.service';
+import { ClientService } from '../../core/services/client.service';
 import { TicketService } from '../../core/services/ticket.service';
 import { AgreementService } from '../../core/services/agreement.service';
-import { BadgeComponent } from '../../shared/badge.component';
-import { TICKET_CATEGORY_LABELS } from '../../core/models';
+import { EmployeeService } from '../../core/services/employee.service';
+import { NotificationService } from '../../core/services/notification.service';
+import { AuthService } from '../../core/services/auth.service';
+import { NotificationRecipientType } from '../../core/models';
 
 @Component({
-  selector: 'app-portal-dashboard',
+  selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink, SlicePipe, BadgeComponent],
+  imports: [RouterLink],
   template: `
     <h1>Dashboard</h1>
-    <p class="text-muted" style="margin-top:0.3rem;">{{ client()?.name }} — a quick look at your support activity.</p>
+    <p class="text-muted" style="margin-top:0.3rem;">{{ subtitle() }}</p>
 
-    <div class="cards">
-      <a routerLink="/portal/maintenance-history" class="panel panel-pad card">
-        <div class="card-label">Total Support Requests</div>
-        <div class="card-value">{{ totalSupport() }}</div>
-      </a>
-      <a routerLink="/portal/maintenance-history" [queryParams]="{ filter: 'pending' }" class="panel panel-pad card">
-        <div class="card-label">Pending</div>
-        <div class="card-value" [class.warn]="pending() > 0">{{ pending() }}</div>
-      </a>
-      <a routerLink="/portal/maintenance-history" [queryParams]="{ filter: 'accomplished' }" class="panel panel-pad card">
-        <div class="card-label">Accomplished</div>
-        <div class="card-value">{{ accomplished() }}</div>
-      </a>
-      <a routerLink="/portal/confirm-resolution" class="panel panel-pad card">
-        <div class="card-label">Awaiting Your Confirmation</div>
-        <div class="card-value" [class.warn]="awaitingConfirmation() > 0">{{ awaitingConfirmation() }}</div>
-      </a>
-      <a routerLink="/portal/maintenance-history" [queryParams]="{ filter: 'escalated' }" class="panel panel-pad card">
-        <div class="card-label">Escalated</div>
-        <div class="card-value" [class.warn]="escalated() > 0">{{ escalated() }}</div>
-      </a>
-      <a routerLink="/portal/maintenance-history" class="panel panel-pad card">
-        <div class="card-label">Expired Agreements</div>
-        <div class="card-value" [class.warn]="expiredAgreements() > 0">{{ expiredAgreements() }}</div>
-      </a>
-    </div>
-
-    <div class="panel panel-pad" style="margin-top: 1.5rem;">
-      <div class="section-head">
-        <h3>Recent Activity</h3>
-        <a routerLink="/portal/maintenance-history" class="text-muted see-all">See all →</a>
+    @if (isAdmin()) {
+      <div class="cards">
+        <a routerLink="/admin/clients" class="panel panel-pad card">
+          <div class="card-label">Active Clients</div>
+          <div class="card-value">{{ activeClients() }}</div>
+        </a>
+        <a routerLink="/admin/signup-requests" class="panel panel-pad card">
+          <div class="card-label">Pending Signup Requests</div>
+          <div class="card-value" [class.warn]="pendingSignups() > 0">{{ pendingSignups() }}</div>
+        </a>
+        <a routerLink="/admin/tickets" class="panel panel-pad card">
+          <div class="card-label">Open Tickets</div>
+          <div class="card-value">{{ openTickets() }}</div>
+        </a>
+        <a routerLink="/admin/tickets" class="panel panel-pad card">
+          <div class="card-label">Escalated (Below CSAT Threshold)</div>
+          <div class="card-value" [class.warn]="escalated() > 0">{{ escalated() }}</div>
+        </a>
+        <a routerLink="/admin/agreements" class="panel panel-pad card">
+          <div class="card-label">Agreements Near/Over Expiry</div>
+          <div class="card-value" [class.warn]="expiringAgreements() > 0">{{ expiringAgreements() }}</div>
+        </a>
+        <a routerLink="/admin/notifications" class="panel panel-pad card">
+          <div class="card-label">Unread Notifications</div>
+          <div class="card-value" [class.warn]="unreadNotifications() > 0">{{ unreadNotifications() }}</div>
+        </a>
       </div>
-      <div class="table-scroll"><table>
-        <thead><tr><th>Ticket #</th><th>Category</th><th>Submitted</th><th>Assigned To</th><th>Status</th></tr></thead>
-        <tbody>
-          @for (t of recentActivity(); track t.id) {
-            <tr>
-              <td class="mono">{{ ticketNumber(t.id) }}</td>
-              <td>{{ categoryLabel(t.category) }}</td>
-              <td class="text-muted">{{ t.dateSubmitted | slice:0:10 }}</td>
-              <td class="text-muted">{{ t.assignedEmployeeName || '—' }}</td>
-              <td><app-badge [status]="t.status"></app-badge></td>
-            </tr>
-          }
-          @empty { <tr><td colspan="5" class="text-muted" style="text-align:center; padding:1.5rem;">No activity yet.</td></tr> }
-        </tbody>
-      </table></div>
-    </div>
+
+      <div class="panel panel-pad" style="margin-top: 1.5rem;">
+        <h3 style="margin-bottom: 0.9rem;">Employee Workload</h3>
+        <div class="table-scroll"><table>
+          <thead><tr><th>Employee</th><th>Role(s)</th><th>Open Tickets</th><th>Avg. Satisfaction</th><th>Account Status</th></tr></thead>
+          <tbody>
+            @for (e of employees.employees(); track e.id) {
+              <tr>
+                <td>{{ e.fullName }}</td>
+                <td class="text-muted">{{ e.roles.join(', ') }}</td>
+                <td>{{ e.openTicketCount }}</td>
+                <td class="text-muted">{{ e.averageSatisfactionScore != null ? e.averageSatisfactionScore.toFixed(0) + '/100' : '—' }}</td>
+                <td>
+                  <span class="badge" [class]="e.accountStatus === 'Active' ? 'badge-green' : 'badge-red'">{{ e.accountStatus }}</span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table></div>
+      </div>
+    } @else if (isItSupport()) {
+      <div class="cards">
+        <a routerLink="/admin/clients" class="panel panel-pad card">
+          <div class="card-label">Active Clients</div>
+          <div class="card-value">{{ activeClients() }}</div>
+        </a>
+        <a routerLink="/admin/tickets" class="panel panel-pad card">
+          <div class="card-label">Open Tickets</div>
+          <div class="card-value">{{ openTickets() }}</div>
+        </a>
+        <a routerLink="/admin/tickets" class="panel panel-pad card">
+          <div class="card-label">Escalated (Below CSAT Threshold)</div>
+          <div class="card-value" [class.warn]="escalated() > 0">{{ escalated() }}</div>
+        </a>
+        <a routerLink="/admin/agreements" class="panel panel-pad card">
+          <div class="card-label">Agreements Near/Over Expiry</div>
+          <div class="card-value" [class.warn]="expiringAgreements() > 0">{{ expiringAgreements() }}</div>
+        </a>
+        <a routerLink="/admin/notifications" class="panel panel-pad card">
+          <div class="card-label">Unread Notifications</div>
+          <div class="card-value" [class.warn]="unreadNotifications() > 0">{{ unreadNotifications() }}</div>
+        </a>
+      </div>
+    } @else {
+      <div class="cards">
+        <a routerLink="/admin/tickets" class="panel panel-pad card">
+          <div class="card-label">My Open Tickets</div>
+          <div class="card-value">{{ myOpenTickets() }}</div>
+        </a>
+        <a routerLink="/admin/notifications" class="panel panel-pad card">
+          <div class="card-label">Unread Notifications</div>
+          <div class="card-value" [class.warn]="unreadNotifications() > 0">{{ unreadNotifications() }}</div>
+        </a>
+        <a routerLink="/admin/tickets" class="panel panel-pad card">
+          <div class="card-label">Escalated Tickets</div>
+          <div class="card-value" [class.warn]="myEscalatedTickets() > 0">{{ myEscalatedTickets() }}</div>
+        </a>
+      </div>
+    }
   `,
   styles: [`
-    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1.25rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; margin-top: 1.25rem; }
     .card { display: block; }
     .card-label { font-size: 0.78rem; color: var(--slate-500); font-weight: 600; margin-bottom: 0.4rem; }
     .card-value { font-size: 1.9rem; font-weight: 700; color: var(--navy-900); }
     .card-value.warn { color: var(--amber); }
-    .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.9rem; }
-    .see-all { font-size: 0.8rem; font-weight: 600; }
   `],
 })
-export class PortalDashboardComponent {
-  constructor(private auth: AuthService, private ticketsSvc: TicketService, private agreementsSvc: AgreementService) {}
+export class DashboardComponent {
+  constructor(
+    private clientsSvc: ClientService,
+    private ticketsSvc: TicketService,
+    private agreementsSvc: AgreementService,
+    public employees: EmployeeService,
+    private notificationsSvc: NotificationService,
+    private auth: AuthService
+  ) {
+    effect(() => {
+      const key = this.recipientKey();
+      if (key) void this.notificationsSvc.loadFor(key.type, key.id);
+    });
+  }
 
-  client = computed(() => this.auth.currentClient());
+  isAdmin = computed(() => this.auth.currentEmployee()?.roles.includes('Admin') ?? false);
+  isItSupport = computed(() => !this.isAdmin() && (this.auth.currentEmployee()?.roles.includes('ItSupport') ?? false));
 
-  private myTickets = computed(() => {
-    const client = this.client();
-    return client ? this.ticketsSvc.forClient(client.id) : [];
+  subtitle = computed(() => {
+    if (this.isAdmin()) return 'Overview across clients, tickets, and staff workload.';
+    if (this.isItSupport()) return 'Overview of clients, agreements, and the ticket queue.';
+    return 'Your assigned tickets and attendance.';
   });
 
-  totalSupport = computed(() => this.myTickets().length);
-
-  pending = computed(() =>
-    this.myTickets().filter(t => ['Submitted', 'Forwarded', 'Assigned', 'InProgress', 'Resolved', 'AwaitingClientConfirmation'].includes(t.status)).length
+  activeClients = computed(() => this.clientsSvc.approvedClients().length);
+  pendingSignups = computed(() => this.clientsSvc.pendingRequests().length);
+  openTickets = computed(() =>
+    this.ticketsSvc.tickets().filter(t => !['Resolved', 'Closed', 'Escalated'].includes(t.status)).length
   );
+  escalated = computed(() => this.ticketsSvc.escalated().length);
+  expiringAgreements = computed(() => this.agreementsSvc.expiringSoon().length);
 
-  accomplished = computed(() => this.myTickets().filter(t => t.status === 'Closed').length);
-
-  awaitingConfirmation = computed(() => this.myTickets().filter(t => t.status === 'AwaitingClientConfirmation').length);
-
-  escalated = computed(() => this.myTickets().filter(t => t.status === 'Escalated').length);
-
-  expiredAgreements = computed(() => {
-    const client = this.client();
-    if (!client) return 0;
-    return this.agreementsSvc.forClient(client.id).filter(a => a.status === 'Expired').length;
+  private static readonly OPEN_STATUSES = ['Assigned', 'InProgress'];
+  myOpenTickets = computed(() => {
+    const emp = this.auth.currentEmployee();
+    if (!emp) return 0;
+    return this.ticketsSvc.forEmployee(emp.id).filter(t => DashboardComponent.OPEN_STATUSES.includes(t.status)).length;
   });
 
-  recentActivity = computed(() => this.myTickets().slice(0, 10));
+  myEscalatedTickets = computed(() => {
+    const emp = this.auth.currentEmployee();
+    if (!emp) return 0;
+    return this.ticketsSvc.forEmployee(emp.id).filter(t => t.status === 'Escalated').length;
+  });
 
-  ticketNumber(id: string): string {
-    return id.slice(0, 8).toUpperCase();
-  }
+  private recipientKey = computed((): { type: NotificationRecipientType; id: string } | null => {
+    const emp = this.auth.currentEmployee();
+    if (!emp) return null;
+    if (emp.roles.includes('Admin')) return { type: 'Admin', id: 'ALL_ADMIN' };
+    if (emp.roles.includes('ItSupport')) return { type: 'ItSupport', id: 'ALL_IT_SUPPORT' };
+    return { type: 'Employee', id: emp.id };
+  });
 
-  categoryLabel(c: string): string {
-    return TICKET_CATEGORY_LABELS[c as keyof typeof TICKET_CATEGORY_LABELS] ?? c;
-  }
+  unreadNotifications = computed(() => {
+    const key = this.recipientKey();
+    return key ? this.notificationsSvc.unreadCountFor(key.type, key.id) : 0;
+  });
 }

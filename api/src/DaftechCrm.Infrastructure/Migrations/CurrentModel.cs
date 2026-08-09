@@ -58,6 +58,7 @@ namespace DaftechCrm.Infrastructure.Migrations
                 b.Property<string>("Name").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
                 b.Property<string>("Office").HasMaxLength(200).HasColumnType("character varying(200)");
                 b.Property<DateOnly>("OnboardingDate").HasColumnType("date");
+                b.Property<DateTimeOffset?>("OtpExpiresAt").HasColumnType("timestamp with time zone");
                 b.Property<string>("PasswordHash").HasMaxLength(200).HasColumnType("character varying(200)");
                 b.Property<string>("PhoneNumber").IsRequired().HasMaxLength(30).HasColumnType("character varying(30)");
                 b.Property<string>("RejectionReason").HasMaxLength(500).HasColumnType("character varying(500)");
@@ -85,6 +86,7 @@ namespace DaftechCrm.Infrastructure.Migrations
                 b.Property<string>("PhoneNumber").IsRequired().HasMaxLength(30).HasColumnType("character varying(30)");
                 b.Property<string>("Roles").IsRequired().HasColumnType("varchar(200)");
                 b.Property<string>("Specialization").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
+                b.Property<DateTimeOffset?>("OtpExpiresAt").HasColumnType("timestamp with time zone");
                 b.Property<string>("Username").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)");
                 b.HasKey("Id");
                 b.HasIndex("Email").IsUnique();

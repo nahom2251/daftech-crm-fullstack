@@ -4,6 +4,7 @@ import { filter } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { TicketService } from '../../core/services/ticket.service';
+import { AgreementService } from '../../core/services/agreement.service';
 
 @Component({
   selector: 'app-portal-shell',
@@ -112,11 +113,20 @@ export class PortalShellComponent {
     public auth: AuthService,
     private notifications: NotificationService,
     private ticketsSvc: TicketService,
+    private agreementsSvc: AgreementService,
     private router: Router
   ) {
     effect(() => {
       const client = this.auth.currentClient();
-      if (client) void this.notifications.loadFor('Client', client.id);
+      if (client) {
+        void this.notifications.loadFor('Client', client.id);
+        // Every portal page (dashboard, maintenance history, confirm
+        // resolution, reports) reads tickets/agreements via forClient(),
+        // which filters the client-scoped cache below — populate it once
+        // here so no individual page needs to remember to fetch it.
+        void this.ticketsSvc.refreshMyTickets(client.id);
+        void this.agreementsSvc.refreshMyAgreements(client.id);
+      }
     });
 
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))

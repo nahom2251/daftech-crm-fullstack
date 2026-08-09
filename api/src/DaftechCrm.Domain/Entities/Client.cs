@@ -34,6 +34,15 @@ public class Client
     /// <summary>True until the client changes their password on first login.</summary>
     public bool MustChangePassword { get; set; } = true;
 
+    /// <summary>
+    /// Deadline for the current one-time password, set only when an Admin
+    /// issues a password-RESET OTP (PasswordResetService.IssueOtpAsync).
+    /// Null for the initial signup OTP, which never expires. Checked at
+    /// login; past this point the OTP is rejected with a message pointing
+    /// to "Forgot password?".
+    /// </summary>
+    public DateTimeOffset? OtpExpiresAt { get; set; }
+
     public ICollection<Agreement> Agreements { get; set; } = new List<Agreement>();
     public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
 }

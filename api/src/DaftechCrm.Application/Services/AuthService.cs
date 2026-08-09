@@ -41,6 +41,17 @@ public class AuthService : IAuthService
             return new EmployeeLoginResult(false, "This account has been disabled. Contact your Admin.", ip, null, false);
         }
 
+        // A reset-issued OTP carries an expiry (initial signup OTPs don't —
+        // OtpExpiresAt stays null until a reset is issued). Past it, the
+        // temp password no longer works; the message points at the
+        // existing self-service "Forgot password?" flow rather than
+        // dead-ending the user.
+        if (employee.MustChangePassword && employee.OtpExpiresAt is { } expiresAt && expiresAt < DateTimeOffset.UtcNow)
+        {
+            await RecordLoginAsync(employee.Id, ip, request.DeviceType, request.DeviceIdentifier, allowed: false, reason: "OTP expired", ct);
+            return new EmployeeLoginResult(false, "This temporary password has expired. Click \"Forgot password?\" to request a new one.", ip, null, false);
+        }
+
         // TEMPORARILY DISABLED — the deployed host's outbound IP isn't fixed/known
         // yet, so every login was being blocked. Uncomment to re-enable per-employee
         // IP allow-listing once the real deployment IP(s) are known.
@@ -83,6 +94,7 @@ public class AuthService : IAuthService
 
         employee.PasswordHash = PasswordHasher.Hash(request.NewPassword);
         employee.MustChangePassword = false;
+        employee.OtpExpiresAt = null;
         _db.Update(employee);
         await _db.SaveChangesAsync(ct);
     }
@@ -96,6 +108,9 @@ public class AuthService : IAuthService
 
         if (client.AccountStatus != ClientAccountStatus.Approved)
             return new ClientLoginResult(false, "Your account is not yet approved.", null, false);
+
+        if (client.MustChangePassword && client.OtpExpiresAt is { } clientExpiresAt && clientExpiresAt < DateTimeOffset.UtcNow)
+            return new ClientLoginResult(false, "This temporary password has expired. Click \"Forgot password?\" to request a new one.", null, false);
 
         var ip = _requestContext.ResolveClientIpAddress();
         await _sessions.OpenSessionAsync(SessionAccountType.Client, client.Id, ip, ct);
@@ -127,6 +142,7 @@ public class AuthService : IAuthService
 
         client.PasswordHash = PasswordHasher.Hash(request.NewPassword);
         client.MustChangePassword = false;
+        client.OtpExpiresAt = null;
         _db.Update(client);
         await _db.SaveChangesAsync(ct);
     }

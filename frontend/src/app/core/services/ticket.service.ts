@@ -3,11 +3,19 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { Ticket, TicketCategory, TicketStatus, PagedResult } from '../models';
 import { API_BASE_URL } from './api-base';
+import { AuthService } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class TicketService {
   private readonly _tickets = signal<Ticket[]>([]);
   readonly tickets = this._tickets.asReadonly();
+
+  // A logged-in client's own tickets, fetched via the client-scoped
+  // endpoint. Kept separate from _tickets (the staff-only full list, which
+  // 403s for a client token) so the portal never depends on that call
+  // succeeding.
+  private readonly _myTickets = signal<Ticket[]>([]);
+  readonly myTickets = this._myTickets.asReadonly();
 
   // Paged state for the "All Tickets" table. Kept separate from the
   // full-list cache above, which reports/escalated/dashboards rely on
@@ -23,9 +31,15 @@ export class TicketService {
   readonly totalCount = this._totalCount.asReadonly();
   readonly totalPages = this._totalPages.asReadonly();
 
-  constructor(private http: HttpClient) {
-    void this.refresh();
-    void this.refreshPaged();
+  constructor(private http: HttpClient, private auth: AuthService) {
+    // /tickets and /tickets/paged are staff-only (AnyEmployee) on the API —
+    // calling them with a client token always 403s. Only auto-fetch the
+    // full list for a logged-in employee; the client portal fetches its
+    // own tickets explicitly via refreshMyTickets() instead.
+    if (this.auth.isEmployeeAuthenticated()) {
+      void this.refresh();
+      void this.refreshPaged();
+    }
   }
 
   async refresh(): Promise<void> {
@@ -51,11 +65,23 @@ export class TicketService {
   }
 
   getById(id: string): Ticket | undefined {
-    return this._tickets().find(t => t.id === id);
+    return this._tickets().find(t => t.id === id) ?? this._myTickets().find(t => t.id === id);
   }
 
+  /**
+   * Fetches the logged-in client's own tickets via the client-scoped API
+   * endpoint (GET /tickets/client/{id}), which any authenticated client
+   * may call. Call this from the client portal instead of relying on
+   * forClient() over the staff-only full list.
+   */
+  async refreshMyTickets(clientId: string): Promise<void> {
+    const list = await firstValueFrom(this.http.get<Ticket[]>(`${API_BASE_URL}/tickets/client/${clientId}`));
+    this._myTickets.set(list);
+  }
+
+  /** Client-side filter/sort over myTickets() — call refreshMyTickets() first to populate it. */
   forClient(clientId: string): Ticket[] {
-    return this._tickets()
+    return this._myTickets()
       .filter(t => t.clientId === clientId)
       .sort((a, b) => b.dateSubmitted.localeCompare(a.dateSubmitted));
   }
@@ -66,7 +92,7 @@ export class TicketService {
 
   /** Tickets resolved and waiting on the client's confirmation + rating. */
   awaitingConfirmationForClient(clientId: string): Ticket[] {
-    return this._tickets().filter(t => t.clientId === clientId && t.status === 'AwaitingClientConfirmation');
+    return this._myTickets().filter(t => t.clientId === clientId && t.status === 'AwaitingClientConfirmation');
   }
 
   /** Admin's review queue — tickets the client rated below the satisfaction threshold. */
@@ -90,7 +116,13 @@ export class TicketService {
     const ticket = await firstValueFrom(
       this.http.post<Ticket>(`${API_BASE_URL}/tickets`, { clientId, agreementId, description, category, failureTypeId })
     );
-    await Promise.all([this.refresh(), this.refreshPaged()]);
+    // Refresh whichever cache the caller actually has access to — a client
+    // token can't call refresh()/refreshPaged() (staff-only, 403), so only
+    // do those for an employee; always refresh the client's own list.
+    if (this.auth.isEmployeeAuthenticated()) {
+      await Promise.all([this.refresh(), this.refreshPaged()]);
+    }
+    await this.refreshMyTickets(clientId);
     return ticket;
   }
 
@@ -127,7 +159,13 @@ export class TicketService {
     const ticket = await firstValueFrom(
       this.http.post<Ticket>(`${API_BASE_URL}/tickets/${ticketId}/confirm`, { isFixed, satisfactionStars })
     );
-    await Promise.all([this.refresh(), this.refreshPaged()]);
+    // Same as submitFromClient — refresh() is staff-only; a client caller
+    // refreshes their own list via ticket.clientId instead.
+    if (this.auth.isEmployeeAuthenticated()) {
+      await Promise.all([this.refresh(), this.refreshPaged()]);
+    } else {
+      await this.refreshMyTickets(ticket.clientId);
+    }
     return ticket;
   }
 }

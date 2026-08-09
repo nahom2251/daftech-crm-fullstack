@@ -34,7 +34,12 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authorizedReq).pipe(
     catchError((error: unknown) => {
-      if (!(error instanceof HttpErrorResponse) || error.status !== 401 || !isOwnApi || isAuthEndpoint) {
+      // ASP.NET Core sometimes surfaces an expired/invalid token as 403
+      // rather than 401 once a RequireClaim/RequireRole policy is involved
+      // (the auth handler fails the claim check before it gets a chance to
+      // report "not authenticated"). Treat both the same: attempt one
+      // silent refresh-and-retry before giving up.
+      if (!(error instanceof HttpErrorResponse) || (error.status !== 401 && error.status !== 403) || !isOwnApi || isAuthEndpoint) {
         return throwError(() => error);
       }
 

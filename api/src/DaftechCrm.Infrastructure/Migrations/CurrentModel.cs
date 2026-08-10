@@ -196,6 +196,8 @@ namespace DaftechCrm.Infrastructure.Migrations
                 b.Property<Guid>("AgreementId").HasColumnType("uuid");
                 b.Property<Guid?>("AssignedEmployeeId").HasColumnType("uuid");
                 b.Property<DateTimeOffset?>("AssignedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("AttachmentStorageKey").HasMaxLength(500).HasColumnType("character varying(500)");
+                b.Property<string>("AttachmentFileName").HasMaxLength(260).HasColumnType("character varying(260)");
                 b.Property<int>("Category").HasColumnType("integer");
                 b.Property<bool>("Chargeable").HasColumnType("boolean");
                 b.Property<Guid>("ClientId").HasColumnType("uuid");

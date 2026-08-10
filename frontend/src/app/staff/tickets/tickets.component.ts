@@ -57,6 +57,9 @@ import { TicketStatus, TICKET_CATEGORY_LABELS } from '../../core/models';
               <td><app-badge [status]="t.status"></app-badge></td>
               <td class="text-muted">{{ t.satisfactionScore != null ? t.satisfactionScore + '/100' : '—' }}</td>
               <td>
+                @if (t.attachmentFileName) {
+                  <button class="btn btn-outline btn-sm" (click)="downloadAttachment(t.id, t.attachmentFileName)">Attachment</button>
+                }
                 @if (canForward(t)) {
                   <button class="btn btn-outline btn-sm" (click)="forward(t.id)">Forward</button>
                 }
@@ -116,5 +119,15 @@ export class TicketsComponent {
   async updateStatus(ticketId: string, status: string) {
     const actor = this.auth.currentEmployee()?.fullName ?? 'Staff';
     await this.tickets.updateStatus(ticketId, status as TicketStatus, actor);
+  }
+
+  async downloadAttachment(ticketId: string, fileName: string) {
+    const blob = await this.tickets.downloadAttachment(ticketId);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 }

@@ -93,4 +93,54 @@ public class TicketsController : ControllerBase
         catch (InvalidOperationException ex) { return Conflict(ex.Message); }
         catch (ArgumentOutOfRangeException ex) { return BadRequest(ex.Message); }
     }
+
+    /// <summary>
+    /// Uploads (or replaces) the ticket's optional attachment — typically
+    /// a screenshot of the error/console being reported. Accepts
+    /// multipart/form-data with a single "file" field. Only the owning
+    /// client, the assigned technician, or an Admin/IT Support employee
+    /// may attach a file — see ITicketService.CanAccessAttachmentAsync.
+    /// </summary>
+    [HttpPost("{id:guid}/attachment")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public async Task<ActionResult<TicketDto>> UploadAttachment(Guid id, IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest("No file was provided.");
+
+        var (callerType, callerId) = CallerIdentity.Resolve(User);
+        if (!await _tickets.CanAccessAttachmentAsync(id, callerType, callerId, ct))
+            return NotFound();
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var dto = await _tickets.UploadAttachmentAsync(id, stream, file.FileName, file.ContentType, ct);
+            return Ok(dto);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (FileValidationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Streams the ticket's attachment back with its original content
+    /// type. Same access rule as upload: owning client, assigned
+    /// technician, or Admin/IT Support only.
+    /// </summary>
+    [HttpGet("{id:guid}/attachment")]
+    public async Task<IActionResult> DownloadAttachment(Guid id, CancellationToken ct)
+    {
+        var (callerType, callerId) = CallerIdentity.Resolve(User);
+        if (!await _tickets.CanAccessAttachmentAsync(id, callerType, callerId, ct))
+            return NotFound();
+
+        var file = await _tickets.DownloadAttachmentAsync(id, ct);
+        return file is null ? NotFound() : File(file.Content, file.ContentType, file.OriginalFileName);
+    }
 }

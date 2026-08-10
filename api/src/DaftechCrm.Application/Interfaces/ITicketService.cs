@@ -1,4 +1,5 @@
 using DaftechCrm.Application.DTOs;
+using DaftechCrm.Domain.Enums;
 
 namespace DaftechCrm.Application.Interfaces;
 
@@ -46,4 +47,25 @@ public interface ITicketService
 
     /// <summary>Escalated tickets for the Admin review queue.</summary>
     Task<IReadOnlyList<TicketDto>> GetEscalatedAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Uploads (or replaces) the ticket's optional attachment — typically
+    /// a screenshot of the error being reported. Callers must check
+    /// CanAccessAttachmentAsync first; this method does not itself verify
+    /// ownership. Throws InvalidOperationException if the ticket doesn't
+    /// exist, FileValidationException (from IFileStorageService) if the
+    /// file fails extension/size validation.
+    /// </summary>
+    Task<TicketDto> UploadAttachmentAsync(Guid ticketId, Stream content, string fileName, string contentType, CancellationToken ct = default);
+
+    /// <summary>Streams the ticket's attachment back, or null if the ticket has none or doesn't exist.</summary>
+    Task<RetrievedFile?> DownloadAttachmentAsync(Guid ticketId, CancellationToken ct = default);
+
+    /// <summary>
+    /// True if the given caller may view/upload this ticket's attachment:
+    /// the client who owns the ticket, the assigned technician, or any
+    /// Admin/IT Support employee. False (not an exception) if the ticket
+    /// doesn't exist, so callers can return 404 either way.
+    /// </summary>
+    Task<bool> CanAccessAttachmentAsync(Guid ticketId, SessionAccountType callerType, Guid callerId, CancellationToken ct = default);
 }

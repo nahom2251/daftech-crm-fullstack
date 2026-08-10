@@ -26,6 +26,8 @@ public record TicketDto(
     int? SatisfactionStars,
     int? SatisfactionScore,
     ClosureReason? ClosureReason,
+    /// <summary>Original filename of the optional attachment (screenshot/document), or null if none was uploaded. Fetch/upload via TicketsController's /attachment endpoints — this DTO only carries the display name, not the file itself.</summary>
+    string? AttachmentFileName,
     IReadOnlyList<TicketAuditEntryDto> AuditTrail
 );
 

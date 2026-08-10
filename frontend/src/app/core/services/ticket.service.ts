@@ -168,4 +168,32 @@ export class TicketService {
     }
     return ticket;
   }
+
+  /**
+   * Uploads (or replaces) the ticket's optional attachment — typically a
+   * screenshot of the error/console being reported. Server-side enforces
+   * who may do this (owning client, assigned technician, or Admin/IT
+   * Support) — a 404 here most likely means the caller isn't authorized,
+   * not that the ticket is missing.
+   */
+  async uploadAttachment(ticketId: string, file: File): Promise<Ticket> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    const ticket = await firstValueFrom(
+      this.http.post<Ticket>(`${API_BASE_URL}/tickets/${ticketId}/attachment`, form)
+    );
+    if (this.auth.isStaffAuthenticated()) {
+      await Promise.all([this.refresh(), this.refreshPaged()]);
+    } else {
+      await this.refreshMyTickets(ticket.clientId);
+    }
+    return ticket;
+  }
+
+  /** Fetches the attachment as a Blob for download/preview — same access rule as uploadAttachment. */
+  async downloadAttachment(ticketId: string): Promise<Blob> {
+    return firstValueFrom(
+      this.http.get(`${API_BASE_URL}/tickets/${ticketId}/attachment`, { responseType: 'blob' })
+    );
+  }
 }

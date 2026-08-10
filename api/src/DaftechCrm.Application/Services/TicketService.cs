@@ -14,17 +14,20 @@ public class TicketService : ITicketService
     private readonly ITicketAssignmentService _assignment;
     private readonly INotificationService _notifications;
     private readonly ISystemConfigurationService _config;
+    private readonly IFileStorageService _storage;
 
     public TicketService(
         IAppDbContext db,
         ITicketAssignmentService assignment,
         INotificationService notifications,
-        ISystemConfigurationService config)
+        ISystemConfigurationService config,
+        IFileStorageService storage)
     {
         _db = db;
         _assignment = assignment;
         _notifications = notifications;
         _config = config;
+        _storage = storage;
     }
 
     public async Task<TicketDto> SubmitFromClientAsync(SubmitTicketRequest request, CancellationToken ct = default)
@@ -275,7 +278,7 @@ public class TicketService : ITicketService
             t.ForwardedByEmployeeId, t.AssignedEmployeeId, t.AssignedEmployee?.FullName, t.AssignedAt,
             ExpectedResolutionBy(t),
             t.Chargeable, t.Status, t.ResolvedAt, t.ClientConfirmationDeadline,
-            t.SatisfactionStars, t.SatisfactionScore, t.ClosureReason,
+            t.SatisfactionStars, t.SatisfactionScore, t.ClosureReason, t.AttachmentFileName,
             t.AuditTrail.OrderBy(a => a.Timestamp).Select(a => new TicketAuditEntryDto(a.Timestamp, a.Actor, a.Action)).ToList()
         )).ToList();
 
@@ -317,7 +320,7 @@ public class TicketService : ITicketService
             t.ForwardedByEmployeeId, t.AssignedEmployeeId, t.AssignedEmployee?.FullName, t.AssignedAt,
             ExpectedResolutionBy(t),
             t.Chargeable, t.Status, t.ResolvedAt, t.ClientConfirmationDeadline,
-            t.SatisfactionStars, t.SatisfactionScore, t.ClosureReason,
+            t.SatisfactionStars, t.SatisfactionScore, t.ClosureReason, t.AttachmentFileName,
             t.AuditTrail.OrderBy(a => a.Timestamp).Select(a => new TicketAuditEntryDto(a.Timestamp, a.Actor, a.Action)).ToList()
         )).ToList();
     }
@@ -325,4 +328,53 @@ public class TicketService : ITicketService
     /// <summary>AssignedAt + the ticket's FailureType duration. Null until the ticket is assigned, or if no FailureType was chosen — reporting falls back to the global OnTimeResolutionTargetDays in that case (see ReportService.IsOnTime).</summary>
     private static DateTimeOffset? ExpectedResolutionBy(Ticket t) =>
         t.AssignedAt is null || t.FailureType is null ? null : t.AssignedAt.Value + t.FailureType.ToTimeSpan();
+
+    public async Task<TicketDto> UploadAttachmentAsync(Guid ticketId, Stream content, string fileName, string contentType, CancellationToken ct = default)
+    {
+        var ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == ticketId, ct)
+            ?? throw new InvalidOperationException("Ticket not found.");
+
+        // Replacing an existing attachment — delete the old file first so
+        // it doesn't linger as an orphaned, unreferenced upload.
+        if (!string.IsNullOrEmpty(ticket.AttachmentStorageKey))
+            await _storage.DeleteAsync(ticket.AttachmentStorageKey, ct);
+
+        var result = await _storage.SaveAsync(content, fileName, contentType, ct);
+        ticket.AttachmentStorageKey = result.StorageKey;
+        ticket.AttachmentFileName = result.OriginalFileName;
+        _db.Update(ticket);
+        await _db.SaveChangesAsync(ct);
+
+        return await LoadDtoAsync(ticketId, ct);
+    }
+
+    public async Task<RetrievedFile?> DownloadAttachmentAsync(Guid ticketId, CancellationToken ct = default)
+    {
+        var ticket = await _db.Tickets.AsNoTracking().FirstOrDefaultAsync(t => t.Id == ticketId, ct);
+
+        if (ticket is null || string.IsNullOrEmpty(ticket.AttachmentStorageKey))
+            return null;
+
+        return await _storage.GetAsync(ticket.AttachmentStorageKey, ct);
+    }
+
+    public async Task<bool> CanAccessAttachmentAsync(Guid ticketId, SessionAccountType callerType, Guid callerId, CancellationToken ct = default)
+    {
+        var ticket = await _db.Tickets.AsNoTracking().FirstOrDefaultAsync(t => t.Id == ticketId, ct);
+        if (ticket is null)
+            return false;
+
+        if (callerType == SessionAccountType.Client)
+            return ticket.ClientId == callerId;
+
+        // Employee caller: the assigned technician, or any Admin/IT
+        // Support (who can see/manage every ticket regardless of
+        // assignment — same scope MiscControllers/TicketsController
+        // already grant them elsewhere, e.g. Forward).
+        if (ticket.AssignedEmployeeId == callerId)
+            return true;
+
+        var employee = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == callerId, ct);
+        return employee is not null && employee.Roles.Any(r => r == EmployeeRole.Admin || r == EmployeeRole.ItSupport);
+    }
 }

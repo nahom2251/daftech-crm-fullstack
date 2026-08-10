@@ -62,6 +62,18 @@ public class Ticket
     public ClosureReason? ClosureReason { get; set; }
     public DateTimeOffset? ClosedAt { get; set; }
 
+    /// <summary>
+    /// Storage key (per IFileStorageService) for one optional attachment —
+    /// typically a screenshot of the error/console the client is
+    /// reporting. Uploaded as a separate step after the ticket exists (see
+    /// TicketsController.UploadAttachment), not at submission time. Null
+    /// if nothing was ever uploaded.
+    /// </summary>
+    public string? AttachmentStorageKey { get; set; }
+
+    /// <summary>Original filename of the attachment, shown in the UI instead of the opaque storage key. Null alongside AttachmentStorageKey.</summary>
+    public string? AttachmentFileName { get; set; }
+
     public ICollection<TicketAuditEntry> AuditTrail { get; set; } = new List<TicketAuditEntry>();
 }
 

@@ -44,9 +44,21 @@ const PENDING_STATUSES: TicketStatus[] = ['Submitted', 'Forwarded', 'Assigned', 
             <label>Description</label>
             <textarea rows="4" [ngModel]="description()" (ngModelChange)="description.set($event)" placeholder="Describe what happened, when, and any error messages…"></textarea>
           </div>
-          <button class="btn btn-primary" style="margin-top:1rem;" [disabled]="!description().trim()" (click)="submit()">Submit Issue</button>
+          <div class="field" style="margin-top:0.8rem;">
+            <label>Attach a screenshot (optional)</label>
+            <input type="file" accept=".png,.jpg,.jpeg,.pdf,.doc,.docx" (change)="onFileSelected($event)" />
+            @if (selectedFile(); as f) {
+              <span class="text-muted" style="font-size:0.78rem;">{{ f.name }}</span>
+            }
+          </div>
+          <button class="btn btn-primary" style="margin-top:1rem;" [disabled]="!description().trim() || submitting()" (click)="submit()">
+            {{ submitting() ? 'Submitting…' : 'Submit Issue' }}
+          </button>
           @if (submittedId(); as id) {
             <div class="success">Submitted — ticket <span class="mono">{{ id.slice(0,8).toUpperCase() }}</span>.</div>
+          }
+          @if (uploadError()) {
+            <div class="error">{{ uploadError() }}</div>
           }
         }
       </div>
@@ -61,7 +73,7 @@ const PENDING_STATUSES: TicketStatus[] = ['Submitted', 'Forwarded', 'Assigned', 
 
     <div class="panel panel-pad" style="margin-top:1rem;">
       <div class="table-scroll"><table>
-        <thead><tr><th>Ticket #</th><th>Category</th><th>Submitted</th><th>Assigned To</th><th>Chargeable</th><th>Status</th><th>Your Rating</th><th></th></tr></thead>
+        <thead><tr><th>Ticket #</th><th>Category</th><th>Submitted</th><th>Assigned To</th><th>Chargeable</th><th>Status</th><th>Your Rating</th><th>Attachment</th><th></th></tr></thead>
         <tbody>
           @for (t of filteredTickets(); track t.id) {
             <tr>
@@ -73,6 +85,13 @@ const PENDING_STATUSES: TicketStatus[] = ['Submitted', 'Forwarded', 'Assigned', 
               <td><app-badge [status]="t.status"></app-badge></td>
               <td class="text-muted">{{ t.satisfactionStars ? (t.satisfactionStars + '★') : '—' }}</td>
               <td>
+                @if (t.attachmentFileName) {
+                  <button class="btn btn-outline btn-sm" (click)="downloadAttachment(t.id, t.attachmentFileName)">Download</button>
+                } @else {
+                  <span class="text-muted">—</span>
+                }
+              </td>
+              <td>
                 @if (t.status === 'AwaitingClientConfirmation') {
                   <a routerLink="/portal/confirm-resolution" class="btn btn-outline btn-sm">Verify Progress</a>
                 } @else if (t.status === 'Closed') {
@@ -81,7 +100,7 @@ const PENDING_STATUSES: TicketStatus[] = ['Submitted', 'Forwarded', 'Assigned', 
               </td>
             </tr>
           }
-          @empty { <tr><td colspan="8" class="text-muted" style="text-align:center; padding:1.5rem;">No tickets in this view yet.</td></tr> }
+          @empty { <tr><td colspan="9" class="text-muted" style="text-align:center; padding:1.5rem;">No tickets in this view yet.</td></tr> }
         </tbody>
       </table></div>
     </div>
@@ -93,6 +112,7 @@ const PENDING_STATUSES: TicketStatus[] = ['Submitted', 'Forwarded', 'Assigned', 
     textarea { resize: vertical; width: 100%; }
     select { width: 100%; }
     .success { margin-top: 1rem; padding: 0.7rem 0.9rem; border-radius: 8px; background: var(--green-bg); color: var(--green); font-size: 0.85rem; }
+    .error { margin-top: 1rem; padding: 0.7rem 0.9rem; border-radius: 8px; background: var(--red-bg, #fdecea); color: var(--red, #b3261e); font-size: 0.85rem; }
     .filter-row { display: flex; gap: 0.5rem; margin-top: 1.25rem; flex-wrap: wrap; }
     .chip {
       background: #fff; border: 1px solid var(--slate-200); padding: 0.4rem 0.85rem; border-radius: 999px;
@@ -105,8 +125,13 @@ export class MaintenanceHistoryComponent implements OnInit {
   showSubmitPanel = signal(false);
   category = signal<TicketCategory>('Bug');
   description = signal('');
+  selectedFile = signal<File | null>(null);
   submittedId = signal<string | null>(null);
+  submitting = signal(false);
+  uploadError = signal<string | null>(null);
   filter = signal<FilterKey>('all');
+
+  private readonly maxFileSizeBytes = 10 * 1024 * 1024;
 
   constructor(
     private auth: AuthService,
@@ -123,6 +148,33 @@ export class MaintenanceHistoryComponent implements OnInit {
   toggleSubmitPanel() {
     this.showSubmitPanel.update(v => !v);
     this.submittedId.set(null);
+    this.selectedFile.set(null);
+    this.uploadError.set(null);
+  }
+
+  onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    this.uploadError.set(null);
+
+    if (file && file.size > this.maxFileSizeBytes) {
+      this.uploadError.set('That file is larger than 10 MB — please choose a smaller one.');
+      this.selectedFile.set(null);
+      input.value = '';
+      return;
+    }
+
+    this.selectedFile.set(file);
+  }
+
+  async downloadAttachment(ticketId: string, fileName: string) {
+    const blob = await this.ticketsSvc.downloadAttachment(ticketId);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   agreement = computed(() => {
@@ -164,8 +216,27 @@ export class MaintenanceHistoryComponent implements OnInit {
     const client = this.auth.currentClient();
     const agreement = this.agreement();
     if (!client || !agreement || !this.description().trim()) return;
-    const ticket = await this.ticketsSvc.submitFromClient(client.id, agreement.id, this.description().trim(), this.category());
-    this.submittedId.set(ticket.id);
-    this.description.set('');
+
+    this.submitting.set(true);
+    this.uploadError.set(null);
+
+    try {
+      const ticket = await this.ticketsSvc.submitFromClient(client.id, agreement.id, this.description().trim(), this.category());
+
+      const file = this.selectedFile();
+      if (file) {
+        try {
+          await this.ticketsSvc.uploadAttachment(ticket.id, file);
+        } catch {
+          this.uploadError.set('Your issue was submitted, but the attachment failed to upload. You can try attaching it again later.');
+        }
+      }
+
+      this.submittedId.set(ticket.id);
+      this.description.set('');
+      this.selectedFile.set(null);
+    } finally {
+      this.submitting.set(false);
+    }
   }
 }

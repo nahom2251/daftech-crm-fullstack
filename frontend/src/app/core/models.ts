@@ -118,6 +118,8 @@ export interface Ticket {
   satisfactionStars?: number; // 1-5, set once the client confirms
   satisfactionScore?: number; // stars * 20, out of 100
   closureReason?: ClosureReason;
+  /** Original filename of the optional attachment (screenshot/document), or undefined if none was uploaded. Fetch/upload via TicketService's attachment methods — this field is display-only. */
+  attachmentFileName?: string;
   auditTrail: TicketAuditEntry[];
 }
 

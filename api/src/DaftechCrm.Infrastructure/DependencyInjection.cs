@@ -113,7 +113,15 @@ public static class DependencyInjection
         services.Configure<StorageOptions>(
             configuration.GetSection(StorageOptions.SectionName));
 
-        services.AddSingleton<IFileStorageService, LocalFileStorageService>();
+        services.Configure<CloudinaryOptions>(
+            configuration.GetSection(CloudinaryOptions.SectionName));
+
+        var storageOptions = configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>() ?? new StorageOptions();
+
+        if (storageOptions.Provider == StorageProvider.Cloudinary)
+            services.AddHttpClient<IFileStorageService, CloudinaryFileStorageService>();
+        else
+            services.AddSingleton<IFileStorageService, LocalFileStorageService>();
 
         services.AddScoped<AccountCredentialService>();
         services.AddScoped<ReferenceNumberService>();

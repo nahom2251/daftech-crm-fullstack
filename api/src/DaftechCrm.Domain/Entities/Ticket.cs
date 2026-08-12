@@ -34,7 +34,8 @@ public class Ticket
 
     /// <summary>
     /// Set automatically by the assignment engine the moment the ticket is
-    /// forwarded — the Admin no longer chooses. See ITicketAssignmentService.
+    /// submitted — the Admin no longer chooses (ItSupport's old manual
+    /// forward step is retired). See ITicketAssignmentService.
     /// </summary>
     public Guid? AssignedEmployeeId { get; set; }
     public Employee? AssignedEmployee { get; set; }
@@ -73,6 +74,21 @@ public class Ticket
 
     /// <summary>Original filename of the attachment, shown in the UI instead of the opaque storage key. Null alongside AttachmentStorageKey.</summary>
     public string? AttachmentFileName { get; set; }
+
+    /// <summary>
+    /// Storage key (per IFileStorageService) for an optional voice-note
+    /// recording — the client can record audio describing the issue in
+    /// the browser and attach it in place of (or alongside) written
+    /// description text, giving the assigned technician extra context on
+    /// the error. Recorded and uploaded before/at submission time (see
+    /// TicketsController.UploadVoiceNote / SubmitTicketRequest), unlike
+    /// the screenshot attachment above which is added afterward. Null if
+    /// no recording was made.
+    /// </summary>
+    public string? VoiceNoteStorageKey { get; set; }
+
+    /// <summary>Original filename of the voice note recording (e.g. "voice-note.webm"). Null alongside VoiceNoteStorageKey.</summary>
+    public string? VoiceNoteFileName { get; set; }
 
     public ICollection<TicketAuditEntry> AuditTrail { get; set; } = new List<TicketAuditEntry>();
 }

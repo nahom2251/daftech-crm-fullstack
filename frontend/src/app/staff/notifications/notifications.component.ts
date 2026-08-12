@@ -57,7 +57,6 @@ export class NotificationsComponent {
     const emp = this.auth.currentEmployee();
     if (!emp) return null;
     if (emp.roles.includes('Admin')) return { type: 'Admin', id: 'ALL_ADMIN' };
-    if (emp.roles.includes('ItSupport')) return { type: 'ItSupport', id: 'ALL_IT_SUPPORT' };
     return { type: 'Employee', id: emp.id };
   });
 

@@ -14,7 +14,7 @@ import { TicketStatus, TICKET_CATEGORY_LABELS } from '../../core/models';
   template: `
     <h1>Tickets</h1>
     <p class="text-muted" style="margin-top:0.3rem;">
-      Client-submitted support issues. Assignment is automatic — the system picks the employee with the fewest open tickets the moment IT Support forwards a ticket.
+      Client-submitted support issues. Assignment is automatic — the system picks the technician with the fewest open tickets the moment a ticket is submitted.
     </p>
 
     @if (isAdmin()) {
@@ -60,8 +60,8 @@ import { TicketStatus, TICKET_CATEGORY_LABELS } from '../../core/models';
                 @if (t.attachmentFileName) {
                   <button class="btn btn-outline btn-sm" (click)="downloadAttachment(t.id, t.attachmentFileName)">Attachment</button>
                 }
-                @if (canForward(t)) {
-                  <button class="btn btn-outline btn-sm" (click)="forward(t.id)">Forward</button>
+                @if (t.voiceNoteFileName) {
+                  <button class="btn btn-outline btn-sm" (click)="playVoiceNote(t.id)">🎤 Voice note</button>
                 }
                 @if (canUpdateStatus(t)) {
                   <select #st style="margin-right:0.3rem;">
@@ -94,26 +94,15 @@ export class TicketsComponent {
   ) {}
 
   isAdmin = computed(() => this.auth.currentEmployee()?.roles.includes('Admin') ?? false);
-  isItSupport = computed(() => this.auth.currentEmployee()?.roles.includes('ItSupport') ?? false);
 
   categoryLabel(c: string): string {
     return TICKET_CATEGORY_LABELS[c as keyof typeof TICKET_CATEGORY_LABELS] ?? c;
-  }
-
-  canForward(t: { status: TicketStatus }): boolean {
-    return this.isItSupport() && t.status === 'Submitted';
   }
 
   canUpdateStatus(t: { assignedEmployeeId?: string; status: TicketStatus }): boolean {
     const emp = this.auth.currentEmployee();
     if (!emp) return false;
     return emp.roles.includes('EmployeeTechnician') && t.assignedEmployeeId === emp.id && ['Assigned', 'InProgress'].includes(t.status);
-  }
-
-  async forward(ticketId: string) {
-    const emp = this.auth.currentEmployee();
-    if (!emp) return;
-    await this.tickets.forward(ticketId, emp.id);
   }
 
   async updateStatus(ticketId: string, status: string) {
@@ -129,5 +118,14 @@ export class TicketsComponent {
     a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  /** Opens the voice-note recording in a new tab for playback — audio blobs play natively in the browser rather than downloading. */
+  async playVoiceNote(ticketId: string) {
+    const blob = await this.tickets.downloadVoiceNote(ticketId);
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    // Not revoking immediately — the new tab needs the blob URL to stay
+    // valid while it plays; it's cleaned up when that tab/window closes.
   }
 }

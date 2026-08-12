@@ -141,6 +141,22 @@ public interface IAgreementService
 
     /// <summary>Retrieves the agreement's attached scanned file, or null if none is attached or the agreement doesn't exist.</summary>
     Task<RetrievedFile?> DownloadScannedFileAsync(Guid agreementId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Uploads and attaches the scanned training document — a separate
+    /// file from the signed-agreement scan above, since the pre-agreement
+    /// training the company delivers to the client is documented
+    /// independently (scan + description + timeline). Same
+    /// upload-then-delete-old-file-after-success pattern as
+    /// UploadScannedFileAsync.
+    /// </summary>
+    Task<AgreementDto> UploadTrainingScanAsync(Guid agreementId, Stream content, string fileName, string contentType, CancellationToken ct = default);
+
+    /// <summary>Retrieves the agreement's attached training scan, or null if none is attached or the agreement doesn't exist.</summary>
+    Task<RetrievedFile?> DownloadTrainingScanAsync(Guid agreementId, CancellationToken ct = default);
+
+    /// <summary>Sets/updates the training description and timeline (start date + duration). All fields optional; can be filled in incrementally.</summary>
+    Task<AgreementDto> UpdateTrainingInfoAsync(Guid agreementId, UpdateTrainingInfoRequest request, CancellationToken ct = default);
 }
 
 public interface IMaintenanceService

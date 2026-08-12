@@ -46,28 +46,21 @@ public class TicketService : ITicketService
             FailureTypeId = request.FailureTypeId,
             Chargeable = chargeable,
             Status = TicketStatus.Submitted,
+            VoiceNoteStorageKey = request.VoiceNoteStorageKey,
+            VoiceNoteFileName = request.VoiceNoteFileName,
         };
         ticket.AuditTrail.Add(new TicketAuditEntry { TicketId = ticket.Id, Actor = "Client", Action = "Submitted ticket" });
 
-        _db.Add(ticket);
-        await _db.SaveChangesAsync(ct);
+        if (!string.IsNullOrEmpty(request.VoiceNoteStorageKey))
+            ticket.AuditTrail.Add(new TicketAuditEntry { TicketId = ticket.Id, Actor = "Client", Action = "Attached a voice-note recording with the issue description" });
 
-        await _notifications.NotifyAsync(NotificationRecipientType.ItSupport, "ALL_IT_SUPPORT", "new_ticket", $"New ticket {ticket.Id} submitted.", ct);
-
-        return await LoadDtoAsync(ticket.Id, ct);
-    }
-
-    public async Task<TicketDto> ForwardAsync(Guid ticketId, ForwardTicketRequest request, CancellationToken ct = default)
-    {
-        var ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == ticketId, ct)
-            ?? throw new InvalidOperationException("Ticket not found.");
-
-        ticket.ForwardedByEmployeeId = request.ForwardedByEmployeeId;
-        ticket.Status = TicketStatus.Forwarded;
-        ticket.AuditTrail.Add(new TicketAuditEntry { TicketId = ticket.Id, Actor = "IT Support", Action = "Forwarded to assignment queue" });
-
-        // Auto-assignment — no Admin choice. The moment a ticket is forwarded,
-        // the system assigns it to whoever currently has the fewest open tickets.
+        // ItSupport (which used to manually Forward a submitted ticket into
+        // the assignment queue) is retired — the Admin absorbs that
+        // oversight instead, and auto-assignment now runs immediately on
+        // submission rather than waiting for a manual forward step. Same
+        // least-loaded selection logic as before (see
+        // TicketAssignmentService.SelectAssigneeAsync), just triggered
+        // earlier in the flow.
         var assignee = await _assignment.SelectAssigneeAsync(ct);
         if (assignee is not null)
         {
@@ -78,12 +71,14 @@ public class TicketService : ITicketService
             {
                 TicketId = ticket.Id,
                 Actor = "System",
-                Action = $"Auto-assigned to {assignee.FullName} (lowest open-ticket count)"
+                Action = $"Auto-assigned to {assignee.FullName} on submission (lowest open-ticket count)"
             });
         }
 
-        _db.Update(ticket);
+        _db.Add(ticket);
         await _db.SaveChangesAsync(ct);
+
+        await _notifications.NotifyAsync(NotificationRecipientType.Admin, "ALL_ADMIN", "new_ticket", $"New ticket {ticket.Id} submitted.", ct);
 
         if (assignee is not null)
         {
@@ -92,7 +87,11 @@ public class TicketService : ITicketService
         }
         else
         {
-            await _notifications.NotifyAsync(NotificationRecipientType.Admin, "ALL_ADMIN", "assignment_failed", $"Ticket {ticket.Id} forwarded but no eligible employee was available for auto-assignment.", ct);
+            // No active EmployeeTechnician exists yet — the ticket stays
+            // Submitted/unassigned rather than failing the request outright,
+            // so it isn't lost; Admin needs to be alerted since there's no
+            // more manual Forward step to catch this later.
+            await _notifications.NotifyAsync(NotificationRecipientType.Admin, "ALL_ADMIN", "assignment_failed", $"Ticket {ticket.Id} submitted but no eligible employee was available for auto-assignment.", ct);
         }
 
         return await LoadDtoAsync(ticket.Id, ct);
@@ -278,7 +277,7 @@ public class TicketService : ITicketService
             t.ForwardedByEmployeeId, t.AssignedEmployeeId, t.AssignedEmployee?.FullName, t.AssignedAt,
             ExpectedResolutionBy(t),
             t.Chargeable, t.Status, t.ResolvedAt, t.ClientConfirmationDeadline,
-            t.SatisfactionStars, t.SatisfactionScore, t.ClosureReason, t.AttachmentFileName,
+            t.SatisfactionStars, t.SatisfactionScore, t.ClosureReason, t.AttachmentFileName, t.VoiceNoteFileName,
             t.AuditTrail.OrderBy(a => a.Timestamp).Select(a => new TicketAuditEntryDto(a.Timestamp, a.Actor, a.Action)).ToList()
         )).ToList();
 
@@ -320,7 +319,7 @@ public class TicketService : ITicketService
             t.ForwardedByEmployeeId, t.AssignedEmployeeId, t.AssignedEmployee?.FullName, t.AssignedAt,
             ExpectedResolutionBy(t),
             t.Chargeable, t.Status, t.ResolvedAt, t.ClientConfirmationDeadline,
-            t.SatisfactionStars, t.SatisfactionScore, t.ClosureReason, t.AttachmentFileName,
+            t.SatisfactionStars, t.SatisfactionScore, t.ClosureReason, t.AttachmentFileName, t.VoiceNoteFileName,
             t.AuditTrail.OrderBy(a => a.Timestamp).Select(a => new TicketAuditEntryDto(a.Timestamp, a.Actor, a.Action)).ToList()
         )).ToList();
     }
@@ -367,14 +366,32 @@ public class TicketService : ITicketService
         if (callerType == SessionAccountType.Client)
             return ticket.ClientId == callerId;
 
-        // Employee caller: the assigned technician, or any Admin/IT
-        // Support (who can see/manage every ticket regardless of
-        // assignment — same scope MiscControllers/TicketsController
-        // already grant them elsewhere, e.g. Forward).
+        // Employee caller: the assigned technician, or any Admin (who can
+        // see/manage every ticket regardless of assignment — ItSupport
+        // used to share this scope, but that role is retired).
         if (ticket.AssignedEmployeeId == callerId)
             return true;
 
         var employee = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == callerId, ct);
-        return employee is not null && employee.Roles.Any(r => r == EmployeeRole.Admin || r == EmployeeRole.ItSupport);
+        return employee is not null && employee.Roles.Any(r => r == EmployeeRole.Admin);
+    }
+
+    public async Task<(string StorageKey, string FileName)> UploadVoiceNoteAsync(Stream content, string fileName, string contentType, CancellationToken ct = default)
+    {
+        // No ticket exists yet at recording time — this just persists the
+        // audio and hands the key back; SubmitFromClientAsync is what
+        // actually attaches it to a ticket (via SubmitTicketRequest).
+        var result = await _storage.SaveAsync(content, fileName, contentType, ct);
+        return (result.StorageKey, result.OriginalFileName);
+    }
+
+    public async Task<RetrievedFile?> DownloadVoiceNoteAsync(Guid ticketId, CancellationToken ct = default)
+    {
+        var ticket = await _db.Tickets.AsNoTracking().FirstOrDefaultAsync(t => t.Id == ticketId, ct);
+
+        if (ticket is null || string.IsNullOrEmpty(ticket.VoiceNoteStorageKey))
+            return null;
+
+        return await _storage.GetAsync(ticket.VoiceNoteStorageKey, ct);
     }
 }

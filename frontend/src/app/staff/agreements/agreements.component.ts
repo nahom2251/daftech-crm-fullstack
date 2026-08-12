@@ -54,6 +54,31 @@ import { BillingTier } from '../../core/models';
             @if (selectedFile()) { <span class="text-muted" style="font-size:0.75rem;">{{ selectedFile()!.name }}</span> }
           </div>
         </div>
+
+        <h4 style="margin: 1.25rem 0 0.75rem;">Client Training</h4>
+        <p class="text-muted" style="font-size:0.78rem; margin: -0.4rem 0 0.9rem;">
+          Training delivered to the client before this agreement — scan of the training record, a description of what was covered, and the timeline.
+        </p>
+        <div class="form-grid">
+          <div class="field">
+            <label>Training Scan</label>
+            <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" (change)="onTrainingFileSelected($event)" />
+            @if (selectedTrainingFile()) { <span class="text-muted" style="font-size:0.75rem;">{{ selectedTrainingFile()!.name }}</span> }
+          </div>
+          <div class="field">
+            <label>Start Date</label>
+            <input type="date" [ngModel]="form.trainingStartDate" (ngModelChange)="form.trainingStartDate = $event" />
+          </div>
+          <div class="field">
+            <label>End Date</label>
+            <input type="date" [ngModel]="form.trainingEndDate" (ngModelChange)="form.trainingEndDate = $event" />
+          </div>
+          <div class="field" style="grid-column: 1 / -1;">
+            <label>Description</label>
+            <textarea rows="3" [ngModel]="form.trainingDescription" (ngModelChange)="form.trainingDescription = $event" placeholder="What was covered, who attended…"></textarea>
+          </div>
+        </div>
+
         @if (uploadError()) { <p class="upload-error" style="margin-top:0.75rem;">{{ uploadError() }}</p> }
         <button class="btn btn-primary" style="margin-top:1rem;" (click)="submit()" [disabled]="submitting()">
           {{ submitting() ? 'Saving…' : 'Save Agreement' }}
@@ -61,9 +86,48 @@ import { BillingTier } from '../../core/models';
       </div>
     }
 
+    @if (viewingTrainingId(); as id) {
+      <div class="panel panel-pad" style="margin-top:1.25rem;">
+        <div class="header-row">
+          <h3 style="margin:0;">Training — {{ clientName(viewingTrainingClientId()) }}</h3>
+          <button class="btn btn-outline btn-sm" (click)="closeTrainingView()">Close</button>
+        </div>
+        <div class="form-grid" style="margin-top:1rem;">
+          <div class="field">
+            <label>Start Date</label>
+            <input type="date" [ngModel]="trainingForm.trainingStartDate" (ngModelChange)="trainingForm.trainingStartDate = $event" />
+          </div>
+          <div class="field">
+            <label>End Date</label>
+            <input type="date" [ngModel]="trainingForm.trainingEndDate" (ngModelChange)="trainingForm.trainingEndDate = $event" />
+          </div>
+          <div class="field" style="grid-column: 1 / -1;">
+            <label>Description</label>
+            <textarea rows="3" [ngModel]="trainingForm.trainingDescription" (ngModelChange)="trainingForm.trainingDescription = $event" placeholder="What was covered, who attended…"></textarea>
+          </div>
+          <div class="field">
+            <label>Scan</label>
+            <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" (change)="onTrainingFileSelected($event)" />
+            @if (selectedTrainingFile()) {
+              <span class="text-muted" style="font-size:0.75rem;">{{ selectedTrainingFile()!.name }}</span>
+            } @else if (currentTrainingScanName()) {
+              <span class="text-muted" style="font-size:0.75rem;">
+                Current: {{ currentTrainingScanName() }}
+                <button class="btn btn-outline btn-sm" style="margin-left:0.5rem;" (click)="downloadTrainingScan(id)">Download</button>
+              </span>
+            }
+          </div>
+        </div>
+        @if (uploadError()) { <p class="upload-error" style="margin-top:0.75rem;">{{ uploadError() }}</p> }
+        <button class="btn btn-primary" style="margin-top:1rem;" (click)="saveTraining(id)" [disabled]="submitting()">
+          {{ submitting() ? 'Saving…' : 'Save Training Info' }}
+        </button>
+      </div>
+    }
+
     <div class="panel panel-pad" style="margin-top:1.25rem;">
       <div class="table-scroll"><table>
-        <thead><tr><th>Client</th><th>Doc #</th><th>Sign Date</th><th>Expiry</th><th>Support Window</th><th>Tier</th><th>Status</th><th>Document</th></tr></thead>
+        <thead><tr><th>Client</th><th>Doc #</th><th>Sign Date</th><th>Expiry</th><th>Support Window</th><th>Tier</th><th>Status</th><th>Document</th><th>Training</th></tr></thead>
         <tbody>
           @for (a of agreements.pagedAgreements(); track a.id) {
             <tr>
@@ -77,6 +141,13 @@ import { BillingTier } from '../../core/models';
               <td>
                 @if (a.scannedFileUrl) {
                   <button class="btn btn-outline btn-sm" (click)="download(a.id)">Download</button>
+                } @else {
+                  <span class="text-muted">None</span>
+                }
+              </td>
+              <td>
+                @if (a.trainingScanFileName || a.trainingDescription || a.trainingStartDate) {
+                  <button class="btn btn-outline btn-sm" (click)="viewTraining(a.id)">View</button>
                 } @else {
                   <span class="text-muted">None</span>
                 }
@@ -107,13 +178,27 @@ export class AgreementsComponent {
   submitting = signal(false);
   uploadError = signal<string | null>(null);
   selectedFile = signal<File | null>(null);
+  selectedTrainingFile = signal<File | null>(null);
+
+  // Existing-agreement training view/edit panel — separate from the "New
+  // Agreement" form above so viewing/editing training on an already-saved
+  // agreement doesn't disturb the create form's state.
+  viewingTrainingId = signal<string | null>(null);
+  viewingTrainingClientId = signal<string>('');
+  currentTrainingScanName = signal<string | null>(null);
 
   form: {
     clientId: string; agreementPlace: string; signDate: string;
     supportWindowMonths: number; billingTier: BillingTier;
+    trainingDescription: string; trainingStartDate: string; trainingEndDate: string;
   } = {
     clientId: '', agreementPlace: '', signDate: new Date().toISOString().slice(0, 10),
     supportWindowMonths: 12, billingTier: 'Basic',
+    trainingDescription: '', trainingStartDate: '', trainingEndDate: '',
+  };
+
+  trainingForm: { trainingDescription: string; trainingStartDate: string; trainingEndDate: string } = {
+    trainingDescription: '', trainingStartDate: '', trainingEndDate: '',
   };
 
   constructor(public agreements: AgreementService, public clients: ClientService) {
@@ -135,6 +220,12 @@ export class AgreementsComponent {
     this.uploadError.set(null);
   }
 
+  onTrainingFileSelected(evt: Event) {
+    const file = (evt.target as HTMLInputElement).files?.[0];
+    this.selectedTrainingFile.set(file ?? null);
+    this.uploadError.set(null);
+  }
+
   async submit() {
     if (!this.form.clientId) return;
 
@@ -151,17 +242,35 @@ export class AgreementsComponent {
         await this.agreements.uploadScannedFile(created.id, file);
       }
 
+      // Training info (description/timeline) and the training scan are
+      // optional and saved the same way — only if the admin actually
+      // filled something in for this new agreement.
+      if (this.form.trainingDescription || this.form.trainingStartDate || this.form.trainingEndDate) {
+        await this.agreements.updateTrainingInfo(created.id, {
+          trainingDescription: this.form.trainingDescription || undefined,
+          trainingStartDate: this.form.trainingStartDate || undefined,
+          trainingEndDate: this.form.trainingEndDate || undefined,
+        });
+      }
+      const trainingFile = this.selectedTrainingFile();
+      if (trainingFile) {
+        await this.agreements.uploadTrainingScan(created.id, trainingFile);
+      }
+
       this.showForm.set(false);
       this.selectedFile.set(null);
+      this.selectedTrainingFile.set(null);
       this.form = {
         clientId: this.clients.approvedClients()[0]?.id ?? '', agreementPlace: '',
         signDate: new Date().toISOString().slice(0, 10), supportWindowMonths: 12, billingTier: 'Basic',
+        trainingDescription: '', trainingStartDate: '', trainingEndDate: '',
       };
     } catch (err) {
       // The agreement itself may have already been created successfully even
-      // if the file upload step failed — surface that so the admin knows to
-      // retry the upload rather than resubmitting the whole form.
-      this.uploadError.set('The agreement was saved, but the file upload failed. You can retry the upload from the agreements list.');
+      // if a later step (file upload, training info) failed — surface that
+      // so the admin knows to retry from the agreements list rather than
+      // resubmitting the whole form.
+      this.uploadError.set('The agreement was saved, but a later step failed. You can retry uploads/training info from the agreements list.');
       console.error(err);
     } finally {
       this.submitting.set(false);
@@ -179,6 +288,65 @@ export class AgreementsComponent {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Failed to download scanned document', err);
+    }
+  }
+
+  viewTraining(agreementId: string) {
+    const a = this.agreements.pagedAgreements().find(x => x.id === agreementId);
+    if (!a) return;
+    this.viewingTrainingId.set(agreementId);
+    this.viewingTrainingClientId.set(a.clientId);
+    this.currentTrainingScanName.set(a.trainingScanFileName ?? null);
+    this.trainingForm = {
+      trainingDescription: a.trainingDescription ?? '',
+      trainingStartDate: a.trainingStartDate?.slice(0, 10) ?? '',
+      trainingEndDate: a.trainingEndDate?.slice(0, 10) ?? '',
+    };
+    this.selectedTrainingFile.set(null);
+    this.uploadError.set(null);
+  }
+
+  closeTrainingView() {
+    this.viewingTrainingId.set(null);
+    this.selectedTrainingFile.set(null);
+    this.uploadError.set(null);
+  }
+
+  async saveTraining(agreementId: string) {
+    this.submitting.set(true);
+    this.uploadError.set(null);
+    try {
+      await this.agreements.updateTrainingInfo(agreementId, {
+        trainingDescription: this.trainingForm.trainingDescription || undefined,
+        trainingStartDate: this.trainingForm.trainingStartDate || undefined,
+        trainingEndDate: this.trainingForm.trainingEndDate || undefined,
+      });
+
+      const file = this.selectedTrainingFile();
+      if (file) {
+        await this.agreements.uploadTrainingScan(agreementId, file);
+      }
+
+      this.closeTrainingView();
+    } catch (err) {
+      this.uploadError.set('Could not save training info — please try again.');
+      console.error(err);
+    } finally {
+      this.submitting.set(false);
+    }
+  }
+
+  async downloadTrainingScan(agreementId: string) {
+    try {
+      const blob = await this.agreements.downloadTrainingScan(agreementId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = '';
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to download training scan', err);
     }
   }
 }

@@ -23,6 +23,11 @@ namespace DaftechCrm.Infrastructure.Migrations
                 b.Property<DateOnly>("SignDate").HasColumnType("date");
                 b.Property<int>("Status").HasColumnType("integer");
                 b.Property<int>("SupportWindowMonths").HasColumnType("integer");
+                b.Property<string>("TrainingScanStorageKey").HasMaxLength(500).HasColumnType("character varying(500)");
+                b.Property<string>("TrainingScanFileName").HasMaxLength(300).HasColumnType("character varying(300)");
+                b.Property<string>("TrainingDescription").HasColumnType("text");
+                b.Property<DateOnly?>("TrainingStartDate").HasColumnType("date");
+                b.Property<DateOnly?>("TrainingEndDate").HasColumnType("date");
                 b.HasKey("Id");
                 b.HasIndex("ClientId");
                 b.HasIndex("DocumentNumber").IsUnique();
@@ -212,6 +217,8 @@ namespace DaftechCrm.Infrastructure.Migrations
                 b.Property<int?>("SatisfactionScore").HasColumnType("integer");
                 b.Property<int?>("SatisfactionStars").HasColumnType("integer");
                 b.Property<int>("Status").HasColumnType("integer");
+                b.Property<string>("VoiceNoteStorageKey").HasMaxLength(500).HasColumnType("character varying(500)");
+                b.Property<string>("VoiceNoteFileName").HasMaxLength(300).HasColumnType("character varying(300)");
                 b.HasKey("Id");
                 b.HasIndex("AgreementId");
                 b.HasIndex("AssignedEmployeeId");

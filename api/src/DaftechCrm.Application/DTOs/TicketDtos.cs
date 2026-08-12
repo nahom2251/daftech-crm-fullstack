@@ -28,14 +28,24 @@ public record TicketDto(
     ClosureReason? ClosureReason,
     /// <summary>Original filename of the optional attachment (screenshot/document), or null if none was uploaded. Fetch/upload via TicketsController's /attachment endpoints — this DTO only carries the display name, not the file itself.</summary>
     string? AttachmentFileName,
+    /// <summary>Original filename of the optional voice-note recording, or null if none was recorded. Fetch/upload via TicketsController's /voice-note endpoints — this DTO only carries the display name, not the audio itself.</summary>
+    string? VoiceNoteFileName,
     IReadOnlyList<TicketAuditEntryDto> AuditTrail
 );
 
 public record TicketAuditEntryDto(DateTimeOffset Timestamp, string Actor, string Action);
 
-public record SubmitTicketRequest(Guid ClientId, Guid AgreementId, string Description, TicketCategory Category, Guid? FailureTypeId);
+/// <summary>Returned by POST /api/tickets/voice-note — the client passes both values back in SubmitTicketRequest to attach the recording.</summary>
+public record VoiceNoteUploadResult(string StorageKey, string FileName);
 
-public record ForwardTicketRequest(Guid ForwardedByEmployeeId);
+/// <summary>
+/// VoiceNoteStorageKey is optional and, unlike the screenshot attachment,
+/// is expected to already exist by submission time — the client records
+/// in the browser and uploads it via POST /api/tickets/voice-note (no
+/// ticket exists yet at that point), then passes the returned storage key
+/// here so it's attached to the ticket atomically on creation.
+/// </summary>
+public record SubmitTicketRequest(Guid ClientId, Guid AgreementId, string Description, TicketCategory Category, Guid? FailureTypeId, string? VoiceNoteStorageKey = null, string? VoiceNoteFileName = null);
 
 public record UpdateTicketStatusRequest(TicketStatus Status, string ActorName);
 

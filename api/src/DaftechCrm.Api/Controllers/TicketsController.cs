@@ -52,21 +52,13 @@ public class TicketsController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<TicketDto>>> GetEscalated(CancellationToken ct) =>
         Ok(await _tickets.GetEscalatedAsync(ct));
 
+    /// <summary>Auto-assigns to the least-loaded active technician immediately on submission — there is no separate forward/assign step.</summary>
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.AnyClient)]
     public async Task<ActionResult<TicketDto>> Submit([FromBody] SubmitTicketRequest request, CancellationToken ct)
     {
         var ticket = await _tickets.SubmitFromClientAsync(request, ct);
         return CreatedAtAction(nameof(GetById), new { id = ticket.Id }, ticket);
-    }
-
-    /// <summary>IT Support forwards the ticket — this triggers automatic assignment; there is no Admin "assign" endpoint.</summary>
-    [HttpPost("{id:guid}/forward")]
-    [Authorize(Policy = AuthorizationPolicies.AdminOrItSupport)]
-    public async Task<ActionResult<TicketDto>> Forward(Guid id, [FromBody] ForwardTicketRequest request, CancellationToken ct)
-    {
-        try { return Ok(await _tickets.ForwardAsync(id, request, ct)); }
-        catch (InvalidOperationException ex) { return NotFound(ex.Message); }
     }
 
     /// <summary>
@@ -98,8 +90,8 @@ public class TicketsController : ControllerBase
     /// Uploads (or replaces) the ticket's optional attachment — typically
     /// a screenshot of the error/console being reported. Accepts
     /// multipart/form-data with a single "file" field. Only the owning
-    /// client, the assigned technician, or an Admin/IT Support employee
-    /// may attach a file — see ITicketService.CanAccessAttachmentAsync.
+    /// client, the assigned technician, or an Admin employee may attach a
+    /// file — see ITicketService.CanAccessAttachmentAsync.
     /// </summary>
     [HttpPost("{id:guid}/attachment")]
     [RequestSizeLimit(20 * 1024 * 1024)]
@@ -131,7 +123,7 @@ public class TicketsController : ControllerBase
     /// <summary>
     /// Streams the ticket's attachment back with its original content
     /// type. Same access rule as upload: owning client, assigned
-    /// technician, or Admin/IT Support only.
+    /// technician, or Admin only.
     /// </summary>
     [HttpGet("{id:guid}/attachment")]
     public async Task<IActionResult> DownloadAttachment(Guid id, CancellationToken ct)
@@ -141,6 +133,52 @@ public class TicketsController : ControllerBase
             return NotFound();
 
         var file = await _tickets.DownloadAttachmentAsync(id, ct);
+        return file is null ? NotFound() : File(file.Content, file.ContentType, file.OriginalFileName);
+    }
+
+    /// <summary>
+    /// Uploads a voice-note recording ahead of submitting the ticket it
+    /// will belong to — no ticket ID exists yet at this point, so there's
+    /// no ownership check beyond "caller is an authenticated client".
+    /// Accepts multipart/form-data with a single "file" field. Returns the
+    /// storage key and filename to pass into POST /api/tickets
+    /// (SubmitTicketRequest.VoiceNoteStorageKey / VoiceNoteFileName) to
+    /// actually attach it. A recording that's uploaded here but never
+    /// submitted is not automatically cleaned up.
+    /// </summary>
+    [HttpPost("voice-note")]
+    [Authorize(Policy = AuthorizationPolicies.AnyClient)]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public async Task<ActionResult<VoiceNoteUploadResult>> UploadVoiceNote(IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest("No recording was provided.");
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var (storageKey, fileName) = await _tickets.UploadVoiceNoteAsync(stream, file.FileName, file.ContentType, ct);
+            return Ok(new VoiceNoteUploadResult(storageKey, fileName));
+        }
+        catch (FileValidationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Streams the ticket's voice-note recording back with its original
+    /// content type. Same access rule as the screenshot attachment: owning
+    /// client, assigned technician, or Admin only.
+    /// </summary>
+    [HttpGet("{id:guid}/voice-note")]
+    public async Task<IActionResult> DownloadVoiceNote(Guid id, CancellationToken ct)
+    {
+        var (callerType, callerId) = CallerIdentity.Resolve(User);
+        if (!await _tickets.CanAccessAttachmentAsync(id, callerType, callerId, ct))
+            return NotFound();
+
+        var file = await _tickets.DownloadVoiceNoteAsync(id, ct);
         return file is null ? NotFound() : File(file.Content, file.ContentType, file.OriginalFileName);
     }
 }

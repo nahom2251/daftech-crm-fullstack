@@ -63,29 +63,6 @@ import { NotificationRecipientType } from '../../core/models';
           </tbody>
         </table></div>
       </div>
-    } @else if (isItSupport()) {
-      <div class="cards">
-        <a routerLink="/admin/clients" class="panel panel-pad card">
-          <div class="card-label">Active Clients</div>
-          <div class="card-value">{{ activeClients() }}</div>
-        </a>
-        <a routerLink="/admin/tickets" class="panel panel-pad card">
-          <div class="card-label">Open Tickets</div>
-          <div class="card-value">{{ openTickets() }}</div>
-        </a>
-        <a routerLink="/admin/tickets" class="panel panel-pad card">
-          <div class="card-label">Escalated (Below CSAT Threshold)</div>
-          <div class="card-value" [class.warn]="escalated() > 0">{{ escalated() }}</div>
-        </a>
-        <a routerLink="/admin/agreements" class="panel panel-pad card">
-          <div class="card-label">Agreements Near/Over Expiry</div>
-          <div class="card-value" [class.warn]="expiringAgreements() > 0">{{ expiringAgreements() }}</div>
-        </a>
-        <a routerLink="/admin/notifications" class="panel panel-pad card">
-          <div class="card-label">Unread Notifications</div>
-          <div class="card-value" [class.warn]="unreadNotifications() > 0">{{ unreadNotifications() }}</div>
-        </a>
-      </div>
     } @else {
       <div class="cards">
         <a routerLink="/admin/tickets" class="panel panel-pad card">
@@ -127,11 +104,9 @@ export class DashboardComponent {
   }
 
   isAdmin = computed(() => this.auth.currentEmployee()?.roles.includes('Admin') ?? false);
-  isItSupport = computed(() => !this.isAdmin() && (this.auth.currentEmployee()?.roles.includes('ItSupport') ?? false));
 
   subtitle = computed(() => {
     if (this.isAdmin()) return 'Overview across clients, tickets, and staff workload.';
-    if (this.isItSupport()) return 'Overview of clients, agreements, and the ticket queue.';
     return 'Your assigned tickets and attendance.';
   });
 
@@ -160,7 +135,6 @@ export class DashboardComponent {
     const emp = this.auth.currentEmployee();
     if (!emp) return null;
     if (emp.roles.includes('Admin')) return { type: 'Admin', id: 'ALL_ADMIN' };
-    if (emp.roles.includes('ItSupport')) return { type: 'ItSupport', id: 'ALL_IT_SUPPORT' };
     return { type: 'Employee', id: emp.id };
   });
 

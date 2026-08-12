@@ -103,8 +103,54 @@ public class AgreementService : IAgreementService
         return await _storage.GetAsync(agreement.ScannedFileUrl, ct);
     }
 
+    /// <summary>Uploads (or replaces) the scanned training document — same pattern as UploadScannedFileAsync above, just a separate field since a training scan is a different document from the signed agreement scan.</summary>
+    public async Task<AgreementDto> UploadTrainingScanAsync(Guid agreementId, Stream content, string fileName, string contentType, CancellationToken ct = default)
+    {
+        var agreement = await _db.Agreements.FirstOrDefaultAsync(a => a.Id == agreementId, ct)
+            ?? throw new InvalidOperationException("Agreement not found.");
+
+        var previousStorageKey = agreement.TrainingScanStorageKey;
+
+        var result = await _storage.SaveAsync(content, fileName, contentType, ct);
+
+        agreement.TrainingScanStorageKey = result.StorageKey;
+        agreement.TrainingScanFileName = result.OriginalFileName;
+        _db.Update(agreement);
+        await _db.SaveChangesAsync(ct);
+
+        if (!string.IsNullOrEmpty(previousStorageKey))
+            await _storage.DeleteAsync(previousStorageKey, ct);
+
+        return ToDto(agreement);
+    }
+
+    public async Task<RetrievedFile?> DownloadTrainingScanAsync(Guid agreementId, CancellationToken ct = default)
+    {
+        var agreement = await _db.Agreements.AsNoTracking().FirstOrDefaultAsync(a => a.Id == agreementId, ct);
+        if (agreement is null || string.IsNullOrEmpty(agreement.TrainingScanStorageKey))
+            return null;
+
+        return await _storage.GetAsync(agreement.TrainingScanStorageKey, ct);
+    }
+
+    /// <summary>Sets/updates the training description and timeline. Separate from the scan upload since these are plain fields, not a file.</summary>
+    public async Task<AgreementDto> UpdateTrainingInfoAsync(Guid agreementId, UpdateTrainingInfoRequest request, CancellationToken ct = default)
+    {
+        var agreement = await _db.Agreements.FirstOrDefaultAsync(a => a.Id == agreementId, ct)
+            ?? throw new InvalidOperationException("Agreement not found.");
+
+        agreement.TrainingDescription = request.TrainingDescription;
+        agreement.TrainingStartDate = request.TrainingStartDate;
+        agreement.TrainingEndDate = request.TrainingEndDate;
+
+        _db.Update(agreement);
+        await _db.SaveChangesAsync(ct);
+        return ToDto(agreement);
+    }
+
     private static AgreementDto ToDto(Agreement a) => new(
         a.Id, a.ClientId, a.DocumentNumber, a.ScannedFileUrl, a.AgreementPlace,
-        a.SignDate, a.ExpiryDate, a.SupportWindowMonths, a.Status, a.BillingTier
+        a.SignDate, a.ExpiryDate, a.SupportWindowMonths, a.Status, a.BillingTier,
+        a.TrainingScanFileName, a.TrainingDescription, a.TrainingStartDate, a.TrainingEndDate
     );
 }

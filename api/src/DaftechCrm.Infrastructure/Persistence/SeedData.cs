@@ -18,7 +18,9 @@ namespace DaftechCrm.Infrastructure.Persistence;
 public static class SeedData
 {
     public static readonly Guid Emp1Admin = Guid.Parse("11111111-0000-0000-0000-000000000001");
-    public static readonly Guid Emp2ItSupport = Guid.Parse("11111111-0000-0000-0000-000000000002");
+
+    /// <summary>Was the seeded ItSupport account — that role is retired, so this employee is now a second technician (helps demo auto-assignment load-balancing across >1 candidate).</summary>
+    public static readonly Guid Emp2Tech = Guid.Parse("11111111-0000-0000-0000-000000000002");
     public static readonly Guid Emp3Tech = Guid.Parse("11111111-0000-0000-0000-000000000003");
     public static readonly Guid Emp4TechDisabled = Guid.Parse("11111111-0000-0000-0000-000000000004");
 
@@ -40,9 +42,9 @@ public static class SeedData
         };
         yield return new Employee
         {
-            Id = Emp2ItSupport, FullName = "Nebil Sherefa", Email = "nebil@daftech.et", PhoneNumber = "+251911000002",
+            Id = Emp2Tech, FullName = "Nebil Sherefa", Email = "nebil@daftech.et", PhoneNumber = "+251911000002",
             Specialization = "Front-end",
-            Roles = new() { EmployeeRole.ItSupport }, AccountStatus = EmployeeAccountStatus.Active,
+            Roles = new() { EmployeeRole.EmployeeTechnician }, AccountStatus = EmployeeAccountStatus.Active,
             AllowedIpAddresses = new(),
             Username = "ns1002", PasswordHash = PasswordHasher.Hash(SeedPassword), MustChangePassword = false,
         };

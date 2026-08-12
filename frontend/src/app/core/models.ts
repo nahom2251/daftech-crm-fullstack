@@ -32,7 +32,13 @@ export type MaintenanceCategory =
   | string;
 export type MaintenanceStatus = 'Resolved' | 'InProgress' | 'Recurring';
 
-/** Matches Domain.Enums.EmployeeRole — API uses ItSupport/EmployeeTechnician (no slash/space). */
+/**
+ * Matches Domain.Enums.EmployeeRole — API uses ItSupport/EmployeeTechnician
+ * (no slash/space). ItSupport is retired (Admin absorbs that scope; see
+ * TicketService.SubmitFromClientAsync on the backend) and is never
+ * assigned to new employees — kept in this union only so an existing
+ * employee record that still has it deserializes/displays without error.
+ */
 export type EmployeeRole = 'Admin' | 'ItSupport' | 'EmployeeTechnician';
 
 export type DeviceType = 'Laptop' | 'Pc' | 'Tablet' | 'Other';
@@ -93,6 +99,11 @@ export interface Agreement {
   supportWindowMonths: number;
   status: AgreementStatus;
   billingTier: BillingTier;
+  /** Original filename of the training scan, or undefined if none was uploaded. Fetch/upload via AgreementService's training-scan methods — display-only. */
+  trainingScanFileName?: string;
+  trainingDescription?: string;
+  trainingStartDate?: string; // ISO date
+  trainingEndDate?: string; // ISO date
 }
 
 export interface Ticket {
@@ -120,6 +131,8 @@ export interface Ticket {
   closureReason?: ClosureReason;
   /** Original filename of the optional attachment (screenshot/document), or undefined if none was uploaded. Fetch/upload via TicketService's attachment methods — this field is display-only. */
   attachmentFileName?: string;
+  /** Original filename of the optional voice-note recording, or undefined if none was recorded. Fetch/upload via TicketService's voice note methods — this field is display-only. */
+  voiceNoteFileName?: string;
   auditTrail: TicketAuditEntry[];
 }
 

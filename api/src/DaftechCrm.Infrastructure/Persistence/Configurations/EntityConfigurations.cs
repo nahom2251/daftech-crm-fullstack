@@ -77,6 +77,9 @@ public class AgreementConfiguration : IEntityTypeConfiguration<Agreement>
         b.HasIndex(x => x.DocumentNumber).IsUnique();
         b.Property(x => x.ScannedFileUrl).HasMaxLength(500);
         b.Property(x => x.AgreementPlace).HasMaxLength(200);
+        b.Property(x => x.TrainingScanStorageKey).HasMaxLength(500);
+        b.Property(x => x.TrainingScanFileName).HasMaxLength(300);
+        b.Property(x => x.TrainingDescription).HasColumnType("text");
     }
 }
 
@@ -87,6 +90,8 @@ public class TicketConfiguration : IEntityTypeConfiguration<Ticket>
         b.ToTable("tickets");
         b.HasKey(x => x.Id);
         b.Property(x => x.Description).HasColumnType("text").IsRequired();
+        b.Property(x => x.VoiceNoteStorageKey).HasMaxLength(500);
+        b.Property(x => x.VoiceNoteFileName).HasMaxLength(300);
         b.HasOne(x => x.Agreement).WithMany(a => a.Tickets).HasForeignKey(x => x.AgreementId);
         b.HasOne(x => x.AssignedEmployee).WithMany(e => e.AssignedTickets).HasForeignKey(x => x.AssignedEmployeeId).OnDelete(DeleteBehavior.SetNull);
         b.HasOne(x => x.ForwardedByEmployee).WithMany().HasForeignKey(x => x.ForwardedByEmployeeId).OnDelete(DeleteBehavior.SetNull);

@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
+import { PASSWORD_STRENGTH_HINT, passwordStrengthError } from '../../core/password-strength';
 
 @Component({
   selector: 'app-staff-change-password',
@@ -26,7 +27,7 @@ import { AuthService } from '../../core/services/auth.service';
         <label class="lbl" style="margin-top:0.8rem;">Confirm new password</label>
         <input type="password" [ngModel]="confirmPassword()" (ngModelChange)="confirmPassword.set($event)" autocomplete="new-password" (keydown.enter)="submit()" />
 
-        <p class="text-muted hint">At least 8 characters.</p>
+        <p class="text-muted hint">{{ passwordHint }}</p>
 
         @if (error()) { <div class="err">{{ error() }}</div> }
 
@@ -52,6 +53,7 @@ export class StaffChangePasswordComponent {
   confirmPassword = signal('');
   submitting = signal(false);
   error = signal<string | null>(null);
+  readonly passwordHint = PASSWORD_STRENGTH_HINT;
 
   constructor(private auth: AuthService, private router: Router) {}
 
@@ -66,8 +68,9 @@ export class StaffChangePasswordComponent {
       this.error.set('New password and confirmation do not match.');
       return;
     }
-    if (this.newPassword().length < 8) {
-      this.error.set('New password must be at least 8 characters.');
+    const strengthError = passwordStrengthError(this.newPassword());
+    if (strengthError) {
+      this.error.set(strengthError);
       return;
     }
 

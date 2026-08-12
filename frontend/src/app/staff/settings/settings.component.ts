@@ -6,6 +6,7 @@ import { SystemConfigurationService } from '../../core/services/system-configura
 import { LocationService } from '../../core/services/location.service';
 import { FailureTypeService } from '../../core/services/failure-type.service';
 import { LocationType, DurationUnit } from '../../core/models';
+import { PASSWORD_STRENGTH_HINT, passwordStrengthError } from '../../core/password-strength';
 
 type SettingsTab = 'password' | 'configuration' | 'appearance' | 'locations' | 'failureTypes';
 
@@ -41,7 +42,7 @@ type SettingsTab = 'password' | 'configuration' | 'appearance' | 'locations' | '
         <label class="lbl" style="margin-top:0.8rem;">Confirm new password</label>
         <input type="password" [ngModel]="confirmPassword()" (ngModelChange)="confirmPassword.set($event)" autocomplete="new-password" (keydown.enter)="savePassword()" />
 
-        <p class="text-muted hint">At least 8 characters.</p>
+        <p class="text-muted hint">{{ passwordHint }}</p>
 
         @if (passwordError()) { <div class="err">{{ passwordError() }}</div> }
         @if (passwordSuccess()) { <div class="ok">Password changed successfully.</div> }
@@ -268,6 +269,7 @@ export class SettingsComponent implements OnInit {
   savingPassword = signal(false);
   passwordError = signal<string | null>(null);
   passwordSuccess = signal(false);
+  readonly passwordHint = PASSWORD_STRENGTH_HINT;
 
   // --- Configuration tab ---
   loadingConfig = signal(true);
@@ -361,8 +363,9 @@ export class SettingsComponent implements OnInit {
       this.passwordError.set('New password and confirmation do not match.');
       return;
     }
-    if (this.newPassword().length < 8) {
-      this.passwordError.set('New password must be at least 8 characters.');
+    const strengthError = passwordStrengthError(this.newPassword());
+    if (strengthError) {
+      this.passwordError.set(strengthError);
       return;
     }
 

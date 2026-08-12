@@ -156,10 +156,22 @@ public class AuthService : IAuthService
     public Task RevokeRefreshTokenAsync(RevokeTokenRequest request, string ipAddress, CancellationToken ct = default) =>
         _tokens.RevokeAsync(request.RefreshToken, ipAddress, ct);
 
+    /// <summary>
+    /// Real enforcement point — the Angular forms validate the same rule
+    /// client-side for immediate feedback (see frontend core/password-strength.ts),
+    /// but that's UX only; this is what actually stops a weak password
+    /// from being set, including via direct API calls that bypass the UI.
+    /// </summary>
     private static void ValidatePasswordStrength(string password)
     {
         if (password.Length < 8)
             throw new InvalidOperationException("New password must be at least 8 characters.");
+        if (!password.Any(char.IsLower))
+            throw new InvalidOperationException("New password must include at least one lowercase letter.");
+        if (!password.Any(char.IsUpper))
+            throw new InvalidOperationException("New password must include at least one uppercase letter.");
+        if (!password.Any(char.IsDigit))
+            throw new InvalidOperationException("New password must include at least one number.");
     }
 
     private async Task RecordLoginAsync(Guid employeeId, string ip, DeviceType deviceType, string deviceIdentifier, bool allowed, string? reason, CancellationToken ct)

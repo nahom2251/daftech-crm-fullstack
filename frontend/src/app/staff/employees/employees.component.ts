@@ -6,7 +6,11 @@ import { BadgeComponent } from '../../shared/badge.component';
 import { PaginationComponent } from '../../shared/pagination.component';
 import { EmployeeRegisteredResult, EmployeeRole, EMPLOYEE_ROLE_LABELS } from '../../core/models';
 
-const ALL_ROLES: EmployeeRole[] = ['Admin', 'ItSupport', 'EmployeeTechnician'];
+// ItSupport is retired — Admin absorbs that scope, so it's no longer offered
+// when creating/editing an employee. Kept off this list even though the
+// EmployeeRole type still technically allows it (see core/models.ts) so any
+// existing employee record with that role can still deserialize/display correctly.
+const ALL_ROLES: EmployeeRole[] = ['Admin', 'EmployeeTechnician'];
 
 @Component({
   selector: 'app-employees',

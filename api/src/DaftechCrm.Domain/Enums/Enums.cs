@@ -24,6 +24,14 @@ public enum TicketStatus
 
 public enum MaintenanceStatus { Resolved, InProgress, Recurring }
 
+/// <summary>
+/// ItSupport is retired (Admin now absorbs that work — see
+/// AuthorizationPolicies) but the value is kept rather than deleted:
+/// Employee.Roles is stored as a delimited string, not a real FK/lookup
+/// table, so removing this would throw Enum.Parse failures on any
+/// existing employee row that still has it. New employees should never
+/// be assigned ItSupport going forward.
+/// </summary>
 public enum EmployeeRole { Admin, ItSupport, EmployeeTechnician }
 
 public enum DeviceType { Laptop, Pc, Tablet, Other }

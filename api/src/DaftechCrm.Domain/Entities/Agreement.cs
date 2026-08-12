@@ -17,6 +17,23 @@ public class Agreement
     public AgreementStatus Status { get; set; } = AgreementStatus.Active;
     public BillingTier BillingTier { get; set; }
 
+    /// <summary>
+    /// Storage key (per IFileStorageService) for the scanned training
+    /// document — same upload-after-creation pattern as ScannedFileUrl
+    /// above (see AgreementService.UploadTrainingScanAsync). Null until uploaded.
+    /// </summary>
+    public string? TrainingScanStorageKey { get; set; }
+    public string? TrainingScanFileName { get; set; }
+
+    /// <summary>Free-text description of the client training delivered before this agreement (what was covered, who attended, etc).</summary>
+    public string? TrainingDescription { get; set; }
+
+    /// <summary>When training started/is scheduled to start.</summary>
+    public DateOnly? TrainingStartDate { get; set; }
+
+    /// <summary>When training finished/is scheduled to finish. Entered directly by the Admin, not derived.</summary>
+    public DateOnly? TrainingEndDate { get; set; }
+
     public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
 
     /// <summary>

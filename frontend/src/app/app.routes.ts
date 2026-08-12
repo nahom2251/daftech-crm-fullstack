@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import {
-  staffAuthGuard, clientAuthGuard, adminRoleGuard, roleGuard,
+  staffAuthGuard, clientAuthGuard, adminRoleGuard,
   staffMustChangePasswordGuard, clientMustChangePasswordGuard,
 } from './core/guards/auth.guard';
 
@@ -26,12 +26,12 @@ export const routes: Routes = [
       { path: 'dashboard', loadComponent: () => import('./staff/dashboard/dashboard.component').then(m => m.DashboardComponent) },
       {
         path: 'clients',
-        canActivate: [roleGuard(['ItSupport'])],
+        canActivate: [adminRoleGuard],
         loadComponent: () => import('./staff/clients/clients-list.component').then(m => m.ClientsListComponent),
       },
       {
         path: 'clients/:id',
-        canActivate: [roleGuard(['ItSupport'])],
+        canActivate: [adminRoleGuard],
         loadComponent: () => import('./staff/clients/client-detail.component').then(m => m.ClientDetailComponent),
       },
       {
@@ -46,7 +46,7 @@ export const routes: Routes = [
       },
       {
         path: 'agreements',
-        canActivate: [roleGuard(['ItSupport'])],
+        canActivate: [adminRoleGuard],
         loadComponent: () => import('./staff/agreements/agreements.component').then(m => m.AgreementsComponent),
       },
       { path: 'tickets', loadComponent: () => import('./staff/tickets/tickets.component').then(m => m.TicketsComponent) },
@@ -62,7 +62,7 @@ export const routes: Routes = [
       },
       {
         path: 'maintenance',
-        canActivate: [roleGuard(['ItSupport'])],
+        canActivate: [adminRoleGuard],
         loadComponent: () => import('./staff/maintenance/maintenance.component').then(m => m.MaintenanceComponent),
       },
       { path: 'notifications', loadComponent: () => import('./staff/notifications/notifications.component').then(m => m.NotificationsComponent) },

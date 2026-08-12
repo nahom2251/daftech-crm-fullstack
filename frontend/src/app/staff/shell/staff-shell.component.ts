@@ -14,14 +14,14 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', path: '/admin/dashboard', icon: '📊' },
-  { label: 'Clients', path: '/admin/clients', icon: '🏢', rolesAllowed: ['Admin', 'ItSupport'] },
+  { label: 'Clients', path: '/admin/clients', icon: '🏢', rolesAllowed: ['Admin'] },
   { label: 'Signup Requests', path: '/admin/signup-requests', icon: '📥', rolesAllowed: ['Admin'] },
   { label: 'Password Reset Requests', path: '/admin/password-reset-requests', icon: '🔑', rolesAllowed: ['Admin'] },
-  { label: 'Agreements', path: '/admin/agreements', icon: '📄', rolesAllowed: ['Admin', 'ItSupport'] },
+  { label: 'Agreements', path: '/admin/agreements', icon: '📄', rolesAllowed: ['Admin'] },
   { label: 'Tickets', path: '/admin/tickets', icon: '🎫' },
   { label: 'Employees', path: '/admin/employees', icon: '👥', rolesAllowed: ['Admin'] },
   { label: 'Employee Performance', path: '/admin/employee-performance', icon: '📈', rolesAllowed: ['Admin'] },
-  { label: 'Maintenance History', path: '/admin/maintenance', icon: '🛠️', rolesAllowed: ['Admin', 'ItSupport'] },
+  { label: 'Maintenance History', path: '/admin/maintenance', icon: '🛠️', rolesAllowed: ['Admin'] },
   { label: 'Notifications', path: '/admin/notifications', icon: '🔔' },
   { label: 'Reports', path: '/admin/reports', icon: '📈', rolesAllowed: ['Admin'] },
   { label: 'Session Activity', path: '/admin/session-activity', icon: '🟢', rolesAllowed: ['Admin'] },
@@ -191,7 +191,6 @@ export class StaffShellComponent {
     const emp = this.auth.currentEmployee();
     if (!emp) return null;
     if (emp.roles.includes('Admin')) return { type: 'Admin', id: 'ALL_ADMIN' };
-    if (emp.roles.includes('ItSupport')) return { type: 'ItSupport', id: 'ALL_IT_SUPPORT' };
     return { type: 'Employee', id: emp.id };
   });
 

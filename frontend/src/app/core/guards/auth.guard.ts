@@ -65,7 +65,7 @@ export const adminRoleGuard: CanActivateFn = async () => {
 /**
  * Generic role gate for staff pages restricted to specific roles (in
  * addition to Admin, which the sidebar and route config always assume can
- * reach everything). Use as canActivate: [roleGuard(['ItSupport'])] etc.
+ * reach everything). Use as canActivate: [roleGuard(['EmployeeTechnician'])] etc.
  * A signed-in employee without any of the listed roles is bounced to their
  * own dashboard rather than shown a blank/broken page.
  */

@@ -18,8 +18,15 @@ public class StorageOptions
     /// </summary>
     public string RootPath { get; set; } = "storage/uploads";
 
-    /// <summary>File extensions allowed for upload, lowercase, including the leading dot.</summary>
-    public string[] AllowedExtensions { get; set; } = [".pdf", ".doc", ".docx", ".png", ".jpg", ".jpeg"];
+    /// <summary>
+    /// File extensions allowed for upload, lowercase, including the
+    /// leading dot. Audio types (.webm/.ogg/.m4a/.mp3/.wav) cover ticket
+    /// voice-note recordings — .webm is what the browser MediaRecorder
+    /// API produces by default in Chrome/Edge/Firefox, the others catch
+    /// Safari/mobile and any file-picker fallback.
+    /// </summary>
+    public string[] AllowedExtensions { get; set; } =
+        [".pdf", ".doc", ".docx", ".png", ".jpg", ".jpeg", ".webm", ".ogg", ".m4a", ".mp3", ".wav"];
 
     /// <summary>Maximum upload size in bytes. Default 10 MB.</summary>
     public long MaxFileSizeBytes { get; set; } = 10 * 1024 * 1024;

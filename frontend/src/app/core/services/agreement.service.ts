@@ -133,4 +133,38 @@ export class AgreementService {
       this.http.get(`${API_BASE_URL}/agreements/${agreementId}/scanned-file`, { responseType: 'blob' })
     );
   }
+
+  /**
+   * Uploads (or replaces) the scanned copy of the pre-agreement client
+   * training document — a separate file from the signed agreement scan
+   * above (see backend AgreementService.UploadTrainingScanAsync).
+   */
+  async uploadTrainingScan(agreementId: string, file: File): Promise<Agreement> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    const updated = await firstValueFrom(
+      this.http.post<Agreement>(`${API_BASE_URL}/agreements/${agreementId}/training-scan`, form)
+    );
+    await Promise.all([this.refresh(), this.refreshPaged()]);
+    return updated;
+  }
+
+  /** Fetches the training scan as a Blob — same reasoning as downloadScannedFile above. */
+  async downloadTrainingScan(agreementId: string): Promise<Blob> {
+    return firstValueFrom(
+      this.http.get(`${API_BASE_URL}/agreements/${agreementId}/training-scan`, { responseType: 'blob' })
+    );
+  }
+
+  /** Sets/updates the training description and timeline (start/end dates). All fields optional — can be filled in over time. */
+  async updateTrainingInfo(
+    agreementId: string,
+    data: { trainingDescription?: string; trainingStartDate?: string; trainingEndDate?: string }
+  ): Promise<Agreement> {
+    const updated = await firstValueFrom(
+      this.http.put<Agreement>(`${API_BASE_URL}/agreements/${agreementId}/training-info`, data)
+    );
+    await Promise.all([this.refresh(), this.refreshPaged()]);
+    return updated;
+  }
 }

@@ -111,10 +111,33 @@ export class TicketService {
     return counts;
   }
 
-  /** Client submits an issue via the portal. */
-  async submitFromClient(clientId: string, agreementId: string, description: string, category: TicketCategory, failureTypeId?: string): Promise<Ticket> {
+  /**
+   * Client submits an issue via the portal. The API auto-assigns it to the
+   * technician with the fewest open tickets immediately on submission —
+   * there is no separate forward/assign step (ItSupport, which used to
+   * do this manually, is retired; Admin handles everything directly now).
+   * voiceNote, if provided, must come from uploadVoiceNote() below — record
+   * and upload the audio first, then pass the returned key/name here so
+   * it's attached to the ticket atomically on creation.
+   */
+  async submitFromClient(
+    clientId: string,
+    agreementId: string,
+    description: string,
+    category: TicketCategory,
+    failureTypeId?: string,
+    voiceNote?: { storageKey: string; fileName: string }
+  ): Promise<Ticket> {
     const ticket = await firstValueFrom(
-      this.http.post<Ticket>(`${API_BASE_URL}/tickets`, { clientId, agreementId, description, category, failureTypeId })
+      this.http.post<Ticket>(`${API_BASE_URL}/tickets`, {
+        clientId,
+        agreementId,
+        description,
+        category,
+        failureTypeId,
+        voiceNoteStorageKey: voiceNote?.storageKey,
+        voiceNoteFileName: voiceNote?.fileName,
+      })
     );
     // Refresh whichever cache the caller actually has access to — a client
     // token can't call refresh()/refreshPaged() (staff-only, 403), so only
@@ -127,13 +150,25 @@ export class TicketService {
   }
 
   /**
-   * IT Support forwards a submitted ticket. The API auto-assigns it to the
-   * employee with the fewest open tickets in the same request — there is
-   * no separate "assign" call; the Admin does not choose the assignee.
+   * Uploads a voice-note recording ahead of submitting the ticket it will
+   * belong to — call this first, then pass the result into
+   * submitFromClient()'s voiceNote parameter. Any authenticated client may
+   * call this; there's no ticket to check ownership against yet.
    */
-  async forward(ticketId: string, byEmployeeId: string): Promise<void> {
-    await firstValueFrom(this.http.post<Ticket>(`${API_BASE_URL}/tickets/${ticketId}/forward`, { forwardedByEmployeeId: byEmployeeId }));
-    await Promise.all([this.refresh(), this.refreshPaged()]);
+  async uploadVoiceNote(blob: Blob, fileName: string): Promise<{ storageKey: string; fileName: string }> {
+    const form = new FormData();
+    form.append('file', blob, fileName);
+    const result = await firstValueFrom(
+      this.http.post<{ storageKey: string; fileName: string }>(`${API_BASE_URL}/tickets/voice-note`, form)
+    );
+    return result;
+  }
+
+  /** Fetches the ticket's voice-note recording as a Blob for playback — same access rule as downloadAttachment. */
+  async downloadVoiceNote(ticketId: string): Promise<Blob> {
+    return firstValueFrom(
+      this.http.get(`${API_BASE_URL}/tickets/${ticketId}/voice-note`, { responseType: 'blob' })
+    );
   }
 
   /**
@@ -172,9 +207,9 @@ export class TicketService {
   /**
    * Uploads (or replaces) the ticket's optional attachment — typically a
    * screenshot of the error/console being reported. Server-side enforces
-   * who may do this (owning client, assigned technician, or Admin/IT
-   * Support) — a 404 here most likely means the caller isn't authorized,
-   * not that the ticket is missing.
+   * who may do this (owning client, assigned technician, or Admin) — a
+   * 404 here most likely means the caller isn't authorized, not that the
+   * ticket is missing.
    */
   async uploadAttachment(ticketId: string, file: File): Promise<Ticket> {
     const form = new FormData();

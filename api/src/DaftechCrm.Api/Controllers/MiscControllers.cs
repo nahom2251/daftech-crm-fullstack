@@ -154,6 +154,52 @@ public class AgreementsController : ControllerBase
         var file = await _agreements.DownloadScannedFileAsync(id, ct);
         return file is null ? NotFound() : File(file.Content, file.ContentType, file.OriginalFileName);
     }
+
+    /// <summary>
+    /// Uploads (or replaces) the scanned copy of the pre-agreement client
+    /// training document — a separate file from the signed agreement scan
+    /// above. Accepts multipart/form-data with a single "file" field.
+    /// </summary>
+    [HttpPost("{id:guid}/training-scan")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOrItSupport)]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public async Task<ActionResult<AgreementDto>> UploadTrainingScan(Guid id, IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest("No file was provided.");
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var dto = await _agreements.UploadTrainingScanAsync(id, stream, file.FileName, file.ContentType, ct);
+            return Ok(dto);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (FileValidationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    /// <summary>Streams the agreement's training scan back to the caller with its original content type.</summary>
+    [HttpGet("{id:guid}/training-scan")]
+    public async Task<IActionResult> DownloadTrainingScan(Guid id, CancellationToken ct)
+    {
+        var file = await _agreements.DownloadTrainingScanAsync(id, ct);
+        return file is null ? NotFound() : File(file.Content, file.ContentType, file.OriginalFileName);
+    }
+
+    /// <summary>Sets/updates the training description and timeline (start date + duration value/unit). All fields optional.</summary>
+    [HttpPut("{id:guid}/training-info")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOrItSupport)]
+    public async Task<ActionResult<AgreementDto>> UpdateTrainingInfo(Guid id, [FromBody] UpdateTrainingInfoRequest request, CancellationToken ct)
+    {
+        try { return Ok(await _agreements.UpdateTrainingInfoAsync(id, request, ct)); }
+        catch (InvalidOperationException ex) { return NotFound(ex.Message); }
+    }
 }
 
 [ApiController]

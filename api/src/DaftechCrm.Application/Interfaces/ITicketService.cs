@@ -5,10 +5,13 @@ namespace DaftechCrm.Application.Interfaces;
 
 public interface ITicketService
 {
+    /// <summary>
+    /// Also runs auto-assignment immediately (least-loaded active
+    /// EmployeeTechnician) — ItSupport's old manual Forward step is
+    /// retired, so a ticket is assigned the moment it's submitted rather
+    /// than waiting for a separate action.
+    /// </summary>
     Task<TicketDto> SubmitFromClientAsync(SubmitTicketRequest request, CancellationToken ct = default);
-
-    /// <summary>IT Support forwards a submitted ticket — this triggers automatic assignment, not an Admin choice.</summary>
-    Task<TicketDto> ForwardAsync(Guid ticketId, ForwardTicketRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Employee updates ticket status. Setting Resolved starts the client
@@ -64,8 +67,22 @@ public interface ITicketService
     /// <summary>
     /// True if the given caller may view/upload this ticket's attachment:
     /// the client who owns the ticket, the assigned technician, or any
-    /// Admin/IT Support employee. False (not an exception) if the ticket
-    /// doesn't exist, so callers can return 404 either way.
+    /// Admin employee. False (not an exception) if the ticket doesn't
+    /// exist, so callers can return 404 either way.
     /// </summary>
     Task<bool> CanAccessAttachmentAsync(Guid ticketId, SessionAccountType callerType, Guid callerId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Saves a voice-note recording before the ticket it will belong to
+    /// exists yet — the client records in the browser, this stores the
+    /// audio and hands back a (StorageKey, FileName) pair the client then
+    /// includes in SubmitTicketRequest. Not tied to any ticket ID; the
+    /// caller is responsible for actually attaching it via Submit.
+    /// Orphaned recordings (recorded but never submitted) are not
+    /// automatically cleaned up today.
+    /// </summary>
+    Task<(string StorageKey, string FileName)> UploadVoiceNoteAsync(Stream content, string fileName, string contentType, CancellationToken ct = default);
+
+    /// <summary>Streams the ticket's voice-note recording back, or null if the ticket has none or doesn't exist. Same access rule as CanAccessAttachmentAsync.</summary>
+    Task<RetrievedFile?> DownloadVoiceNoteAsync(Guid ticketId, CancellationToken ct = default);
 }

@@ -10,7 +10,7 @@ import { TICKET_CATEGORY_LABELS, TicketCategory, TicketStatus } from '../../core
 
 type FilterKey = 'all' | 'pending' | 'accomplished' | 'escalated';
 
-const PENDING_STATUSES: TicketStatus[] = ['Submitted', 'Forwarded', 'Assigned', 'InProgress', 'Resolved', 'AwaitingClientConfirmation'];
+const PENDING_STATUSES: TicketStatus[] = ['Submitted', 'Assigned', 'InProgress', 'Resolved', 'AwaitingClientConfirmation'];
 
 @Component({
   selector: 'app-maintenance-history',
@@ -49,6 +49,32 @@ const PENDING_STATUSES: TicketStatus[] = ['Submitted', 'Forwarded', 'Assigned', 
             <input type="file" accept=".png,.jpg,.jpeg,.pdf,.doc,.docx" (change)="onFileSelected($event)" />
             @if (selectedFile(); as f) {
               <span class="text-muted" style="font-size:0.78rem;">{{ f.name }}</span>
+            }
+          </div>
+          <div class="field" style="margin-top:0.8rem;">
+            <label>Record a voice note (optional)</label>
+            <p class="text-muted" style="font-size:0.76rem; margin:0 0 0.4rem;">
+              Describe the error out loud — it's attached alongside your written description for extra context.
+            </p>
+            @if (recordingUnsupported()) {
+              <span class="text-muted" style="font-size:0.78rem;">Voice recording isn't supported in this browser.</span>
+            } @else if (!recordedNote()) {
+              <button
+                type="button"
+                class="btn btn-outline btn-sm"
+                [class.recording]="isRecording()"
+                (click)="isRecording() ? stopRecording() : startRecording()"
+              >
+                {{ isRecording() ? '⏹ Stop (' + recordingSeconds() + 's)' : '🎤 Start Recording' }}
+              </button>
+            } @else {
+              <div style="display:flex; align-items:center; gap:0.6rem;">
+                <audio [src]="recordedNoteUrl()" controls style="height:32px;"></audio>
+                <button type="button" class="btn btn-outline btn-sm" (click)="discardRecording()">Remove</button>
+              </div>
+            }
+            @if (recordingError()) {
+              <div class="error" style="margin-top:0.5rem;">{{ recordingError() }}</div>
             }
           </div>
           <button class="btn btn-primary" style="margin-top:1rem;" [disabled]="!description().trim() || submitting()" (click)="submit()">
@@ -119,6 +145,8 @@ const PENDING_STATUSES: TicketStatus[] = ['Submitted', 'Forwarded', 'Assigned', 
       font-size: 0.8rem; font-weight: 600; color: var(--slate-500);
     }
     .chip.active { background: var(--portal-accent); border-color: var(--portal-accent); color: #fff; }
+    .btn.recording { background: var(--red-bg, #fdecea); border-color: var(--red, #b3261e); color: var(--red, #b3261e); animation: pulse 1.4s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
   `],
 })
 export class MaintenanceHistoryComponent implements OnInit {
@@ -131,7 +159,23 @@ export class MaintenanceHistoryComponent implements OnInit {
   uploadError = signal<string | null>(null);
   filter = signal<FilterKey>('all');
 
+  // Voice note recording state. recordedNote holds the raw Blob until
+  // submit() actually uploads it — recording doesn't touch the server at
+  // all, only submitting does (see uploadVoiceNoteIfPresent below).
+  recordingUnsupported = signal(!(typeof MediaRecorder !== 'undefined' && navigator.mediaDevices?.getUserMedia));
+  isRecording = signal(false);
+  recordingSeconds = signal(0);
+  recordedNote = signal<Blob | null>(null);
+  recordedNoteUrl = signal<string | null>(null);
+  recordingError = signal<string | null>(null);
+
+  private mediaRecorder: MediaRecorder | null = null;
+  private recordedChunks: Blob[] = [];
+  private recordingTimer: ReturnType<typeof setInterval> | null = null;
+  private activeStream: MediaStream | null = null;
+
   private readonly maxFileSizeBytes = 10 * 1024 * 1024;
+  private readonly maxRecordingSeconds = 180; // 3 minutes — plenty for describing an issue, keeps upload size sane
 
   constructor(
     private auth: AuthService,
@@ -150,6 +194,7 @@ export class MaintenanceHistoryComponent implements OnInit {
     this.submittedId.set(null);
     this.selectedFile.set(null);
     this.uploadError.set(null);
+    this.discardRecording();
   }
 
   onFileSelected(event: Event) {
@@ -165,6 +210,66 @@ export class MaintenanceHistoryComponent implements OnInit {
     }
 
     this.selectedFile.set(file);
+  }
+
+  async startRecording() {
+    this.recordingError.set(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.activeStream = stream;
+      this.recordedChunks = [];
+
+      // audio/webm is what Chrome/Edge/Firefox produce by default and is
+      // in the backend's allowed-extension list; Safari falls back to
+      // whatever MediaRecorder picks (still accepted server-side, see
+      // StorageOptions.AllowedExtensions).
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+      this.mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+
+      this.mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) this.recordedChunks.push(e.data);
+      };
+      this.mediaRecorder.onstop = () => {
+        const blob = new Blob(this.recordedChunks, { type: this.mediaRecorder?.mimeType || 'audio/webm' });
+        this.recordedNote.set(blob);
+        this.recordedNoteUrl.set(URL.createObjectURL(blob));
+        // Release the mic once we're done recording — leaving the stream
+        // open would keep the browser's "recording" indicator active.
+        this.activeStream?.getTracks().forEach(t => t.stop());
+        this.activeStream = null;
+      };
+
+      this.mediaRecorder.start();
+      this.isRecording.set(true);
+      this.recordingSeconds.set(0);
+      this.recordingTimer = setInterval(() => {
+        const next = this.recordingSeconds() + 1;
+        this.recordingSeconds.set(next);
+        if (next >= this.maxRecordingSeconds) this.stopRecording();
+      }, 1000);
+    } catch {
+      this.recordingError.set('Could not access your microphone — check your browser permissions and try again.');
+      this.isRecording.set(false);
+    }
+  }
+
+  stopRecording() {
+    if (this.recordingTimer) {
+      clearInterval(this.recordingTimer);
+      this.recordingTimer = null;
+    }
+    this.mediaRecorder?.stop();
+    this.isRecording.set(false);
+  }
+
+  discardRecording() {
+    if (this.isRecording()) this.stopRecording();
+    const url = this.recordedNoteUrl();
+    if (url) URL.revokeObjectURL(url);
+    this.recordedNote.set(null);
+    this.recordedNoteUrl.set(null);
+    this.recordingError.set(null);
+    this.recordingSeconds.set(0);
   }
 
   async downloadAttachment(ticketId: string, fileName: string) {
@@ -221,7 +326,23 @@ export class MaintenanceHistoryComponent implements OnInit {
     this.uploadError.set(null);
 
     try {
-      const ticket = await this.ticketsSvc.submitFromClient(client.id, agreement.id, this.description().trim(), this.category());
+      // Voice note is uploaded first (no ticket exists yet) so its storage
+      // key can be included directly in the submit call — the recording
+      // ends up attached to the ticket from the moment it's created,
+      // matching "record, then submit with that as extra context".
+      let voiceNote: { storageKey: string; fileName: string } | undefined;
+      const note = this.recordedNote();
+      if (note) {
+        try {
+          voiceNote = await this.ticketsSvc.uploadVoiceNote(note, 'voice-note.webm');
+        } catch {
+          this.uploadError.set('Your voice note failed to upload — submitting without it. You can try recording again next time.');
+        }
+      }
+
+      const ticket = await this.ticketsSvc.submitFromClient(
+        client.id, agreement.id, this.description().trim(), this.category(), undefined, voiceNote
+      );
 
       const file = this.selectedFile();
       if (file) {
@@ -235,6 +356,7 @@ export class MaintenanceHistoryComponent implements OnInit {
       this.submittedId.set(ticket.id);
       this.description.set('');
       this.selectedFile.set(null);
+      this.discardRecording();
     } finally {
       this.submitting.set(false);
     }

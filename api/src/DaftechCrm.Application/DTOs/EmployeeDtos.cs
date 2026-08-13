@@ -6,7 +6,7 @@ public record EmployeeDto(
     Guid Id, string FullName, string Email, string PhoneNumber, string Specialization,
     IReadOnlyList<EmployeeRole> Roles, IReadOnlyList<string> ExtraRoleLabels, EmployeeAccountStatus AccountStatus, IReadOnlyList<string> AllowedIpAddresses,
     DateTimeOffset? DisabledAt, string? DisabledReason, int OpenTicketCount,
-    double? AverageSatisfactionScore, string Username, bool MustChangePassword
+    double? AverageSatisfactionScore, string Username, bool MustChangePassword, string AccountRefId
 );
 
 public record CreateEmployeeRequest(

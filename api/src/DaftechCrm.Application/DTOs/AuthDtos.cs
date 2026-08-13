@@ -26,6 +26,27 @@ public record IssuedTokenPair(string AccessToken, string RefreshTokenPlainText, 
 public record TokenSubject(SessionAccountType AccountType, Guid AccountId, string Username, IReadOnlyList<EmployeeRole> Roles);
 
 /// <summary>
+/// One login request shape for the unified login page — Admins, Employees,
+/// and Clients all sign in with just a username and password here. Device
+/// info is still collected (Employees use it for device-session tracking)
+/// but defaults are supplied by the frontend automatically rather than
+/// asked of the user, since this form no longer distinguishes account
+/// types up front.
+/// </summary>
+public record UnifiedLoginRequest(string Username, string Password, DeviceType DeviceType, string DeviceIdentifier);
+
+/// <summary>
+/// AccountType tells the frontend which dashboard/guard to route to.
+/// Everything else mirrors EmployeeLoginResult / ClientLoginResult — the
+/// same MustChangePassword / null-Tokens rules apply regardless of which
+/// account type actually matched.
+/// </summary>
+public record UnifiedLoginResult(
+    bool Success, string? Message, SessionAccountType? AccountType,
+    EmployeeDto? Employee, ClientDto? Client, bool MustChangePassword, AuthTokenResult? Tokens = null
+);
+
+/// <summary>
 /// Self-service "forgot password" — submitted anonymously from either login
 /// screen. There is no emailed reset link; this just queues the request for
 /// an Admin to action (see PasswordResetRequest). AccountType tells the API

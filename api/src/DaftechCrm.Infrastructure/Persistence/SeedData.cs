@@ -19,10 +19,16 @@ public static class SeedData
 {
     public static readonly Guid Emp1Admin = Guid.Parse("11111111-0000-0000-0000-000000000001");
 
-    /// <summary>Was the seeded ItSupport account — that role is retired, so this employee is now a second technician (helps demo auto-assignment load-balancing across >1 candidate).</summary>
+    /// <summary>
+    /// The single dedicated testing employee account. Previously there were
+    /// four seeded employees (2 more active technicians + 1 disabled); those
+    /// were trimmed to keep exactly one Admin + one Employee for login
+    /// testing, per the account cleanup requirement. Nothing referenced
+    /// their Guids elsewhere (no seeded tickets/assignments pointed at
+    /// them), so removing them here is safe and doesn't touch client or
+    /// agreement data.
+    /// </summary>
     public static readonly Guid Emp2Tech = Guid.Parse("11111111-0000-0000-0000-000000000002");
-    public static readonly Guid Emp3Tech = Guid.Parse("11111111-0000-0000-0000-000000000003");
-    public static readonly Guid Emp4TechDisabled = Guid.Parse("11111111-0000-0000-0000-000000000004");
 
     public static readonly Guid Client1 = Guid.Parse("22222222-0000-0000-0000-000000000001");
     public static readonly Guid Client2 = Guid.Parse("22222222-0000-0000-0000-000000000002");
@@ -38,6 +44,7 @@ public static class SeedData
             Specialization = "Back-end",
             Roles = new() { EmployeeRole.Admin }, AccountStatus = EmployeeAccountStatus.Active,
             AllowedIpAddresses = new() { "196.188.20.10" },
+            AccountRefId = "DAF-ADMIN-1001",
             Username = "na1001", PasswordHash = PasswordHasher.Hash(SeedPassword), MustChangePassword = false,
         };
         yield return new Employee
@@ -46,23 +53,8 @@ public static class SeedData
             Specialization = "Front-end",
             Roles = new() { EmployeeRole.EmployeeTechnician }, AccountStatus = EmployeeAccountStatus.Active,
             AllowedIpAddresses = new(),
+            AccountRefId = "DAF-EMP-1002",
             Username = "ns1002", PasswordHash = PasswordHasher.Hash(SeedPassword), MustChangePassword = false,
-        };
-        yield return new Employee
-        {
-            Id = Emp3Tech, FullName = "Mekdes Fikru", Email = "mekdes@daftech.et", PhoneNumber = "+251911000003",
-            Specialization = "Database",
-            Roles = new() { EmployeeRole.EmployeeTechnician }, AccountStatus = EmployeeAccountStatus.Active,
-            AllowedIpAddresses = new() { "196.188.20.15", "196.188.20.16" },
-            Username = "mf1003", PasswordHash = PasswordHasher.Hash(SeedPassword), MustChangePassword = false,
-        };
-        yield return new Employee
-        {
-            Id = Emp4TechDisabled, FullName = "Robel Getachew", Email = "robel@daftech.et", PhoneNumber = "+251911000004",
-            Specialization = "Back-end",
-            Roles = new() { EmployeeRole.EmployeeTechnician }, AccountStatus = EmployeeAccountStatus.Disabled,
-            AllowedIpAddresses = new(), DisabledAt = DateTimeOffset.Parse("2026-06-30T09:15:00Z"), DisabledReason = "Left the company",
-            Username = "rg1004", PasswordHash = PasswordHasher.Hash(SeedPassword), MustChangePassword = false,
         };
     }
 
@@ -75,6 +67,7 @@ public static class SeedData
             Office = "Bole Head Office", Location = "Addis Ababa", KycType = "Business License",
             KycContact = "Selam Tesfaye — +251911998877", AccountStatus = ClientAccountStatus.Approved,
             OnboardingDate = DateOnly.Parse("2025-02-10"),
+            AccountRefId = "DAF-CLI-2001",
             Username = "at2001", PasswordHash = PasswordHasher.Hash(SeedPassword), MustChangePassword = false,
         };
         yield return new Client
@@ -84,6 +77,7 @@ public static class SeedData
             Office = "Merkato Branch", Location = "Addis Ababa", KycType = "Financial Institution License",
             KycContact = "Dawit Alemu — +251922112233", AccountStatus = ClientAccountStatus.Approved,
             OnboardingDate = DateOnly.Parse("2024-11-03"),
+            AccountRefId = "DAF-CLI-2002",
             Username = "mm2002", PasswordHash = PasswordHasher.Hash(SeedPassword), MustChangePassword = false,
         };
     }

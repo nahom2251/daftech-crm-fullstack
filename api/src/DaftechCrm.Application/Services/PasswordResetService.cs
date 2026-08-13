@@ -35,9 +35,16 @@ public class PasswordResetService : IPasswordResetService
         if (username.Length == 0)
             return new PasswordResetRequestSubmittedResult(genericMessage);
 
-        Guid? accountId = request.AccountType == SessionAccountType.Employee
-            ? (await _db.Employees.FirstOrDefaultAsync(e => e.Username == username, ct))?.Id
-            : (await _db.Clients.FirstOrDefaultAsync(c => c.Username == username, ct))?.Id;
+        // Resolved by lookup rather than trusting request.AccountType alone —
+        // the unified login page's forgot-password form no longer asks the
+        // user which account type they are, so this tries Employees first,
+        // then Clients, the same way AuthService.LoginAsync resolves a
+        // unified login. request.AccountType is kept as a hint/fallback for
+        // any older caller that still supplies it accurately.
+        var employeeMatch = await _db.Employees.FirstOrDefaultAsync(e => e.Username == username, ct);
+        var resolvedType = employeeMatch is not null ? SessionAccountType.Employee : SessionAccountType.Client;
+        Guid? accountId = employeeMatch?.Id
+            ?? (await _db.Clients.FirstOrDefaultAsync(c => c.Username == username, ct))?.Id;
 
         // Deliberately still returns success-shaped output for an unknown
         // username — the caller isn't authenticated, so distinguishing
@@ -48,13 +55,13 @@ public class PasswordResetService : IPasswordResetService
 
         // Avoid piling up duplicate pending requests if someone clicks submit twice.
         var alreadyPending = await _db.PasswordResetRequests.AnyAsync(
-            r => r.AccountType == request.AccountType && r.AccountId == accountId && r.Status == PasswordResetRequestStatus.Pending, ct);
+            r => r.AccountType == resolvedType && r.AccountId == accountId && r.Status == PasswordResetRequestStatus.Pending, ct);
 
         if (!alreadyPending)
         {
             var entity = new PasswordResetRequest
             {
-                AccountType = request.AccountType,
+                AccountType = resolvedType,
                 AccountId = accountId.Value,
                 Username = username,
                 Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),

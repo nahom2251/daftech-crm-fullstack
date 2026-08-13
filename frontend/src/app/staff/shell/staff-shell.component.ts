@@ -207,6 +207,6 @@ export class StaffShellComponent {
 
   async logout() {
     await this.auth.logoutStaff();
-    this.router.navigateByUrl('/admin/login');
+    this.router.navigateByUrl('/login');
   }
 }

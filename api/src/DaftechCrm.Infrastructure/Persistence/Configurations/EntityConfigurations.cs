@@ -49,6 +49,8 @@ public class ClientConfiguration : IEntityTypeConfiguration<Client>
         b.Property(x => x.Name).HasMaxLength(200).IsRequired();
         b.Property(x => x.IdNumber).HasMaxLength(100).IsRequired();
         b.HasIndex(x => x.IdNumber).IsUnique();
+        b.Property(x => x.AccountRefId).HasMaxLength(50).IsRequired();
+        b.HasIndex(x => x.AccountRefId).IsUnique();
         b.Property(x => x.PhoneNumber).HasMaxLength(30).IsRequired();
         b.Property(x => x.Email).HasMaxLength(200).IsRequired();
         b.Property(x => x.Office).HasMaxLength(200);
@@ -122,6 +124,8 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         b.Property(x => x.FullName).HasMaxLength(200).IsRequired();
         b.Property(x => x.Email).HasMaxLength(200).IsRequired();
         b.HasIndex(x => x.Email).IsUnique();
+        b.Property(x => x.AccountRefId).HasMaxLength(50).IsRequired();
+        b.HasIndex(x => x.AccountRefId).IsUnique();
         b.Property(x => x.PhoneNumber).HasMaxLength(30).IsRequired();
         b.Property(x => x.Specialization).HasMaxLength(100).IsRequired();
         b.Property(x => x.DisabledReason).HasMaxLength(500);

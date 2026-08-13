@@ -12,13 +12,16 @@ public class ClientService : IClientService
     private readonly INotificationService _notifications;
     private readonly AccountCredentialService _credentials;
     private readonly ReferenceNumberService _referenceNumbers;
+    private readonly AccountReferenceIdService _accountRefIds;
 
-    public ClientService(IAppDbContext db, INotificationService notifications, AccountCredentialService credentials, ReferenceNumberService referenceNumbers)
+    public ClientService(IAppDbContext db, INotificationService notifications, AccountCredentialService credentials,
+        ReferenceNumberService referenceNumbers, AccountReferenceIdService accountRefIds)
     {
         _db = db;
         _notifications = notifications;
         _credentials = credentials;
         _referenceNumbers = referenceNumbers;
+        _accountRefIds = accountRefIds;
     }
 
     /// <summary>
@@ -32,6 +35,7 @@ public class ClientService : IClientService
         {
             Name = request.Name,
             IdNumber = await _referenceNumbers.GenerateClientIdNumberAsync(ct),
+            AccountRefId = await _accountRefIds.GenerateForClientAsync(ct),
             PhoneNumber = request.PhoneNumber,
             Email = request.Email,
             Office = request.Office,
@@ -63,6 +67,7 @@ public class ClientService : IClientService
         {
             Name = request.Name,
             IdNumber = await _referenceNumbers.GenerateClientIdNumberAsync(ct),
+            AccountRefId = await _accountRefIds.GenerateForClientAsync(ct),
             PhoneNumber = request.PhoneNumber,
             Email = request.Email,
             Office = request.Office,
@@ -179,6 +184,6 @@ public class ClientService : IClientService
         c.Id, c.Name, c.IdNumber, c.PhoneNumber, c.Email, c.Office, c.Location,
         c.Region, c.City, c.Woreda,
         c.KycType, c.KycContact, c.ItSupportContact, c.AccountStatus, c.OnboardingDate, c.RejectionReason,
-        c.Username, c.MustChangePassword
+        c.Username, c.MustChangePassword, c.AccountRefId
     );
 }

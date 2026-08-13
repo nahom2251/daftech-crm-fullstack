@@ -21,6 +21,7 @@ public class PasswordResetServiceTests : IDisposable
     private readonly AppDbContext _db;
     private readonly FakeEmailSender _email = new();
     private readonly FakeNotificationService _notifications = new();
+    private readonly FakeSystemConfigurationService _config = new();
     private readonly PasswordResetService _sut;
 
     public PasswordResetServiceTests()
@@ -31,7 +32,7 @@ public class PasswordResetServiceTests : IDisposable
         _db = new AppDbContext(options);
 
         var credentials = new AccountCredentialService(_db, _email);
-        _sut = new PasswordResetService(_db, credentials, _notifications);
+        _sut = new PasswordResetService(_db, credentials, _notifications, _config);
     }
 
     private async Task<Employee> SeedEmployeeAsync()
@@ -46,6 +47,7 @@ public class PasswordResetServiceTests : IDisposable
             PasswordHash = PasswordHasher.Hash("OriginalPass1"),
             MustChangePassword = false,
             Roles = new List<EmployeeRole> { EmployeeRole.ItSupport },
+            AccountRefId = "DAF-EMP-9001",
         };
         _db.Add(employee);
         await _db.SaveChangesAsync();
@@ -138,6 +140,21 @@ public class PasswordResetServiceTests : IDisposable
     }
 
     public void Dispose() => _db.Dispose();
+
+    private class FakeSystemConfigurationService : ISystemConfigurationService
+    {
+        public Task<IReadOnlyList<SystemSettingDto>> GetAllAsync(CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<SystemSettingDto>>(new List<SystemSettingDto>());
+
+        public Task<IReadOnlyList<SystemSettingDto>> UpdateAsync(UpdateSystemSettingsRequest request, string updatedByName, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<SystemSettingDto>>(new List<SystemSettingDto>());
+
+        // A fixed 30-minute OTP expiry is enough for these tests — none of
+        // them exercise expiry behavior itself, they just need a real value
+        // for IssueOtpAsync to compute an expiry timestamp with.
+        public Task<int> GetIntAsync(string key, CancellationToken ct = default) => Task.FromResult(30);
+        public Task<bool> GetBoolAsync(string key, CancellationToken ct = default) => Task.FromResult(false);
+    }
 
     private class FakeEmailSender : IEmailSender
     {

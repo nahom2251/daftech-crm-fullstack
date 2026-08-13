@@ -61,6 +61,18 @@ public interface IEmployeeService
 /// </summary>
 public interface IAuthService
 {
+    /// <summary>
+    /// Single entry point for the unified login page. Tries the username
+    /// against Employees first, then Clients, and delegates to the
+    /// existing, already-hardened LoginEmployeeAsync / LoginClientAsync
+    /// logic for whichever one matches — so password checks, account
+    /// status checks, OTP expiry, and login-record/session bookkeeping
+    /// behave identically to the original two endpoints. A client cannot
+    /// influence which branch runs; that's decided purely by which table
+    /// the username exists in.
+    /// </summary>
+    Task<UnifiedLoginResult> LoginAsync(UnifiedLoginRequest request, CancellationToken ct = default);
+
     Task<EmployeeLoginResult> LoginEmployeeAsync(EmployeeLoginRequest request, CancellationToken ct = default);
     Task ChangeEmployeePasswordAsync(Guid employeeId, ChangePasswordRequest request, CancellationToken ct = default);
 

@@ -21,6 +21,32 @@ public class AuthService : IAuthService
         _tokens = tokens;
     }
 
+    /// <summary>
+    /// Looks up the username against Employees first, then Clients, and
+    /// hands off to the matching login path unchanged — this method itself
+    /// makes no password/status/role decisions, it only decides which
+    /// table the username belongs to. The account's real Role(s) are only
+    /// ever read from that row and encoded into the JWT by IssueTokenPairAsync;
+    /// nothing here or downstream infers a role from the username's shape.
+    /// </summary>
+    public async Task<UnifiedLoginResult> LoginAsync(UnifiedLoginRequest request, CancellationToken ct = default)
+    {
+        var isEmployee = await _db.Employees.AnyAsync(e => e.Username == request.Username, ct);
+        if (isEmployee)
+        {
+            var result = await LoginEmployeeAsync(
+                new EmployeeLoginRequest(request.Username, request.Password, request.DeviceType, request.DeviceIdentifier), ct);
+            return new UnifiedLoginResult(
+                result.Success, result.Message, result.Success ? SessionAccountType.Employee : null,
+                result.Employee, null, result.MustChangePassword, result.Tokens);
+        }
+
+        var clientResult = await LoginClientAsync(new ClientLoginRequest(request.Username, request.Password), ct);
+        return new UnifiedLoginResult(
+            clientResult.Success, clientResult.Message, clientResult.Success ? SessionAccountType.Client : null,
+            null, clientResult.Client, clientResult.MustChangePassword, clientResult.Tokens);
+    }
+
     public async Task<EmployeeLoginResult> LoginEmployeeAsync(EmployeeLoginRequest request, CancellationToken ct = default)
     {
         var ip = _requestContext.ResolveClientIpAddress();
@@ -224,7 +250,7 @@ public class AuthService : IAuthService
 
         return new EmployeeDto(
             e.Id, e.FullName, e.Email, e.PhoneNumber, e.Specialization, e.Roles, e.ExtraRoleLabels, e.AccountStatus, e.AllowedIpAddresses,
-            e.DisabledAt, e.DisabledReason, openCount, avgScore, e.Username, e.MustChangePassword
+            e.DisabledAt, e.DisabledReason, openCount, avgScore, e.Username, e.MustChangePassword, e.AccountRefId
         );
     }
 
@@ -232,6 +258,6 @@ public class AuthService : IAuthService
         c.Id, c.Name, c.IdNumber, c.PhoneNumber, c.Email, c.Office, c.Location,
         c.Region, c.City, c.Woreda,
         c.KycType, c.KycContact, c.ItSupportContact, c.AccountStatus, c.OnboardingDate, c.RejectionReason,
-        c.Username, c.MustChangePassword
+        c.Username, c.MustChangePassword, c.AccountRefId
     );
 }

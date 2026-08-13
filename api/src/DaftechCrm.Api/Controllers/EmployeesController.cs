@@ -123,12 +123,28 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Unified login — the single entry point used by the one login page
+    /// for Admins, Employees, and Clients alike. The server determines the
+    /// account type itself by which table the username belongs to; the
+    /// frontend never sends or chooses an account type. See
+    /// AuthService.LoginAsync for the lookup logic; role/permission
+    /// enforcement itself still happens purely via the JWT claims issued
+    /// here, per AuthorizationPolicies.
+    /// </summary>
+    [HttpPost("login")]
+    public async Task<ActionResult<UnifiedLoginResult>> Login([FromBody] UnifiedLoginRequest request, CancellationToken ct) =>
+        Ok(await _auth.LoginAsync(request, ct));
+
+    /// <summary>
     /// Employee login. The server resolves the caller's IP address itself
     /// (see HttpCurrentRequestContext) — it is not supplied by the client —
     /// and records it on every attempt, successful or blocked. The response's
     /// MustChangePassword flag tells the frontend to route straight to the
     /// change-password screen before anything else; Tokens is null until
     /// the password has actually been changed.
+    ///
+    /// Kept alongside the unified /login endpoint above for any direct
+    /// API callers that still target the employee-specific shape.
     /// </summary>
     [HttpPost("employee-login")]
     public async Task<ActionResult<EmployeeLoginResult>> LoginEmployee([FromBody] EmployeeLoginRequest request, CancellationToken ct) =>

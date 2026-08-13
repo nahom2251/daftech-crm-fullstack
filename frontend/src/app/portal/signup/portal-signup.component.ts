@@ -47,14 +47,14 @@ import { LocationService } from '../../core/services/location.service';
           </div>
 
           <button class="btn btn-primary" style="width:100%; margin-top:1rem;" (click)="submit()">Submit Request</button>
-          <p class="alt-link">Already approved? <a routerLink="/portal/login">Log in</a></p>
+          <p class="alt-link">Already approved? <a routerLink="/login">Log in</a></p>
         } @else {
           <img src="assets/daftech-logo.png" alt="DAFTECH" class="brand-logo-img brand-logo-md" />
           <h2>Request submitted</h2>
           <p class="text-muted" style="margin-top:0.5rem; line-height:1.5;">
             Your signup request is awaiting Admin approval. You'll be notified once it's reviewed.
           </p>
-          <a routerLink="/portal/login" class="btn btn-secondary" style="margin-top:1.25rem; display:inline-block;">Back to Login</a>
+          <a routerLink="/login" class="btn btn-secondary" style="margin-top:1.25rem; display:inline-block;">Back to Login</a>
         }
       </div>
     </div>

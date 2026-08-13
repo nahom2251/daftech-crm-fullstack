@@ -7,7 +7,7 @@ public record ClientDto(
     string? Region, string? City, string? Woreda,
     string KycType, string KycContact, string? ItSupportContact,
     ClientAccountStatus AccountStatus, DateOnly OnboardingDate, string? RejectionReason,
-    string? Username, bool MustChangePassword
+    string? Username, bool MustChangePassword, string AccountRefId
 );
 
 /// <summary>Self-service signup — still available, still lands in Pending for Admin approval, still has no credentials until approved. IdNumber is system-generated, not supplied by the applicant.</summary>

@@ -77,9 +77,23 @@ export class AgreementService {
     this._myAgreements.set(list);
   }
 
-  /** Client-side filter over myAgreements() — call refreshMyAgreements() first to populate it. */
+  /** Client-side filter over myAgreements() — call refreshMyAgreements() first to populate it. Intended for the client portal. */
   forClient(clientId: string): Agreement[] {
     return this._myAgreements().filter(a => a.clientId === clientId);
+  }
+
+  /**
+   * Client-side filter over the staff-only full agreements list
+   * (agreements()/refresh() above) — use this from staff pages like Client
+   * Detail, where the current user is an Employee, not the Client. Using
+   * forClient() (which reads _myAgreements, only ever populated for a
+   * logged-in Client via refreshMyAgreements) here was the actual bug
+   * behind the Client Detail page always showing "No agreements on file"
+   * for staff: _myAgreements was simply never filled in for an employee
+   * session, no matter how many agreements the client actually had.
+   */
+  forClientStaffView(clientId: string): Agreement[] {
+    return this._agreements().filter(a => a.clientId === clientId);
   }
 
   /** Agreements expiring within 30 days, or already past expiry. */

@@ -154,6 +154,6 @@ export class PortalShellComponent {
 
   async logout() {
     await this.auth.logoutClient();
-    this.router.navigateByUrl('/portal/login');
+    this.router.navigateByUrl('/login');
   }
 }

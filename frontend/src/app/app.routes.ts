@@ -5,13 +5,19 @@ import {
 } from './core/guards/auth.guard';
 
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'admin/login' },
+  { path: '', pathMatch: 'full', redirectTo: 'login' },
+
+  // Unified login — single sign-in page for Admins, Employees, and Clients.
+  // See LoginComponent: the server determines account type, this page doesn't.
+  {
+    path: 'login',
+    loadComponent: () => import('./auth/login/login.component').then(m => m.LoginComponent),
+  },
+  // Old dedicated login URLs kept as redirects so existing bookmarks/links still work.
+  { path: 'admin/login', pathMatch: 'full', redirectTo: 'login' },
+  { path: 'portal/login', pathMatch: 'full', redirectTo: 'login' },
 
   // Admin / Staff app
-  {
-    path: 'admin/login',
-    loadComponent: () => import('./staff/login/staff-login.component').then(m => m.StaffLoginComponent),
-  },
   {
     path: 'admin/change-password',
     canActivate: [staffMustChangePasswordGuard],
@@ -82,10 +88,6 @@ export const routes: Routes = [
 
   // Client Portal
   {
-    path: 'portal/login',
-    loadComponent: () => import('./portal/login/portal-login.component').then(m => m.PortalLoginComponent),
-  },
-  {
     path: 'portal/change-password',
     canActivate: [clientMustChangePasswordGuard],
     loadComponent: () => import('./portal/change-password/portal-change-password.component').then(m => m.PortalChangePasswordComponent),
@@ -111,5 +113,5 @@ export const routes: Routes = [
     ],
   },
 
-  { path: '**', redirectTo: 'admin/login' },
+  { path: '**', redirectTo: 'login' },
 ];

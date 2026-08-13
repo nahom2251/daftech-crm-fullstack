@@ -77,6 +77,8 @@ export interface Client {
   rejectionReason?: string;
   username?: string;
   mustChangePassword: boolean;
+  /** Permanent display id — "DAF-CLI-####". Set once at creation, never changes. See AccountReferenceIdService. */
+  accountRefId: string;
 }
 
 /** Returned once, immediately after Admin registers a new client. Never retrievable again after this response. */
@@ -186,6 +188,8 @@ export interface Employee {
   averageSatisfactionScore?: number;
   username: string;
   mustChangePassword: boolean;
+  /** Permanent display id — "DAF-ADMIN-####" or "DAF-EMP-####". Set once at creation, never changes. See AccountReferenceIdService. */
+  accountRefId: string;
 }
 
 /** Returned once, immediately after Admin registers a new employee. Never retrievable again after this response. */

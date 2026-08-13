@@ -12,11 +12,13 @@ public class EmployeeService : IEmployeeService
 
     private readonly IAppDbContext _db;
     private readonly AccountCredentialService _credentials;
+    private readonly AccountReferenceIdService _accountRefIds;
 
-    public EmployeeService(IAppDbContext db, AccountCredentialService credentials)
+    public EmployeeService(IAppDbContext db, AccountCredentialService credentials, AccountReferenceIdService accountRefIds)
     {
         _db = db;
         _credentials = credentials;
+        _accountRefIds = accountRefIds;
     }
 
     public async Task<EmployeeRegisteredResult> RegisterAsync(CreateEmployeeRequest request, CancellationToken ct = default)
@@ -32,6 +34,7 @@ public class EmployeeService : IEmployeeService
             Roles = request.Roles.ToList(),
             ExtraRoleLabels = request.ExtraRoleLabels.ToList(),
             AllowedIpAddresses = request.AllowedIpAddresses.ToList(),
+            AccountRefId = await _accountRefIds.GenerateForEmployeeAsync(request.Roles, ct),
             Username = issued.Username,
             PasswordHash = PasswordHasher.Hash(issued.OneTimePassword),
             MustChangePassword = true,
@@ -88,7 +91,7 @@ public class EmployeeService : IEmployeeService
             e.Id, e.FullName, e.Email, e.PhoneNumber, e.Specialization, e.Roles, e.ExtraRoleLabels, e.AccountStatus, e.AllowedIpAddresses,
             e.DisabledAt, e.DisabledReason,
             openCounts.GetValueOrDefault(e.Id, 0), avgScores.GetValueOrDefault(e.Id),
-            e.Username, e.MustChangePassword
+            e.Username, e.MustChangePassword, e.AccountRefId
         )).ToList();
     }
 
@@ -122,7 +125,7 @@ public class EmployeeService : IEmployeeService
             e.Id, e.FullName, e.Email, e.PhoneNumber, e.Specialization, e.Roles, e.ExtraRoleLabels, e.AccountStatus, e.AllowedIpAddresses,
             e.DisabledAt, e.DisabledReason,
             openCounts.GetValueOrDefault(e.Id, 0), avgScores.GetValueOrDefault(e.Id),
-            e.Username, e.MustChangePassword
+            e.Username, e.MustChangePassword, e.AccountRefId
         )).ToList();
 
         return new PagedResult<EmployeeDto>(items, query.Page, query.PageSize, totalCount);
@@ -229,7 +232,7 @@ public class EmployeeService : IEmployeeService
 
         return new EmployeeDto(
             e.Id, e.FullName, e.Email, e.PhoneNumber, e.Specialization, e.Roles, e.ExtraRoleLabels, e.AccountStatus, e.AllowedIpAddresses,
-            e.DisabledAt, e.DisabledReason, openCount, avgScore, e.Username, e.MustChangePassword
+            e.DisabledAt, e.DisabledReason, openCount, avgScore, e.Username, e.MustChangePassword, e.AccountRefId
         );
     }
 }

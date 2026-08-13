@@ -5,6 +5,18 @@ namespace DaftechCrm.Domain.Entities;
 public class Employee
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+
+    /// <summary>
+    /// Human-readable, permanent account identifier — "DAF-ADMIN-####" for an
+    /// Admin, "DAF-EMP-####" for any other employee role, where #### is 4
+    /// random digits. Generated once at registration (see
+    /// AccountReferenceIdService) and never changes afterward, including
+    /// across profile edits or role changes. Purely a display/lookup label —
+    /// every [Authorize] policy checks Roles below, never this string, so it
+    /// can't be used to escalate privilege even if guessed or edited in transit.
+    /// </summary>
+    public string AccountRefId { get; set; } = default!;
+
     public string FullName { get; set; } = default!;
 
     /// <summary>Used for login-credential delivery (SRS v2.0 §4.3.1) and notifications.</summary>

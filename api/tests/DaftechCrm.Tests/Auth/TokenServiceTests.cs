@@ -67,7 +67,7 @@ public class TokenServiceTests : IDisposable
         {
             Id = employeeId, Username = "jdoe", FullName = "J Doe", Email = "j@daftech.et",
             PasswordHash = "irrelevant-for-this-test", Roles = new List<EmployeeRole> { EmployeeRole.ItSupport },
-            AccountStatus = EmployeeAccountStatus.Active,
+            AccountStatus = EmployeeAccountStatus.Active, AccountRefId = "DAF-EMP-0001",
         });
         await _db.SaveChangesAsync();
 
@@ -89,7 +89,7 @@ public class TokenServiceTests : IDisposable
         {
             Id = employeeId, Username = "jdoe", FullName = "J Doe", Email = "j@daftech.et",
             PasswordHash = "irrelevant-for-this-test", Roles = new List<EmployeeRole> { EmployeeRole.ItSupport },
-            AccountStatus = EmployeeAccountStatus.Active,
+            AccountStatus = EmployeeAccountStatus.Active, AccountRefId = "DAF-EMP-0002",
         });
         await _db.SaveChangesAsync();
 

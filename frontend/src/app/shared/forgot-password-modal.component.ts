@@ -64,7 +64,15 @@ import { SessionAccountType } from '../core/models';
 })
 export class ForgotPasswordModalComponent {
   @Input() open = false;
-  @Input() accountType: SessionAccountType = 'Client';
+  /**
+   * Kept as an input for backward compatibility with the dedicated staff/
+   * portal login pages, which still know their own account type. The
+   * unified login page doesn't know it up front (that's the point), so it
+   * leaves this at the default — harmless either way, since the backend
+   * (see PasswordResetService.SubmitAsync) resolves the real account type
+   * itself by looking up the username, not by trusting this field.
+   */
+  @Input() accountType: SessionAccountType = 'Employee';
   @Output() close = new EventEmitter<void>();
 
   username = signal('');

@@ -112,11 +112,12 @@ const ALL_ROLES: EmployeeRole[] = ['Admin', 'EmployeeTechnician'];
 
       <div class="table-scroll"><table>
         <thead>
-          <tr><th>Name</th><th>Email</th><th>Specialization</th><th>Roles</th><th>Open Tickets</th><th>Status</th><th></th></tr>
+          <tr><th>Account ID</th><th>Name</th><th>Email</th><th>Specialization</th><th>Roles</th><th>Open Tickets</th><th>Status</th><th></th></tr>
         </thead>
         <tbody>
           @for (e of displayedEmployees(); track e.id) {
             <tr>
+              <td class="mono">{{ e.accountRefId }}</td>
               <td>{{ e.fullName }}</td>
               <td class="text-muted">{{ e.email }}</td>
               <td>{{ e.specialization }}</td>
@@ -137,7 +138,7 @@ const ALL_ROLES: EmployeeRole[] = ['Admin', 'EmployeeTechnician'];
             </tr>
           }
           @empty {
-            <tr><td colspan="7" class="text-muted" style="text-align:center; padding: 1.5rem;">No employees match your filters.</td></tr>
+            <tr><td colspan="8" class="text-muted" style="text-align:center; padding: 1.5rem;">No employees match your filters.</td></tr>
           }
         </tbody>
       </table></div>

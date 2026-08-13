@@ -5,6 +5,18 @@ namespace DaftechCrm.Domain.Entities;
 public class Client
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+
+    /// <summary>
+    /// Human-readable, permanent account identifier — "DAF-CLI-####" where
+    /// #### is 4 random digits. Generated once at registration/signup
+    /// approval (see AccountReferenceIdService) and never changes afterward,
+    /// including across profile edits. Distinct from IdNumber below (a
+    /// separate KYC/business reference the client already has) — this is
+    /// specifically the CRM login-account identifier. Purely a display/
+    /// lookup label; role/permission checks never depend on it.
+    /// </summary>
+    public string AccountRefId { get; set; } = default!;
+
     public string Name { get; set; } = default!;
     public string IdNumber { get; set; } = default!;
     public string PhoneNumber { get; set; } = default!;

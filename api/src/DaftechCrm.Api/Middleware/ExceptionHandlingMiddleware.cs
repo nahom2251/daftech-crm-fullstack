@@ -92,6 +92,7 @@ public class ExceptionHandlingMiddleware
         "IX_employees_Username" => "That username is already taken — please try again.",
         "IX_clients_Email" => "A client with this email address is already registered.",
         "IX_clients_IdNumber" => "A client with this ID number is already registered.",
+        "IX_employees_AccountRefId" or "IX_clients_AccountRefId" => "That account reference ID is already in use — please try again.",
         _ => "A record with these details already exists.",
     };
 }

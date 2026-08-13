@@ -102,11 +102,12 @@ import { ClientRegisteredResult } from '../../core/models';
 
       <div class="table-scroll"><table>
         <thead>
-          <tr><th>Name</th><th>ID Number</th><th>Office</th><th>Location</th><th>Status</th><th>Onboarded</th><th></th></tr>
+          <tr><th>Account ID</th><th>Name</th><th>ID Number</th><th>Office</th><th>Location</th><th>Status</th><th>Onboarded</th><th></th></tr>
         </thead>
         <tbody>
           @for (c of displayedClients(); track c.id) {
             <tr>
+              <td class="mono">{{ c.accountRefId }}</td>
               <td>{{ c.name }}</td>
               <td class="mono text-muted">{{ c.idNumber }}</td>
               <td>{{ c.office }}</td>
@@ -117,7 +118,7 @@ import { ClientRegisteredResult } from '../../core/models';
             </tr>
           }
           @empty {
-            <tr><td colspan="7" class="text-muted" style="text-align:center; padding: 1.5rem;">No clients match your filters.</td></tr>
+            <tr><td colspan="8" class="text-muted" style="text-align:center; padding: 1.5rem;">No clients match your filters.</td></tr>
           }
         </tbody>
       </table></div>

@@ -51,6 +51,7 @@ namespace DaftechCrm.Infrastructure.Migrations
             modelBuilder.Entity("DaftechCrm.Domain.Entities.Client", b =>
             {
                 b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<string>("AccountRefId").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)");
                 b.Property<int>("AccountStatus").HasColumnType("integer");
                 b.Property<string>("City").HasMaxLength(100).HasColumnType("character varying(100)");
                 b.Property<string>("Email").IsRequired().HasMaxLength(200).HasColumnType("character varying(200)");
@@ -71,6 +72,7 @@ namespace DaftechCrm.Infrastructure.Migrations
                 b.Property<string>("Username").HasMaxLength(50).HasColumnType("character varying(50)");
                 b.Property<string>("Woreda").HasMaxLength(100).HasColumnType("character varying(100)");
                 b.HasKey("Id");
+                b.HasIndex("AccountRefId").IsUnique();
                 b.HasIndex("IdNumber").IsUnique();
                 b.HasIndex("Username").IsUnique();
                 b.ToTable("clients");
@@ -79,6 +81,7 @@ namespace DaftechCrm.Infrastructure.Migrations
             modelBuilder.Entity("DaftechCrm.Domain.Entities.Employee", b =>
             {
                 b.Property<Guid>("Id").HasColumnType("uuid");
+                b.Property<string>("AccountRefId").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)");
                 b.Property<int>("AccountStatus").HasColumnType("integer");
                 b.Property<string>("AllowedIpAddresses").IsRequired().HasColumnType("varchar(1000)");
                 b.Property<DateTimeOffset?>("DisabledAt").HasColumnType("timestamp with time zone");
@@ -94,6 +97,7 @@ namespace DaftechCrm.Infrastructure.Migrations
                 b.Property<DateTimeOffset?>("OtpExpiresAt").HasColumnType("timestamp with time zone");
                 b.Property<string>("Username").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)");
                 b.HasKey("Id");
+                b.HasIndex("AccountRefId").IsUnique();
                 b.HasIndex("Email").IsUnique();
                 b.HasIndex("Username").IsUnique();
                 b.ToTable("employees");

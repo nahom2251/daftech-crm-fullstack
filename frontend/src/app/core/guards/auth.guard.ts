@@ -19,7 +19,7 @@ export const staffAuthGuard: CanActivateFn = async () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   await awaitSessionRestore(auth);
-  if (!auth.isStaffAuthenticated()) return router.parseUrl('/admin/login');
+  if (!auth.isStaffAuthenticated()) return router.parseUrl('/login');
   // The change-password screen is the only thing reachable until it's done.
   if (auth.staffMustChangePassword()) return router.parseUrl('/admin/change-password');
   return true;
@@ -29,7 +29,7 @@ export const clientAuthGuard: CanActivateFn = async () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   await awaitSessionRestore(auth);
-  if (!auth.isClientAuthenticated()) return router.parseUrl('/portal/login');
+  if (!auth.isClientAuthenticated()) return router.parseUrl('/login');
   if (auth.clientMustChangePassword()) return router.parseUrl('/portal/change-password');
   return true;
 };
@@ -39,7 +39,7 @@ export const staffMustChangePasswordGuard: CanActivateFn = async () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   await awaitSessionRestore(auth);
-  if (!auth.isStaffAuthenticated()) return router.parseUrl('/admin/login');
+  if (!auth.isStaffAuthenticated()) return router.parseUrl('/login');
   if (!auth.staffMustChangePassword()) return router.parseUrl('/admin/dashboard');
   return true;
 };
@@ -48,7 +48,7 @@ export const clientMustChangePasswordGuard: CanActivateFn = async () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   await awaitSessionRestore(auth);
-  if (!auth.isClientAuthenticated()) return router.parseUrl('/portal/login');
+  if (!auth.isClientAuthenticated()) return router.parseUrl('/login');
   if (!auth.clientMustChangePassword()) return router.parseUrl('/portal/dashboard');
   return true;
 };

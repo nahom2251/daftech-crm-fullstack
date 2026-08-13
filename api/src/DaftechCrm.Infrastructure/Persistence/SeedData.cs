@@ -81,4 +81,17 @@ public static class SeedData
             Username = "mm2002", PasswordHash = PasswordHasher.Hash(SeedPassword), MustChangePassword = false,
         };
     }
+
+    /// <summary>
+    /// Same two accounts as Employees() above — exposed under a separate
+    /// name because DependencyInjection.EnsureDemoAccountsAsync calls this
+    /// on every single startup (upserting by Username), not just once when
+    /// the database is empty like Employees()/Clients() are. Kept as a
+    /// direct alias rather than a duplicate list so there's one source of
+    /// truth for what the demo accounts actually are.
+    /// </summary>
+    public static IEnumerable<Employee> DemoEmployees() => Employees();
+
+    /// <summary>Same two accounts as Clients() above — see DemoEmployees() for why this exists as a separate name.</summary>
+    public static IEnumerable<Client> DemoClients() => Clients();
 }

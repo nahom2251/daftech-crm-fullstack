@@ -155,8 +155,11 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// Applies pending migrations and inserts seed data if database is empty.
-    /// Call once at startup.
+    /// Applies pending migrations, inserts the full seed data set if the
+    /// database is empty, and separately guarantees the fixed demo accounts
+    /// exist on every startup (see EnsureDemoAccountsAsync below) —
+    /// regardless of whatever else is already in the database. Call once
+    /// at startup.
     /// </summary>
     public static async Task MigrateAndSeedAsync(this IServiceProvider services)
     {
@@ -173,5 +176,82 @@ public static class DependencyInjection
 
             await db.SaveChangesAsync();
         }
+
+        await EnsureDemoAccountsAsync(db);
+    }
+
+    /// <summary>
+    /// Guarantees the four fixed demo accounts (na1001/ns1002/at2001/mm2002,
+    /// password "DaftechDemo1!") exist with a working password and a real
+    /// AccountRefId, on every single startup — not just on a fresh/empty
+    /// database like the seeding above. Upserts by Username: if the row is
+    /// missing, it's inserted; if it already exists (e.g. from before this
+    /// upsert step existed, or from an older deploy), its password hash and
+    /// AccountRefId are corrected in place rather than left stale. This
+    /// exists specifically so demo logins keep working across redeploys
+    /// even against a database that already has older data in it — the
+    /// original SeedData-based seeding above only ever runs once, the very
+    /// first time the Employees table is empty.
+    /// </summary>
+    private static async Task EnsureDemoAccountsAsync(AppDbContext db)
+    {
+        foreach (var demo in SeedData.DemoEmployees())
+        {
+            var existing = await db.EmployeesSet.FirstOrDefaultAsync(e => e.Username == demo.Username);
+            if (existing is null)
+            {
+                // Guard against the fixed seed Guid or Email colliding with
+                // some unrelated existing row (e.g. a different account
+                // that happens to reuse Emp1Admin's Id from an earlier,
+                // differently-shaped deploy). Falls back to a fresh random
+                // Id and a de-duplicated email rather than letting
+                // SaveChangesAsync fail on a constraint violation.
+                if (await db.EmployeesSet.AnyAsync(e => e.Id == demo.Id))
+                    demo.Id = Guid.NewGuid();
+                if (await db.EmployeesSet.AnyAsync(e => e.Email == demo.Email))
+                    demo.Email = $"{demo.Username}@daftech.et";
+
+                db.EmployeesSet.Add(demo);
+            }
+            else
+            {
+                // Guard the AccountRefId update too — if some other row
+                // already holds this exact id (e.g. a leftover from a
+                // previous partial run), skip overwriting to avoid a
+                // unique-index violation; the existing row keeps whatever
+                // AccountRefId it already has.
+                var refIdTakenElsewhere = await db.EmployeesSet.AnyAsync(e => e.AccountRefId == demo.AccountRefId && e.Id != existing.Id);
+                if (!refIdTakenElsewhere) existing.AccountRefId = demo.AccountRefId;
+                existing.PasswordHash = demo.PasswordHash;
+                existing.MustChangePassword = demo.MustChangePassword;
+                existing.AccountStatus = demo.AccountStatus;
+            }
+        }
+
+        foreach (var demo in SeedData.DemoClients())
+        {
+            var existing = await db.ClientsSet.FirstOrDefaultAsync(c => c.Username == demo.Username);
+            if (existing is null)
+            {
+                if (await db.ClientsSet.AnyAsync(c => c.Id == demo.Id))
+                    demo.Id = Guid.NewGuid();
+                if (await db.ClientsSet.AnyAsync(c => c.Email == demo.Email))
+                    demo.Email = $"{demo.Username}@daftech.et";
+                if (await db.ClientsSet.AnyAsync(c => c.IdNumber == demo.IdNumber))
+                    demo.IdNumber = $"ID-{demo.Username}";
+
+                db.ClientsSet.Add(demo);
+            }
+            else
+            {
+                var refIdTakenElsewhere = await db.ClientsSet.AnyAsync(c => c.AccountRefId == demo.AccountRefId && c.Id != existing.Id);
+                if (!refIdTakenElsewhere) existing.AccountRefId = demo.AccountRefId;
+                existing.PasswordHash = demo.PasswordHash;
+                existing.MustChangePassword = demo.MustChangePassword;
+                existing.AccountStatus = demo.AccountStatus;
+            }
+        }
+
+        await db.SaveChangesAsync();
     }
 }

@@ -130,6 +130,16 @@ export class LoginComponent {
         const dest = this.auth.clientMustChangePassword() ? '/portal/change-password' : '/portal/dashboard';
         this.router.navigateByUrl(dest);
       }
+    } catch (err) {
+      // A thrown error here (network failure, CORS, unexpected non-2xx
+      // response) previously propagated silently past the finally block
+      // below with nothing shown to the user — the form just reset to
+      // idle after a delay, looking like nothing happened. Surface it
+      // instead so a real connectivity/server problem is distinguishable
+      // from an actual wrong-password rejection (which comes back as
+      // res.success === false above, not a thrown exception).
+      console.error('Login request failed', err);
+      this.error.set('Could not reach the server. Please check your connection and try again.');
     } finally {
       this.submitting.set(false);
     }

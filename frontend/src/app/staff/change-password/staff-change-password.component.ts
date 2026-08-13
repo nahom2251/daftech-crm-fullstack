@@ -19,13 +19,28 @@ import { PASSWORD_STRENGTH_HINT, passwordStrengthError } from '../../core/passwo
         </p>
 
         <label class="lbl">Current (one-time) password</label>
-        <input type="password" [ngModel]="currentPassword()" (ngModelChange)="currentPassword.set($event)" autocomplete="current-password" />
+        <div class="pw-field">
+          <input [type]="showCurrent() ? 'text' : 'password'" [ngModel]="currentPassword()" (ngModelChange)="currentPassword.set($event)" autocomplete="current-password" />
+          <button type="button" class="pw-toggle" (click)="showCurrent.set(!showCurrent())" [attr.aria-label]="showCurrent() ? 'Hide password' : 'Show password'">
+            {{ showCurrent() ? 'Hide' : 'Show' }}
+          </button>
+        </div>
 
         <label class="lbl" style="margin-top:0.8rem;">New password</label>
-        <input type="password" [ngModel]="newPassword()" (ngModelChange)="newPassword.set($event)" autocomplete="new-password" />
+        <div class="pw-field">
+          <input [type]="showNew() ? 'text' : 'password'" [ngModel]="newPassword()" (ngModelChange)="newPassword.set($event)" autocomplete="new-password" />
+          <button type="button" class="pw-toggle" (click)="showNew.set(!showNew())" [attr.aria-label]="showNew() ? 'Hide password' : 'Show password'">
+            {{ showNew() ? 'Hide' : 'Show' }}
+          </button>
+        </div>
 
         <label class="lbl" style="margin-top:0.8rem;">Confirm new password</label>
-        <input type="password" [ngModel]="confirmPassword()" (ngModelChange)="confirmPassword.set($event)" autocomplete="new-password" (keydown.enter)="submit()" />
+        <div class="pw-field">
+          <input [type]="showConfirm() ? 'text' : 'password'" [ngModel]="confirmPassword()" (ngModelChange)="confirmPassword.set($event)" autocomplete="new-password" (keydown.enter)="submit()" />
+          <button type="button" class="pw-toggle" (click)="showConfirm.set(!showConfirm())" [attr.aria-label]="showConfirm() ? 'Hide password' : 'Show password'">
+            {{ showConfirm() ? 'Hide' : 'Show' }}
+          </button>
+        </div>
 
         <p class="text-muted hint">{{ passwordHint }}</p>
 
@@ -43,6 +58,13 @@ import { PASSWORD_STRENGTH_HINT, passwordStrengthError } from '../../core/passwo
     .card .lbl, .card input, .card .hint, .card .err { text-align: left; }
     .lbl { display: block; font-size: 0.78rem; font-weight: 600; color: var(--slate-500); margin-bottom: 0.3rem; }
     input { width: 100%; }
+    .pw-field { position: relative; display: flex; align-items: center; }
+    .pw-field input { padding-right: 3.4rem; }
+    .pw-toggle {
+      position: absolute; right: 0.6rem; background: none; border: none; cursor: pointer;
+      font-size: 0.72rem; font-weight: 600; color: var(--slate-500); padding: 0.2rem 0.3rem;
+    }
+    .pw-toggle:hover { color: var(--navy-950); }
     .hint { font-size: 0.75rem; margin-top: 0.5rem; }
     .err { margin-top: 0.9rem; padding: 0.65rem 0.8rem; border-radius: 8px; background: var(--red-bg); color: var(--red); font-size: 0.83rem; }
   `],
@@ -51,6 +73,9 @@ export class StaffChangePasswordComponent {
   currentPassword = signal('');
   newPassword = signal('');
   confirmPassword = signal('');
+  showCurrent = signal(false);
+  showNew = signal(false);
+  showConfirm = signal(false);
   submitting = signal(false);
   error = signal<string | null>(null);
   readonly passwordHint = PASSWORD_STRENGTH_HINT;
@@ -60,7 +85,16 @@ export class StaffChangePasswordComponent {
   async submit() {
     this.error.set(null);
 
-    if (!this.currentPassword() || !this.newPassword() || !this.confirmPassword()) {
+    // Trim the one-time password: it's a 10-character random string that
+    // people usually copy-paste out of the credential email, and a stray
+    // trailing space/newline from that paste silently fails hash
+    // verification while showing an input that "looks" identical to the
+    // one that was emailed. New/confirm passwords are left untrimmed since
+    // a deliberate leading/trailing space in a self-chosen password is
+    // technically valid and shouldn't be silently altered.
+    const currentPw = this.currentPassword().trim();
+
+    if (!currentPw || !this.newPassword() || !this.confirmPassword()) {
       this.error.set('Please fill in all three fields.');
       return;
     }
@@ -76,7 +110,7 @@ export class StaffChangePasswordComponent {
 
     this.submitting.set(true);
     try {
-      await this.auth.changeEmployeePassword(this.currentPassword(), this.newPassword(), this.confirmPassword());
+      await this.auth.changeEmployeePassword(currentPw, this.newPassword(), this.confirmPassword());
       this.router.navigateByUrl('/admin/dashboard');
     } catch (e: any) {
       this.error.set(e?.error?.text ?? e?.error ?? 'Could not change password — check your current password and try again.');

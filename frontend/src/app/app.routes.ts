@@ -103,6 +103,7 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       { path: 'dashboard', loadComponent: () => import('./portal/dashboard/dashboard.component').then(m => m.PortalDashboardComponent) },
+      { path: 'agreements', loadComponent: () => import('./portal/agreements/portal-agreements.component').then(m => m.PortalAgreementsComponent) },
       { path: 'maintenance-history', loadComponent: () => import('./portal/maintenance-history/maintenance-history.component').then(m => m.MaintenanceHistoryComponent) },
       { path: 'reports', loadComponent: () => import('./portal/reports/reports.component').then(m => m.PortalReportsComponent) },
       { path: 'submit-issue', redirectTo: 'maintenance-history', pathMatch: 'full' },

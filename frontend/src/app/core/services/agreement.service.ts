@@ -103,8 +103,9 @@ export class AgreementService {
     return this._agreements().filter(a => new Date(a.expiryDate).getTime() <= in30);
   }
 
-  /** Client-side mirror of the server's Agreement.IsWithinSupportWindow — used for optimistic UI only; the server is the source of truth for Chargeable. */
+  /** Client-side mirror of the server's Agreement.IsWithinSupportWindow — used for optimistic UI only; the server is the source of truth for Chargeable. Always false until training has finished (signDate is set). */
   isWithinSupportWindow(agreement: Agreement, atDate: Date = new Date()): boolean {
+    if (!agreement.signDate) return false;
     const start = new Date(agreement.signDate);
     const windowEnd = new Date(start);
     windowEnd.setMonth(windowEnd.getMonth() + agreement.supportWindowMonths);
@@ -113,7 +114,7 @@ export class AgreementService {
 
   async createAgreement(data: {
     clientId: string; agreementPlace: string;
-    signDate: string; expiryDate?: string; supportWindowMonths: number; billingTier: BillingTier;
+    expiryDate?: string; supportWindowMonths: number; billingTier: BillingTier;
   }): Promise<Agreement> {
     const agreement = await firstValueFrom(this.http.post<Agreement>(`${API_BASE_URL}/agreements`, data));
     await Promise.all([this.refresh(), this.refreshPaged()]);
@@ -148,37 +149,52 @@ export class AgreementService {
     );
   }
 
-  /**
-   * Uploads (or replaces) the scanned copy of the pre-agreement client
-   * training document — a separate file from the signed agreement scan
-   * above (see backend AgreementService.UploadTrainingScanAsync).
-   */
-  async uploadTrainingScan(agreementId: string, file: File): Promise<Agreement> {
+  /** Creates a new, empty training row on the agreement — the admin then fills in and saves its details independently of any other training row. */
+  async addTraining(agreementId: string): Promise<Agreement> {
+    const updated = await firstValueFrom(
+      this.http.post<Agreement>(`${API_BASE_URL}/agreements/${agreementId}/trainings`, {})
+    );
+    await Promise.all([this.refresh(), this.refreshPaged()]);
+    return updated;
+  }
+
+  /** Sets/updates one training row's description and timeline (start/end dates). All fields optional — can be filled in over time. Each training row is saved independently with its own Save action. */
+  async saveTraining(
+    agreementId: string,
+    trainingId: string,
+    data: { description?: string; startDate?: string; endDate?: string }
+  ): Promise<Agreement> {
+    const updated = await firstValueFrom(
+      this.http.put<Agreement>(`${API_BASE_URL}/agreements/${agreementId}/trainings/${trainingId}`, data)
+    );
+    await Promise.all([this.refresh(), this.refreshPaged()]);
+    return updated;
+  }
+
+  /** Deletes a training row from an agreement. */
+  async deleteTraining(agreementId: string, trainingId: string): Promise<Agreement> {
+    const updated = await firstValueFrom(
+      this.http.delete<Agreement>(`${API_BASE_URL}/agreements/${agreementId}/trainings/${trainingId}`)
+    );
+    await Promise.all([this.refresh(), this.refreshPaged()]);
+    return updated;
+  }
+
+  /** Uploads (or replaces) the scanned document for one specific training row — a separate file from the signed agreement scan above. */
+  async uploadTrainingScan(agreementId: string, trainingId: string, file: File): Promise<Agreement> {
     const form = new FormData();
     form.append('file', file, file.name);
     const updated = await firstValueFrom(
-      this.http.post<Agreement>(`${API_BASE_URL}/agreements/${agreementId}/training-scan`, form)
+      this.http.post<Agreement>(`${API_BASE_URL}/agreements/${agreementId}/trainings/${trainingId}/scan`, form)
     );
     await Promise.all([this.refresh(), this.refreshPaged()]);
     return updated;
   }
 
-  /** Fetches the training scan as a Blob — same reasoning as downloadScannedFile above. */
-  async downloadTrainingScan(agreementId: string): Promise<Blob> {
+  /** Fetches a training row's scan as a Blob — same reasoning as downloadScannedFile above. */
+  async downloadTrainingScan(agreementId: string, trainingId: string): Promise<Blob> {
     return firstValueFrom(
-      this.http.get(`${API_BASE_URL}/agreements/${agreementId}/training-scan`, { responseType: 'blob' })
+      this.http.get(`${API_BASE_URL}/agreements/${agreementId}/trainings/${trainingId}/scan`, { responseType: 'blob' })
     );
-  }
-
-  /** Sets/updates the training description and timeline (start/end dates). All fields optional — can be filled in over time. */
-  async updateTrainingInfo(
-    agreementId: string,
-    data: { trainingDescription?: string; trainingStartDate?: string; trainingEndDate?: string }
-  ): Promise<Agreement> {
-    const updated = await firstValueFrom(
-      this.http.put<Agreement>(`${API_BASE_URL}/agreements/${agreementId}/training-info`, data)
-    );
-    await Promise.all([this.refresh(), this.refreshPaged()]);
-    return updated;
   }
 }

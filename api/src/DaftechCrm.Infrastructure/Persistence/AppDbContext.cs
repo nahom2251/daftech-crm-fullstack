@@ -10,6 +10,7 @@ public class AppDbContext : DbContext, IAppDbContext
 
     public DbSet<Client> ClientsSet => Set<Client>();
     public DbSet<Agreement> AgreementsSet => Set<Agreement>();
+    public DbSet<AgreementTraining> AgreementTrainingsSet => Set<AgreementTraining>();
     public DbSet<Ticket> TicketsSet => Set<Ticket>();
     public DbSet<TicketAuditEntry> TicketAuditEntriesSet => Set<TicketAuditEntry>();
     public DbSet<Employee> EmployeesSet => Set<Employee>();
@@ -29,6 +30,7 @@ public class AppDbContext : DbContext, IAppDbContext
     // IAppDbContext — exposed as IQueryable so Application services never depend on DbSet<T> directly.
     public IQueryable<Client> Clients => ClientsSet;
     public IQueryable<Agreement> Agreements => AgreementsSet;
+    public IQueryable<AgreementTraining> AgreementTrainings => AgreementTrainingsSet;
     public IQueryable<Ticket> Tickets => TicketsSet;
     public IQueryable<TicketAuditEntry> TicketAuditEntries => TicketAuditEntriesSet;
     public IQueryable<Employee> Employees => EmployeesSet;

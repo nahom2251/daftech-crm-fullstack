@@ -79,9 +79,19 @@ public class AgreementConfiguration : IEntityTypeConfiguration<Agreement>
         b.HasIndex(x => x.DocumentNumber).IsUnique();
         b.Property(x => x.ScannedFileUrl).HasMaxLength(500);
         b.Property(x => x.AgreementPlace).HasMaxLength(200);
-        b.Property(x => x.TrainingScanStorageKey).HasMaxLength(500);
-        b.Property(x => x.TrainingScanFileName).HasMaxLength(300);
-        b.Property(x => x.TrainingDescription).HasColumnType("text");
+        b.HasMany(x => x.Trainings).WithOne(t => t.Agreement).HasForeignKey(t => t.AgreementId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+public class AgreementTrainingConfiguration : IEntityTypeConfiguration<AgreementTraining>
+{
+    public void Configure(EntityTypeBuilder<AgreementTraining> b)
+    {
+        b.ToTable("agreement_trainings");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Description).HasColumnType("text");
+        b.Property(x => x.ScanStorageKey).HasMaxLength(500);
+        b.Property(x => x.ScanFileName).HasMaxLength(300);
     }
 }
 

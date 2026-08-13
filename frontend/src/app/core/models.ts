@@ -90,22 +90,29 @@ export interface ClientRegisteredResult {
   emailError?: string;
 }
 
+export interface AgreementTraining {
+  id: string;
+  agreementId: string;
+  description?: string;
+  startDate?: string; // ISO date
+  endDate?: string; // ISO date
+  scanFileName?: string;
+}
+
 export interface Agreement {
   id: string;
   clientId: string;
   documentNumber: string;
   scannedFileUrl?: string;
   agreementPlace: string;
-  signDate: string; // ISO date
+  /** Derived: the support agreement starts once training ends — this mirrors the latest (max) training endDate and is null until at least one training has an end date. Not directly editable. */
+  signDate?: string; // ISO date
   expiryDate: string; // ISO date
   supportWindowMonths: number;
   status: AgreementStatus;
   billingTier: BillingTier;
-  /** Original filename of the training scan, or undefined if none was uploaded. Fetch/upload via AgreementService's training-scan methods — display-only. */
-  trainingScanFileName?: string;
-  trainingDescription?: string;
-  trainingStartDate?: string; // ISO date
-  trainingEndDate?: string; // ISO date
+  /** One or more client trainings delivered for this agreement — each has its own scan/description/timeline, saved independently. */
+  trainings: AgreementTraining[];
 }
 
 export interface Ticket {

@@ -134,14 +134,26 @@ export class AuthService {
 
     if (result.success && result.accountType === 'Employee' && result.employee) {
       this._currentEmployee.set(result.employee);
-      if (result.tokens) this.tokenStorage.setTokens(result.tokens);
-      this.sessions.startHeartbeat('Employee', result.employee.id);
-      this.startIdleWatch();
+      // Heartbeat/idle-watch need a real access token to authenticate their
+      // calls — starting them while tokens is null (the must-change-password
+      // case, where no token is issued until the OTP is replaced) sends an
+      // unauthenticated sessions/touch, which 401s, which the interceptor
+      // treats as a dead session and force-logs-out — wiping
+      // _currentEmployee right out from under the change-password screen
+      // before the person can finish it. Only start these once real tokens
+      // actually exist.
+      if (result.tokens) {
+        this.tokenStorage.setTokens(result.tokens);
+        this.sessions.startHeartbeat('Employee', result.employee.id);
+        this.startIdleWatch();
+      }
     } else if (result.success && result.accountType === 'Client' && result.client) {
       this._currentClient.set(result.client);
-      if (result.tokens) this.tokenStorage.setTokens(result.tokens);
-      this.sessions.startHeartbeat('Client', result.client.id);
-      this.startIdleWatch();
+      if (result.tokens) {
+        this.tokenStorage.setTokens(result.tokens);
+        this.sessions.startHeartbeat('Client', result.client.id);
+        this.startIdleWatch();
+      }
     }
 
     return { success: result.success, message: result.message, accountType: result.accountType ?? undefined };
@@ -162,9 +174,14 @@ export class AuthService {
 
     if (result.success && result.employee) {
       this._currentEmployee.set(result.employee);
-      if (result.tokens) this.tokenStorage.setTokens(result.tokens);
-      this.sessions.startHeartbeat('Employee', result.employee.id);
-      this.startIdleWatch();
+      // See the identical comment in login() above — don't start
+      // heartbeat/idle-watch without a real token, or the resulting 401
+      // triggers a forced logout mid change-password flow.
+      if (result.tokens) {
+        this.tokenStorage.setTokens(result.tokens);
+        this.sessions.startHeartbeat('Employee', result.employee.id);
+        this.startIdleWatch();
+      }
     }
     return { success: result.success, message: result.message, ipAddress: result.ipAddress };
   }
@@ -184,7 +201,14 @@ export class AuthService {
         username: employee.username, password: newPassword, deviceType: 'Laptop', deviceIdentifier: 'WEB-SESSION',
       })
     );
-    if (result.tokens) this.tokenStorage.setTokens(result.tokens);
+    // This re-login is what actually issues real tokens post-change — start
+    // heartbeat/idle-watch here too, same as every other successful login
+    // path, so this session is tracked from the moment it has a valid token.
+    if (result.tokens) {
+      this.tokenStorage.setTokens(result.tokens);
+      this.sessions.startHeartbeat('Employee', employee.id);
+      this.startIdleWatch();
+    }
   }
 
   async loginClient(username: string, password: string): Promise<LoginResult> {
@@ -197,9 +221,11 @@ export class AuthService {
 
     if (result.success && result.client) {
       this._currentClient.set(result.client);
-      if (result.tokens) this.tokenStorage.setTokens(result.tokens);
-      this.sessions.startHeartbeat('Client', result.client.id);
-      this.startIdleWatch();
+      if (result.tokens) {
+        this.tokenStorage.setTokens(result.tokens);
+        this.sessions.startHeartbeat('Client', result.client.id);
+        this.startIdleWatch();
+      }
     }
     return { success: result.success, message: result.message };
   }
@@ -219,7 +245,11 @@ export class AuthService {
         username: client.username, password: newPassword,
       })
     );
-    if (result.tokens) this.tokenStorage.setTokens(result.tokens);
+    if (result.tokens) {
+      this.tokenStorage.setTokens(result.tokens);
+      this.sessions.startHeartbeat('Client', client.id);
+      this.startIdleWatch();
+    }
   }
 
   /**

@@ -6,7 +6,7 @@ import { ClientService } from '../../core/services/client.service';
 import { AgreementService } from '../../core/services/agreement.service';
 import { TicketService } from '../../core/services/ticket.service';
 import { BadgeComponent } from '../../shared/badge.component';
-import { TICKET_CATEGORY_LABELS, BillingTier } from '../../core/models';
+import { TICKET_CATEGORY_LABELS, BillingTier, AgreementTraining } from '../../core/models';
 
 /**
  * Client → Training → Agreements. Previously this panel was read-only and
@@ -19,7 +19,13 @@ import { TICKET_CATEGORY_LABELS, BillingTier } from '../../core/models';
  * create/upload calls the dedicated Agreements page uses — no new backend
  * logic, no changed save behavior, just wiring this page up to what
  * already works. Every "Save" here creates a new, independent Agreement
- * record; nothing is ever overwritten.
+ * record; nothing is ever overwritten — a client may have several
+ * agreements at once, all shown in the table below.
+ *
+ * Sign Date (support start) is never entered directly — it's derived
+ * server-side from the latest training's End Date (see
+ * Agreement.RecalculateSignDate), so training is managed in its own panel
+ * per agreement, same pattern as the dedicated Agreements page.
  */
 @Component({
   selector: 'app-client-detail',
@@ -57,6 +63,9 @@ import { TICKET_CATEGORY_LABELS, BillingTier } from '../../core/models';
               {{ showForm() ? 'Cancel' : '+ Add Agreement' }}
             </button>
           </div>
+          <p class="text-muted" style="font-size:0.78rem; margin: 0.3rem 0 0;">
+            A client may have multiple agreements — each new one shown below is independent.
+          </p>
 
           @if (showForm()) {
             <div class="add-form">
@@ -64,10 +73,6 @@ import { TICKET_CATEGORY_LABELS, BillingTier } from '../../core/models';
                 <div class="field">
                   <label>Agreement Place</label>
                   <input type="text" [ngModel]="form.agreementPlace" (ngModelChange)="form.agreementPlace = $event" placeholder="Addis Ababa" />
-                </div>
-                <div class="field">
-                  <label>Sign Date</label>
-                  <input type="date" [ngModel]="form.signDate" (ngModelChange)="form.signDate = $event" />
                 </div>
                 <div class="field">
                   <label>Support Window (months)</label>
@@ -87,30 +92,9 @@ import { TICKET_CATEGORY_LABELS, BillingTier } from '../../core/models';
                   @if (selectedFile()) { <span class="text-muted" style="font-size:0.75rem;">{{ selectedFile()!.name }}</span> }
                 </div>
               </div>
-
-              <h4 style="margin: 1.1rem 0 0.6rem;">Client Training</h4>
-              <p class="text-muted" style="font-size:0.78rem; margin: -0.3rem 0 0.8rem;">
-                Training delivered before this agreement — scan of the training record, a description of what was covered, and the timeline.
+              <p class="text-muted" style="font-size:0.76rem; margin: 0.8rem 0 0;">
+                Sign Date isn't set here — add training for this agreement afterward and it's calculated once training ends.
               </p>
-              <div class="form-grid">
-                <div class="field">
-                  <label>Training Scan / Document</label>
-                  <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" (change)="onTrainingFileSelected($event)" />
-                  @if (selectedTrainingFile()) { <span class="text-muted" style="font-size:0.75rem;">{{ selectedTrainingFile()!.name }}</span> }
-                </div>
-                <div class="field">
-                  <label>Start Date</label>
-                  <input type="date" [ngModel]="form.trainingStartDate" (ngModelChange)="form.trainingStartDate = $event" />
-                </div>
-                <div class="field">
-                  <label>End Date</label>
-                  <input type="date" [ngModel]="form.trainingEndDate" (ngModelChange)="form.trainingEndDate = $event" />
-                </div>
-                <div class="field" style="grid-column: 1 / -1;">
-                  <label>Description</label>
-                  <textarea rows="3" [ngModel]="form.trainingDescription" (ngModelChange)="form.trainingDescription = $event" placeholder="What was covered, who attended…"></textarea>
-                </div>
-              </div>
 
               @if (uploadError()) { <p class="upload-error" style="margin-top:0.75rem;">{{ uploadError() }}</p> }
               <button class="btn btn-primary" style="margin-top:1rem;" (click)="submit(c.id)" [disabled]="submitting()">
@@ -120,12 +104,14 @@ import { TICKET_CATEGORY_LABELS, BillingTier } from '../../core/models';
           }
 
           <div class="table-scroll" style="margin-top:1rem;"><table>
-            <thead><tr><th>Doc #</th><th>Sign Date</th><th>Expiry</th><th>Tier</th><th>Status</th><th>Document</th><th>Training</th></tr></thead>
+            <thead><tr><th>Doc #</th><th>Sign Date</th><th>Expiry</th><th>Tier</th><th>Status</th><th>Document</th><th>Trainings</th></tr></thead>
             <tbody>
               @for (a of agreements(); track a.id) {
                 <tr>
                   <td class="mono">{{ a.documentNumber }}</td>
-                  <td>{{ a.signDate }}</td>
+                  <td>
+                    @if (a.signDate) { {{ a.signDate }} } @else { <span class="text-muted">Pending training</span> }
+                  </td>
                   <td>{{ a.expiryDate }}</td>
                   <td>{{ a.billingTier }}</td>
                   <td><app-badge [status]="a.status"></app-badge></td>
@@ -135,9 +121,9 @@ import { TICKET_CATEGORY_LABELS, BillingTier } from '../../core/models';
                     } @else { <span class="text-muted">None</span> }
                   </td>
                   <td>
-                    @if (a.trainingScanFileName || a.trainingDescription || a.trainingStartDate) {
-                      <button class="btn btn-outline btn-sm" (click)="viewTraining(a.id)">View</button>
-                    } @else { <span class="text-muted">None</span> }
+                    <button class="btn btn-outline btn-sm" (click)="viewTraining(a.id)">
+                      {{ a.trainings.length > 0 ? a.trainings.length + ' training' + (a.trainings.length > 1 ? 's' : '') : 'Add training' }}
+                    </button>
                   </td>
                 </tr>
               }
@@ -148,39 +134,55 @@ import { TICKET_CATEGORY_LABELS, BillingTier } from '../../core/models';
           @if (viewingTrainingId(); as id) {
             <div class="training-view">
               <div class="header-row">
-                <h4 style="margin:0;">Training — {{ viewingTrainingDoc() }}</h4>
-                <button class="btn btn-outline btn-sm" (click)="closeTrainingView()">Close</button>
-              </div>
-              <div class="form-grid" style="margin-top:0.75rem;">
-                <div class="field">
-                  <label>Start Date</label>
-                  <input type="date" [ngModel]="trainingForm.trainingStartDate" (ngModelChange)="trainingForm.trainingStartDate = $event" />
-                </div>
-                <div class="field">
-                  <label>End Date</label>
-                  <input type="date" [ngModel]="trainingForm.trainingEndDate" (ngModelChange)="trainingForm.trainingEndDate = $event" />
-                </div>
-                <div class="field" style="grid-column: 1 / -1;">
-                  <label>Description</label>
-                  <textarea rows="3" [ngModel]="trainingForm.trainingDescription" (ngModelChange)="trainingForm.trainingDescription = $event"></textarea>
-                </div>
-                <div class="field">
-                  <label>Scan</label>
-                  <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" (change)="onTrainingFileSelected($event)" />
-                  @if (selectedTrainingFile()) {
-                    <span class="text-muted" style="font-size:0.75rem;">{{ selectedTrainingFile()!.name }}</span>
-                  } @else if (currentTrainingScanName()) {
-                    <span class="text-muted" style="font-size:0.75rem;">
-                      Current: {{ currentTrainingScanName() }}
-                      <button class="btn btn-outline btn-sm" style="margin-left:0.5rem;" (click)="downloadTrainingScan(id)">Download</button>
-                    </span>
-                  }
+                <h4 style="margin:0;">Trainings — {{ viewingTrainingDoc() }}</h4>
+                <div style="display:flex; gap:0.5rem;">
+                  <button class="btn btn-outline btn-sm" (click)="addTrainingRow(id)" [disabled]="submitting()">+ Add Training</button>
+                  <button class="btn btn-outline btn-sm" (click)="closeTrainingView()">Close</button>
                 </div>
               </div>
+
               @if (uploadError()) { <p class="upload-error" style="margin-top:0.75rem;">{{ uploadError() }}</p> }
-              <button class="btn btn-primary" style="margin-top:0.85rem;" (click)="saveTraining(id)" [disabled]="submitting()">
-                {{ submitting() ? 'Saving…' : 'Save Training Info' }}
-              </button>
+
+              @for (row of trainingRows(); track row.training.id) {
+                <div class="training-row">
+                  <div class="header-row">
+                    <h5 style="margin:0;">Training {{ $index + 1 }}</h5>
+                    <button class="btn btn-outline btn-sm" (click)="deleteTrainingRow(id, row.training.id)" [disabled]="submitting()">Delete</button>
+                  </div>
+                  <div class="form-grid" style="margin-top:0.6rem;">
+                    <div class="field">
+                      <label>Start Date</label>
+                      <input type="date" [ngModel]="row.startDate" (ngModelChange)="row.startDate = $event" />
+                    </div>
+                    <div class="field">
+                      <label>End Date</label>
+                      <input type="date" [ngModel]="row.endDate" (ngModelChange)="row.endDate = $event" />
+                    </div>
+                    <div class="field" style="grid-column: 1 / -1;">
+                      <label>Description</label>
+                      <textarea rows="3" [ngModel]="row.description" (ngModelChange)="row.description = $event"></textarea>
+                    </div>
+                    <div class="field">
+                      <label>Scan</label>
+                      <input type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" (change)="onTrainingFileSelected($event, row)" />
+                      @if (row.selectedFile) {
+                        <span class="text-muted" style="font-size:0.75rem;">{{ row.selectedFile.name }}</span>
+                      } @else if (row.training.scanFileName) {
+                        <span class="text-muted" style="font-size:0.75rem;">
+                          Current: {{ row.training.scanFileName }}
+                          <button class="btn btn-outline btn-sm" style="margin-left:0.5rem;" (click)="downloadTrainingScan(id, row.training.id)">Download</button>
+                        </span>
+                      }
+                    </div>
+                  </div>
+                  <button class="btn btn-primary btn-sm" style="margin-top:0.7rem;" (click)="saveTrainingRow(id, row)" [disabled]="submitting()">
+                    {{ submitting() ? 'Saving…' : 'Save Training ' + ($index + 1) }}
+                  </button>
+                </div>
+              }
+              @empty {
+                <p class="text-muted" style="margin-top:0.75rem;">No trainings yet — click "+ Add Training" to add one.</p>
+              }
             </div>
           }
         </div>
@@ -219,6 +221,7 @@ import { TICKET_CATEGORY_LABELS, BillingTier } from '../../core/models';
     @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
     .add-form { margin-top: 0.9rem; padding: 0.9rem; border: 1px solid var(--slate-200); border-radius: 10px; }
     .training-view { margin-top: 1rem; padding: 0.9rem; border: 1px solid var(--slate-200); border-radius: 10px; }
+    .training-row { margin-top: 0.85rem; padding: 0.75rem; border: 1px solid var(--slate-200); border-radius: 8px; }
     .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.85rem; }
     .field { display: flex; flex-direction: column; gap: 0.3rem; }
     .field label { font-size: 0.76rem; font-weight: 600; color: var(--slate-500); }
@@ -232,21 +235,15 @@ export class ClientDetailComponent {
   submitting = signal(false);
   uploadError = signal<string | null>(null);
   selectedFile = signal<File | null>(null);
-  selectedTrainingFile = signal<File | null>(null);
 
   viewingTrainingId = signal<string | null>(null);
   viewingTrainingDoc = signal<string>('');
-  currentTrainingScanName = signal<string | null>(null);
+  trainingRows = signal<TrainingRowState[]>([]);
 
   form: {
-    agreementPlace: string; signDate: string;
+    agreementPlace: string;
     supportWindowMonths: number; billingTier: BillingTier;
-    trainingDescription: string; trainingStartDate: string; trainingEndDate: string;
   } = this.blankForm();
-
-  trainingForm: { trainingDescription: string; trainingStartDate: string; trainingEndDate: string } = {
-    trainingDescription: '', trainingStartDate: '', trainingEndDate: '',
-  };
 
   constructor(
     private clientsSvc: ClientService,
@@ -268,9 +265,8 @@ export class ClientDetailComponent {
 
   private blankForm() {
     return {
-      agreementPlace: '', signDate: new Date().toISOString().slice(0, 10),
+      agreementPlace: '',
       supportWindowMonths: 12, billingTier: 'Basic' as BillingTier,
-      trainingDescription: '', trainingStartDate: '', trainingEndDate: '',
     };
   }
 
@@ -280,17 +276,10 @@ export class ClientDetailComponent {
     this.uploadError.set(null);
   }
 
-  onTrainingFileSelected(evt: Event) {
-    const file = (evt.target as HTMLInputElement).files?.[0];
-    this.selectedTrainingFile.set(file ?? null);
-    this.uploadError.set(null);
-  }
-
   /**
    * Always creates a brand-new Agreement record scoped to this client —
-   * never touches or overwrites any existing agreement. Same three-step
-   * flow (create → upload scanned file → upload/save training info) the
-   * working Agreements admin page uses.
+   * never touches or overwrites any existing agreement, so a client can
+   * accumulate several over time, all listed in the table below.
    */
   async submit(clientId: string) {
     this.submitting.set(true);
@@ -303,24 +292,15 @@ export class ClientDetailComponent {
         await this.agreementsSvc.uploadScannedFile(created.id, file);
       }
 
-      if (this.form.trainingDescription || this.form.trainingStartDate || this.form.trainingEndDate) {
-        await this.agreementsSvc.updateTrainingInfo(created.id, {
-          trainingDescription: this.form.trainingDescription || undefined,
-          trainingStartDate: this.form.trainingStartDate || undefined,
-          trainingEndDate: this.form.trainingEndDate || undefined,
-        });
-      }
-      const trainingFile = this.selectedTrainingFile();
-      if (trainingFile) {
-        await this.agreementsSvc.uploadTrainingScan(created.id, trainingFile);
-      }
-
       this.showForm.set(false);
       this.selectedFile.set(null);
-      this.selectedTrainingFile.set(null);
       this.form = this.blankForm();
+
+      // Jump straight to the trainings panel — support won't start until a
+      // training's end date is saved.
+      this.viewTraining(created.id);
     } catch (err) {
-      this.uploadError.set('The agreement was saved, but a later step failed. You can retry uploads/training info from the agreements list below.');
+      this.uploadError.set('The agreement was saved, but a later step failed. You can retry uploads from the agreements list below.');
       console.error(err);
     } finally {
       this.submitting.set(false);
@@ -341,54 +321,91 @@ export class ClientDetailComponent {
     }
   }
 
+  private toRowState(t: AgreementTraining): TrainingRowState {
+    return {
+      training: t,
+      description: t.description ?? '',
+      startDate: t.startDate?.slice(0, 10) ?? '',
+      endDate: t.endDate?.slice(0, 10) ?? '',
+      selectedFile: null,
+    };
+  }
+
   viewTraining(agreementId: string) {
     const a = this.agreements().find(x => x.id === agreementId);
     if (!a) return;
     this.viewingTrainingId.set(agreementId);
     this.viewingTrainingDoc.set(a.documentNumber);
-    this.currentTrainingScanName.set(a.trainingScanFileName ?? null);
-    this.trainingForm = {
-      trainingDescription: a.trainingDescription ?? '',
-      trainingStartDate: a.trainingStartDate?.slice(0, 10) ?? '',
-      trainingEndDate: a.trainingEndDate?.slice(0, 10) ?? '',
-    };
-    this.selectedTrainingFile.set(null);
+    this.trainingRows.set(a.trainings.map(t => this.toRowState(t)));
     this.uploadError.set(null);
   }
 
   closeTrainingView() {
     this.viewingTrainingId.set(null);
-    this.selectedTrainingFile.set(null);
+    this.trainingRows.set([]);
     this.uploadError.set(null);
   }
 
-  async saveTraining(agreementId: string) {
+  async addTrainingRow(agreementId: string) {
     this.submitting.set(true);
     this.uploadError.set(null);
     try {
-      await this.agreementsSvc.updateTrainingInfo(agreementId, {
-        trainingDescription: this.trainingForm.trainingDescription || undefined,
-        trainingStartDate: this.trainingForm.trainingStartDate || undefined,
-        trainingEndDate: this.trainingForm.trainingEndDate || undefined,
-      });
-
-      const file = this.selectedTrainingFile();
-      if (file) {
-        await this.agreementsSvc.uploadTrainingScan(agreementId, file);
-      }
-
-      this.closeTrainingView();
+      const updated = await this.agreementsSvc.addTraining(agreementId);
+      this.trainingRows.set(updated.trainings.map(t => this.toRowState(t)));
     } catch (err) {
-      this.uploadError.set('Could not save training info — please try again.');
+      this.uploadError.set('Could not add a new training row — please try again.');
       console.error(err);
     } finally {
       this.submitting.set(false);
     }
   }
 
-  async downloadTrainingScan(agreementId: string) {
+  onTrainingFileSelected(evt: Event, row: TrainingRowState) {
+    const file = (evt.target as HTMLInputElement).files?.[0];
+    row.selectedFile = file ?? null;
+    this.uploadError.set(null);
+  }
+
+  async saveTrainingRow(agreementId: string, row: TrainingRowState) {
+    this.submitting.set(true);
+    this.uploadError.set(null);
     try {
-      const blob = await this.agreementsSvc.downloadTrainingScan(agreementId);
+      let updated = await this.agreementsSvc.saveTraining(agreementId, row.training.id, {
+        description: row.description || undefined,
+        startDate: row.startDate || undefined,
+        endDate: row.endDate || undefined,
+      });
+
+      if (row.selectedFile) {
+        updated = await this.agreementsSvc.uploadTrainingScan(agreementId, row.training.id, row.selectedFile);
+      }
+
+      this.trainingRows.set(updated.trainings.map(t => this.toRowState(t)));
+    } catch (err) {
+      this.uploadError.set('Could not save this training — please try again.');
+      console.error(err);
+    } finally {
+      this.submitting.set(false);
+    }
+  }
+
+  async deleteTrainingRow(agreementId: string, trainingId: string) {
+    this.submitting.set(true);
+    this.uploadError.set(null);
+    try {
+      const updated = await this.agreementsSvc.deleteTraining(agreementId, trainingId);
+      this.trainingRows.set(updated.trainings.map(t => this.toRowState(t)));
+    } catch (err) {
+      this.uploadError.set('Could not delete this training — please try again.');
+      console.error(err);
+    } finally {
+      this.submitting.set(false);
+    }
+  }
+
+  async downloadTrainingScan(agreementId: string, trainingId: string) {
+    try {
+      const blob = await this.agreementsSvc.downloadTrainingScan(agreementId, trainingId);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -399,4 +416,12 @@ export class ClientDetailComponent {
       console.error('Failed to download training scan', err);
     }
   }
+}
+
+interface TrainingRowState {
+  training: AgreementTraining;
+  description: string;
+  startDate: string;
+  endDate: string;
+  selectedFile: File | null;
 }

@@ -155,20 +155,31 @@ public interface IAgreementService
     Task<RetrievedFile?> DownloadScannedFileAsync(Guid agreementId, CancellationToken ct = default);
 
     /// <summary>
-    /// Uploads and attaches the scanned training document — a separate
-    /// file from the signed-agreement scan above, since the pre-agreement
-    /// training the company delivers to the client is documented
-    /// independently (scan + description + timeline). Same
+    /// Creates a new, empty training row on the agreement (an agreement may
+    /// have several — e.g. separate sessions for different staff groups).
+    /// Fill in details afterward via SaveTrainingAsync / UploadTrainingScanAsync.
+    /// </summary>
+    Task<AgreementDto> AddTrainingAsync(Guid agreementId, CancellationToken ct = default);
+
+    /// <summary>Sets/updates one training row's description and timeline. All fields optional; can be filled in incrementally. Recalculates the agreement's derived SignDate afterward (see Agreement.RecalculateSignDate).</summary>
+    Task<AgreementDto> SaveTrainingAsync(Guid agreementId, Guid trainingId, SaveAgreementTrainingRequest request, CancellationToken ct = default);
+
+    /// <summary>Deletes a training row (and its scan file, if any) and recalculates the agreement's derived SignDate.</summary>
+    Task<AgreementDto> DeleteTrainingAsync(Guid agreementId, Guid trainingId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Uploads and attaches the scanned training document to a specific
+    /// training row — a separate file from the signed-agreement scan
+    /// above, since the pre-agreement training the company delivers to
+    /// the client is documented independently (scan + description +
+    /// timeline) per training session. Same
     /// upload-then-delete-old-file-after-success pattern as
     /// UploadScannedFileAsync.
     /// </summary>
-    Task<AgreementDto> UploadTrainingScanAsync(Guid agreementId, Stream content, string fileName, string contentType, CancellationToken ct = default);
+    Task<AgreementDto> UploadTrainingScanAsync(Guid agreementId, Guid trainingId, Stream content, string fileName, string contentType, CancellationToken ct = default);
 
-    /// <summary>Retrieves the agreement's attached training scan, or null if none is attached or the agreement doesn't exist.</summary>
-    Task<RetrievedFile?> DownloadTrainingScanAsync(Guid agreementId, CancellationToken ct = default);
-
-    /// <summary>Sets/updates the training description and timeline (start date + duration). All fields optional; can be filled in incrementally.</summary>
-    Task<AgreementDto> UpdateTrainingInfoAsync(Guid agreementId, UpdateTrainingInfoRequest request, CancellationToken ct = default);
+    /// <summary>Retrieves a training row's attached scan, or null if none is attached or the training/agreement doesn't exist.</summary>
+    Task<RetrievedFile?> DownloadTrainingScanAsync(Guid agreementId, Guid trainingId, CancellationToken ct = default);
 }
 
 public interface IMaintenanceService

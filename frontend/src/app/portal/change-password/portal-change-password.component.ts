@@ -78,13 +78,7 @@ export class PortalChangePasswordComponent {
       await this.auth.changeClientPassword(this.currentPassword(), this.newPassword(), this.confirmPassword());
       this.router.navigateByUrl('/portal/dashboard');
     } catch (e: any) {
-      const backendMessage =
-        typeof e?.error === 'string' ? e.error :
-        typeof e?.error?.text === 'string' ? e.error.text :
-        typeof e?.error?.message === 'string' ? e.error.message :
-        typeof e?.message === 'string' ? e.message :
-        null;
-      this.error.set(backendMessage ?? 'Could not change password — check your current password and try again.');
+      this.error.set(e?.error?.text ?? e?.error ?? 'Could not change password — check your current password and try again.');
     } finally {
       this.submitting.set(false);
     }

@@ -111,7 +111,19 @@ public class AuthService : IAuthService
             ?? throw new InvalidOperationException("Employee not found.");
 
         if (!PasswordHasher.Verify(request.CurrentPassword, employee.PasswordHash))
+        {
+            // A stale one-time password commonly means a PRIOR change-password
+            // call already succeeded (e.g. the page was interrupted right
+            // after, before the frontend could move on) — MustChangePassword
+            // is already false in that case, so "current password is wrong"
+            // is technically true but misleading; point the person at
+            // signing in with whatever they set last time instead of
+            // implying they mistyped the one-time password they were given.
+            if (!employee.MustChangePassword)
+                throw new InvalidOperationException("Your password has already been changed. Please sign in with your new password instead of the one-time password.");
+
             throw new InvalidOperationException("Current password is incorrect.");
+        }
 
         if (request.NewPassword != request.ConfirmNewPassword)
             throw new InvalidOperationException("New password and confirmation do not match.");
@@ -158,8 +170,18 @@ public class AuthService : IAuthService
         var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == clientId, ct)
             ?? throw new InvalidOperationException("Client not found.");
 
-        if (!PasswordHasher.Verify(request.CurrentPassword, client.PasswordHash))
+        if (client.PasswordHash is null || !PasswordHasher.Verify(request.CurrentPassword, client.PasswordHash))
+        {
+            // Same reasoning as ChangeEmployeePasswordAsync above — a stale
+            // one-time password after MustChangePassword is already false
+            // usually means a previous attempt succeeded and something
+            // interrupted the frontend before it could move the person
+            // past this screen, not that they mistyped the OTP just now.
+            if (!client.MustChangePassword)
+                throw new InvalidOperationException("Your password has already been changed. Please sign in with your new password instead of the one-time password.");
+
             throw new InvalidOperationException("Current password is incorrect.");
+        }
 
         if (request.NewPassword != request.ConfirmNewPassword)
             throw new InvalidOperationException("New password and confirmation do not match.");

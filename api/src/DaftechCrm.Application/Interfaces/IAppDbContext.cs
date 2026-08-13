@@ -11,6 +11,7 @@ public interface IAppDbContext
 {
     IQueryable<Client> Clients { get; }
     IQueryable<Agreement> Agreements { get; }
+    IQueryable<AgreementTraining> AgreementTrainings { get; }
     IQueryable<Ticket> Tickets { get; }
     IQueryable<TicketAuditEntry> TicketAuditEntries { get; }
     IQueryable<Employee> Employees { get; }

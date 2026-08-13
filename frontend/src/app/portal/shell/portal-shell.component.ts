@@ -28,6 +28,7 @@ import { AgreementService } from '../../core/services/agreement.service';
 
         <nav [class.open]="menuOpen()">
           <a routerLink="/portal/dashboard" routerLinkActive="active" (click)="closeMenu()">Dashboard</a>
+          <a routerLink="/portal/agreements" routerLinkActive="active" (click)="closeMenu()">Agreements</a>
           <a routerLink="/portal/maintenance-history" routerLinkActive="active" (click)="closeMenu()">Maintenance History</a>
           <a routerLink="/portal/confirm-resolution" routerLinkActive="active" class="bell" (click)="closeMenu()">
             Confirm Resolution

@@ -151,71 +151,84 @@ public class TicketService : ITicketService
             ?? throw new InvalidOperationException(
                 "Ticket not found.");
 
-        if (request.Status == TicketStatus.Resolved)
+        try
         {
-            ticket.Status =
-                TicketStatus.AwaitingClientConfirmation;
+            if (request.Status == TicketStatus.Resolved)
+            {
+                ticket.Status =
+                    TicketStatus.AwaitingClientConfirmation;
 
-            ticket.ResolvedAt =
-                DateTimeOffset.UtcNow;
+                ticket.ResolvedAt =
+                    DateTimeOffset.UtcNow;
 
-            var confirmationWindowDays =
-                await _config.GetIntAsync(
-                    "TicketWorkflow.ClientConfirmationWindowDays",
-                    ct);
+                var confirmationWindowDays =
+                    await _config.GetIntAsync(
+                        "TicketWorkflow.ClientConfirmationWindowDays",
+                        ct);
 
-            ticket.ClientConfirmationDeadline =
-                ticket.ResolvedAt.Value.AddDays(
-                    confirmationWindowDays);
+                ticket.ClientConfirmationDeadline =
+                    ticket.ResolvedAt.Value.AddDays(
+                        confirmationWindowDays);
 
-            ticket.AuditTrail.Add(
-                new TicketAuditEntry
+                ticket.AuditTrail.Add(
+                    new TicketAuditEntry
+                    {
+                        TicketId = ticket.Id,
+                        Actor = request.ActorName,
+                        Action =
+                            $"Marked Resolved by {request.ActorName}; awaiting client confirmation (deadline {ticket.ClientConfirmationDeadline:u})"
+                    });
+
+                _db.Update(ticket);
+
+                await _db.SaveChangesAsync(ct);
+
+                // The status change is already committed above — a failure here
+                // (e.g. notification write) must never surface as a failed status
+                // update, since from the caller's point of view the update already
+                // succeeded.
+                try
                 {
-                    TicketId = ticket.Id,
-                    Actor = request.ActorName,
-                    Action =
-                        $"Marked Resolved by {request.ActorName}; awaiting client confirmation (deadline {ticket.ClientConfirmationDeadline:u})"
-                });
-
-            _db.Update(ticket);
-
-            await _db.SaveChangesAsync(ct);
-
-            // The status change is already committed above — a failure here
-            // (e.g. notification write) must never surface as a failed status
-            // update, since from the caller's point of view the update already
-            // succeeded.
-            try
-            {
-                await _notifications.NotifyAsync(
-                    NotificationRecipientType.Client,
-                    ticket.ClientId.ToString(),
-                    "awaiting_confirmation",
-                    $"Ticket {ticket.Id} has been marked resolved — please confirm it's working and rate your experience.",
-                    ct);
+                    await _notifications.NotifyAsync(
+                        NotificationRecipientType.Client,
+                        ticket.ClientId.ToString(),
+                        "awaiting_confirmation",
+                        $"Ticket {ticket.Id} has been marked resolved — please confirm it's working and rate your experience.",
+                        ct);
+                }
+                catch (Exception)
+                {
+                    // Swallow: the ticket status is already saved. Losing this
+                    // notification is not worth failing the whole request over.
+                }
             }
-            catch (Exception)
+            else
             {
-                // Swallow: the ticket status is already saved. Losing this
-                // notification is not worth failing the whole request over.
+                ticket.Status = request.Status;
+
+                ticket.AuditTrail.Add(
+                    new TicketAuditEntry
+                    {
+                        TicketId = ticket.Id,
+                        Actor = request.ActorName,
+                        Action =
+                            $"Status changed to {request.Status}"
+                    });
+
+                _db.Update(ticket);
+
+                await _db.SaveChangesAsync(ct);
             }
         }
-        else
+        catch (DbUpdateConcurrencyException)
         {
-            ticket.Status = request.Status;
-
-            ticket.AuditTrail.Add(
-                new TicketAuditEntry
-                {
-                    TicketId = ticket.Id,
-                    Actor = request.ActorName,
-                    Action =
-                        $"Status changed to {request.Status}"
-                });
-
-            _db.Update(ticket);
-
-            await _db.SaveChangesAsync(ct);
+            // Someone else (a duplicate tap, another tab, another
+            // technician) already changed this exact ticket between our
+            // read and our save — the 0-rows-affected update is EF
+            // reporting a lost race, not a server fault. Surface it as a
+            // normal, actionable error instead of a 500.
+            throw new InvalidOperationException(
+                "This ticket was just updated by someone else — refresh the page and try again.");
         }
 
         return await LoadDtoAsync(ticket.Id, ct);

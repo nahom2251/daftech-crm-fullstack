@@ -1,4 +1,4 @@
-import { Component, computed } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { SlicePipe } from '@angular/common';
 import { TicketService } from '../../core/services/ticket.service';
 import { EmployeeService } from '../../core/services/employee.service';
@@ -66,9 +66,14 @@ import { TicketStatus, TICKET_CATEGORY_LABELS } from '../../core/models';
                 @if (canUpdateStatus(t)) {
                   <select #st style="margin-right:0.3rem;">
                     <option value="InProgress" [selected]="t.status === 'InProgress'">In Progress</option>
-                    <option value="Resolved" [selected]="t.status === 'Resolved'">Resolved</option>
+                    <option value="Resolved" [selected]="t.status === 'Resolved'">Resolved (sends to client for confirmation)</option>
                   </select>
-                  <button class="btn btn-outline btn-sm" (click)="updateStatus(t.id, st.value)">Update</button>
+                  <button class="btn btn-outline btn-sm" (click)="updateStatus(t.id, st.value)" [disabled]="updatingTicketId() === t.id">
+                    {{ updatingTicketId() === t.id ? 'Updating…' : 'Update' }}
+                  </button>
+                  @if (statusError(); as err) {
+                    @if (err.ticketId === t.id) { <p class="status-error">{{ err.message }}</p> }
+                  }
                 }
               </td>
             </tr>
@@ -85,6 +90,9 @@ import { TicketStatus, TICKET_CATEGORY_LABELS } from '../../core/models';
       </app-pagination>
     </div>
   `,
+  styles: [`
+    .status-error { color: var(--red); font-size: 0.76rem; margin: 0.35rem 0 0; }
+  `],
 })
 export class TicketsComponent {
   constructor(
@@ -92,6 +100,9 @@ export class TicketsComponent {
     public employees: EmployeeService,
     private auth: AuthService
   ) {}
+
+  updatingTicketId = signal<string | null>(null);
+  statusError = signal<{ ticketId: string; message: string } | null>(null);
 
   isAdmin = computed(() => this.auth.currentEmployee()?.roles.includes('Admin') ?? false);
 
@@ -107,7 +118,17 @@ export class TicketsComponent {
 
   async updateStatus(ticketId: string, status: string) {
     const actor = this.auth.currentEmployee()?.fullName ?? 'Staff';
-    await this.tickets.updateStatus(ticketId, status as TicketStatus, actor);
+    this.statusError.set(null);
+    this.updatingTicketId.set(ticketId);
+    try {
+      await this.tickets.updateStatus(ticketId, status as TicketStatus, actor);
+    } catch (err: any) {
+      const message = err?.error ?? err?.message ?? 'Could not update this ticket — please try again.';
+      this.statusError.set({ ticketId, message });
+      console.error('Failed to update ticket status', err);
+    } finally {
+      this.updatingTicketId.set(null);
+    }
   }
 
   async downloadAttachment(ticketId: string, fileName: string) {

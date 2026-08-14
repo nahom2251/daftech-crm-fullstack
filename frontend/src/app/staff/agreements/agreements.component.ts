@@ -16,7 +16,7 @@ import { AgreementTraining, BillingTier } from '../../core/models';
         <h1>Agreements</h1>
         <p class="text-muted" style="margin-top:0.3rem;">Scanned agreement documents, billing tiers, and support windows.</p>
       </div>
-      <button class="btn btn-primary" (click)="showForm.set(!showForm())">{{ showForm() ? 'Cancel' : '+ New Agreement' }}</button>
+      <button class="btn btn-primary" (click)="toggleForm()">{{ showForm() ? 'Cancel' : '+ New Agreement' }}</button>
     </div>
 
     @if (showForm()) {
@@ -24,7 +24,7 @@ import { AgreementTraining, BillingTier } from '../../core/models';
         <div class="form-grid">
           <div class="field">
             <label>Client</label>
-            <select [ngModel]="form.clientId" (ngModelChange)="form.clientId = $event">
+            <select [ngModel]="form.clientId" (ngModelChange)="onClientChange($event)">
               @for (c of clients.approvedClients(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
             </select>
           </div>
@@ -51,28 +51,38 @@ import { AgreementTraining, BillingTier } from '../../core/models';
           </div>
         </div>
 
-        <p class="text-muted" style="font-size:0.78rem; margin: 1rem 0 0;">
-          Sign Date (support start) isn't set here — it's calculated automatically once client training is added and its end date is filled in, from the Agreements table below.
-        </p>
+        @if (trainingCheckPending()) {
+          <p class="text-muted" style="font-size:0.78rem; margin: 1rem 0 0;">Checking training status…</p>
+        } @else if (canSignForSelectedClient() === false) {
+          <p class="upload-error" style="margin: 1rem 0 0;">
+            This client has no completed training yet. Training must finish (an End Date set) before the support agreement can be signed —
+            <button class="btn btn-outline btn-sm" style="margin-left:0.25rem;" (click)="viewTraining(form.clientId)">manage training</button>.
+          </p>
+        } @else {
+          <p class="text-muted" style="font-size:0.78rem; margin: 1rem 0 0;">
+            Sign Date is set to today when you save — creating this agreement is the act of signing it.
+          </p>
+        }
 
         @if (uploadError()) { <p class="upload-error" style="margin-top:0.75rem;">{{ uploadError() }}</p> }
-        <button class="btn btn-primary" style="margin-top:1rem;" (click)="submit()" [disabled]="submitting()">
-          {{ submitting() ? 'Saving…' : 'Save Agreement' }}
+        <button class="btn btn-primary" style="margin-top:1rem;" (click)="submit()" [disabled]="submitting() || canSignForSelectedClient() === false">
+          {{ submitting() ? 'Saving…' : 'Sign Agreement' }}
         </button>
       </div>
     }
 
-    @if (viewingTrainingId(); as id) {
+    @if (viewingTrainingClientId(); as clientId) {
       <div class="panel panel-pad" style="margin-top:1.25rem;">
         <div class="header-row">
-          <h3 style="margin:0;">Trainings — {{ clientName(viewingTrainingClientId()) }}</h3>
+          <h3 style="margin:0;">Trainings — {{ clientName(clientId) }}</h3>
           <div style="display:flex; gap:0.5rem;">
-            <button class="btn btn-outline btn-sm" (click)="addTrainingRow(id)" [disabled]="submitting()">+ Add Training</button>
+            <button class="btn btn-outline btn-sm" (click)="addTrainingRow(clientId)" [disabled]="submitting()">+ Add Training</button>
             <button class="btn btn-outline btn-sm" (click)="closeTrainingView()">Close</button>
           </div>
         </div>
         <p class="text-muted" style="font-size:0.78rem; margin: 0.6rem 0 0;">
-          A client may have multiple trainings (e.g. separate sessions for different staff groups). The support agreement starts once the latest training's End Date is set — save each row independently.
+          A client may have multiple trainings (e.g. separate sessions for different staff groups), recorded here before any agreement exists.
+          Once at least one has an End Date, the support agreement can be signed above. End Date stays editable afterward if training runs long.
         </p>
 
         @if (uploadError()) { <p class="upload-error" style="margin-top:0.75rem;">{{ uploadError() }}</p> }
@@ -81,7 +91,7 @@ import { AgreementTraining, BillingTier } from '../../core/models';
           <div class="training-row">
             <div class="header-row">
               <h4 style="margin:0;">Training {{ $index + 1 }}</h4>
-              <button class="btn btn-outline btn-sm" (click)="deleteTrainingRow(id, row.training.id)" [disabled]="submitting()">Delete</button>
+              <button class="btn btn-outline btn-sm" (click)="deleteTrainingRow(clientId, row.training.id)" [disabled]="submitting()">Delete</button>
             </div>
             <div class="form-grid" style="margin-top:0.75rem;">
               <div class="field">
@@ -100,16 +110,17 @@ import { AgreementTraining, BillingTier } from '../../core/models';
                 } @else if (row.training.scanFileName) {
                   <span class="text-muted" style="font-size:0.75rem;">
                     Current: {{ row.training.scanFileName }}
-                    <button class="btn btn-outline btn-sm" style="margin-left:0.5rem;" (click)="downloadTrainingScan(id, row.training.id)">Download</button>
+                    <button class="btn btn-outline btn-sm" style="margin-left:0.5rem;" (click)="downloadTrainingScan(clientId, row.training.id)">Download</button>
                   </span>
                 }
               </div>
               <div class="field" style="grid-column: 1 / -1;">
                 <label>Description</label>
-                <textarea rows="3" [ngModel]="row.description" (ngModelChange)="row.description = $event" placeholder="What was covered, who attended…"></textarea>
+                <textarea rows="3" maxlength="1000" [ngModel]="row.description" (ngModelChange)="row.description = $event" placeholder="What was covered, who attended…"></textarea>
+                <span class="text-muted" style="font-size:0.72rem; align-self:flex-end;">{{ row.description.length }}/1000</span>
               </div>
             </div>
-            <button class="btn btn-primary btn-sm" style="margin-top:0.75rem;" (click)="saveTrainingRow(id, row)" [disabled]="submitting()">
+            <button class="btn btn-primary btn-sm" style="margin-top:0.75rem;" (click)="saveTrainingRow(clientId, row)" [disabled]="submitting()">
               {{ submitting() ? 'Saving…' : 'Save Training ' + ($index + 1) }}
             </button>
           </div>
@@ -128,9 +139,7 @@ import { AgreementTraining, BillingTier } from '../../core/models';
             <tr>
               <td>{{ clientName(a.clientId) }}</td>
               <td class="mono">{{ a.documentNumber }}</td>
-              <td>
-                @if (a.signDate) { {{ a.signDate }} } @else { <span class="text-muted">Pending training</span> }
-              </td>
+              <td>{{ a.signDate }}</td>
               <td>{{ a.expiryDate }}</td>
               <td class="text-muted">{{ a.supportWindowMonths }} mo</td>
               <td>{{ a.billingTier }}</td>
@@ -143,8 +152,8 @@ import { AgreementTraining, BillingTier } from '../../core/models';
                 }
               </td>
               <td>
-                <button class="btn btn-outline btn-sm" (click)="viewTraining(a.id)">
-                  {{ a.trainings.length > 0 ? a.trainings.length + ' training' + (a.trainings.length > 1 ? 's' : '') : 'Add training' }}
+                <button class="btn btn-outline btn-sm" (click)="viewTraining(a.clientId)">
+                  {{ a.trainings.length > 0 ? a.trainings.length + ' training' + (a.trainings.length > 1 ? 's' : '') : 'View training' }}
                 </button>
               </td>
             </tr>
@@ -176,11 +185,15 @@ export class AgreementsComponent {
   uploadError = signal<string | null>(null);
   selectedFile = signal<File | null>(null);
 
-  // Existing-agreement trainings view/edit panel — separate from the "New
-  // Agreement" form above so viewing/editing trainings on an already-saved
-  // agreement doesn't disturb the create form's state.
-  viewingTrainingId = signal<string | null>(null);
-  viewingTrainingClientId = signal<string>('');
+  // Whether the currently-selected client in the New Agreement form has a
+  // completed training — null while unchecked/checking, so the button
+  // doesn't flash enabled before the check resolves.
+  canSignForSelectedClient = signal<boolean | null>(null);
+  trainingCheckPending = signal(false);
+
+  // Trainings panel — keyed by CLIENT now, not agreement, since training
+  // exists independently of (and before) any agreement.
+  viewingTrainingClientId = signal<string | null>(null);
   trainingRows = signal<TrainingRowState[]>([]);
 
   form: {
@@ -196,12 +209,37 @@ export class AgreementsComponent {
       const list = clients.approvedClients();
       if (list.length > 0 && !this.form.clientId) {
         this.form.clientId = list[0].id;
+        void this.refreshTrainingCheck();
       }
     });
   }
 
   clientName(id: string): string {
     return this.clients.getById(id)?.name ?? id;
+  }
+
+  toggleForm() {
+    this.showForm.set(!this.showForm());
+    if (this.showForm()) void this.refreshTrainingCheck();
+  }
+
+  onClientChange(clientId: string) {
+    this.form.clientId = clientId;
+    void this.refreshTrainingCheck();
+  }
+
+  private async refreshTrainingCheck() {
+    if (!this.form.clientId) { this.canSignForSelectedClient.set(null); return; }
+    this.trainingCheckPending.set(true);
+    try {
+      const complete = await this.agreements.clientHasCompletedTraining(this.form.clientId);
+      this.canSignForSelectedClient.set(complete);
+    } catch (err) {
+      console.error('Failed to check training status', err);
+      this.canSignForSelectedClient.set(null);
+    } finally {
+      this.trainingCheckPending.set(false);
+    }
   }
 
   onFileSelected(evt: Event) {
@@ -211,7 +249,7 @@ export class AgreementsComponent {
   }
 
   async submit() {
-    if (!this.form.clientId) return;
+    if (!this.form.clientId || this.canSignForSelectedClient() === false) return;
 
     this.submitting.set(true);
     this.uploadError.set(null);
@@ -229,13 +267,13 @@ export class AgreementsComponent {
         clientId: this.clients.approvedClients()[0]?.id ?? '', agreementPlace: '',
         supportWindowMonths: 12, billingTier: 'Basic',
       };
-
-      // Take the admin straight into the trainings panel for the agreement
-      // they just created — an agreement isn't "live" (support hasn't
-      // started) until at least one training's end date is saved.
-      this.viewTraining(created.id);
-    } catch (err) {
-      this.uploadError.set('The agreement was saved, but a later step failed. You can retry uploads from the agreements list.');
+    } catch (err: any) {
+      // 409 = server-side hard-block: training isn't complete for this client.
+      if (err?.status === 409) {
+        this.uploadError.set(err?.error ?? 'This client has no completed training yet — the agreement cannot be signed.');
+      } else {
+        this.uploadError.set('The agreement was saved, but a later step failed. You can retry uploads from the agreements list.');
+      }
       console.error(err);
     } finally {
       this.submitting.set(false);
@@ -256,18 +294,20 @@ export class AgreementsComponent {
     }
   }
 
-  viewTraining(agreementId: string) {
-    const a = this.agreements.pagedAgreements().find(x => x.id === agreementId)
-      ?? this.agreements.agreements().find(x => x.id === agreementId);
-    if (!a) return;
-    this.viewingTrainingId.set(agreementId);
-    this.viewingTrainingClientId.set(a.clientId);
-    this.trainingRows.set(a.trainings.map(t => this.toRowState(t)));
+  async viewTraining(clientId: string) {
+    this.viewingTrainingClientId.set(clientId);
     this.uploadError.set(null);
+    try {
+      const trainings = await this.agreements.getTrainingsForClient(clientId);
+      this.trainingRows.set(trainings.map(t => this.toRowState(t)));
+    } catch (err) {
+      this.uploadError.set('Could not load trainings for this client.');
+      console.error(err);
+    }
   }
 
   closeTrainingView() {
-    this.viewingTrainingId.set(null);
+    this.viewingTrainingClientId.set(null);
     this.trainingRows.set([]);
     this.uploadError.set(null);
   }
@@ -282,13 +322,14 @@ export class AgreementsComponent {
     };
   }
 
-  /** Adds a new, empty training row on the server immediately (so it has an id to save/delete against), then refreshes the panel from the updated agreement. */
-  async addTrainingRow(agreementId: string) {
+  /** Adds a new, empty training row for the client immediately (so it has an id to save/delete against), then refreshes the panel. */
+  async addTrainingRow(clientId: string) {
     this.submitting.set(true);
     this.uploadError.set(null);
     try {
-      const updated = await this.agreements.addTraining(agreementId);
-      this.trainingRows.set(updated.trainings.map(t => this.toRowState(t)));
+      await this.agreements.addTraining(clientId);
+      const trainings = await this.agreements.getTrainingsForClient(clientId);
+      this.trainingRows.set(trainings.map(t => this.toRowState(t)));
     } catch (err) {
       this.uploadError.set('Could not add a new training row — please try again.');
       console.error(err);
@@ -304,21 +345,26 @@ export class AgreementsComponent {
   }
 
   /** Saves one training row independently of any other — its own Save button, its own request. */
-  async saveTrainingRow(agreementId: string, row: TrainingRowState) {
+  async saveTrainingRow(clientId: string, row: TrainingRowState) {
     this.submitting.set(true);
     this.uploadError.set(null);
     try {
-      let updated = await this.agreements.saveTraining(agreementId, row.training.id, {
+      await this.agreements.saveTraining(clientId, row.training.id, {
         description: row.description || undefined,
         startDate: row.startDate || undefined,
         endDate: row.endDate || undefined,
       });
 
       if (row.selectedFile) {
-        updated = await this.agreements.uploadTrainingScan(agreementId, row.training.id, row.selectedFile);
+        await this.agreements.uploadTrainingScan(clientId, row.training.id, row.selectedFile);
       }
 
-      this.trainingRows.set(updated.trainings.map(t => this.toRowState(t)));
+      const trainings = await this.agreements.getTrainingsForClient(clientId);
+      this.trainingRows.set(trainings.map(t => this.toRowState(t)));
+
+      // The New Agreement form's button may now unlock if this client's
+      // training just became complete — refresh the check if it's open.
+      if (this.form.clientId === clientId) void this.refreshTrainingCheck();
     } catch (err) {
       this.uploadError.set('Could not save this training — please try again.');
       console.error(err);
@@ -327,12 +373,14 @@ export class AgreementsComponent {
     }
   }
 
-  async deleteTrainingRow(agreementId: string, trainingId: string) {
+  async deleteTrainingRow(clientId: string, trainingId: string) {
     this.submitting.set(true);
     this.uploadError.set(null);
     try {
-      const updated = await this.agreements.deleteTraining(agreementId, trainingId);
-      this.trainingRows.set(updated.trainings.map(t => this.toRowState(t)));
+      await this.agreements.deleteTraining(clientId, trainingId);
+      const trainings = await this.agreements.getTrainingsForClient(clientId);
+      this.trainingRows.set(trainings.map(t => this.toRowState(t)));
+      if (this.form.clientId === clientId) void this.refreshTrainingCheck();
     } catch (err) {
       this.uploadError.set('Could not delete this training — please try again.');
       console.error(err);
@@ -341,9 +389,9 @@ export class AgreementsComponent {
     }
   }
 
-  async downloadTrainingScan(agreementId: string, trainingId: string) {
+  async downloadTrainingScan(clientId: string, trainingId: string) {
     try {
-      const blob = await this.agreements.downloadTrainingScan(agreementId, trainingId);
+      const blob = await this.agreements.downloadTrainingScan(clientId, trainingId);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;

@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Agreement, BillingTier, PagedResult } from '../models';
+import { Agreement, AgreementTraining, BillingTier, PagedResult } from '../models';
 import { API_BASE_URL } from './api-base';
 import { AuthService } from './auth.service';
 
@@ -103,15 +103,25 @@ export class AgreementService {
     return this._agreements().filter(a => new Date(a.expiryDate).getTime() <= in30);
   }
 
-  /** Client-side mirror of the server's Agreement.IsWithinSupportWindow — used for optimistic UI only; the server is the source of truth for Chargeable. Always false until training has finished (signDate is set). */
+  /** Client-side mirror of the server's Agreement.IsWithinSupportWindow — used for optimistic UI only; the server is the source of truth for Chargeable. */
   isWithinSupportWindow(agreement: Agreement, atDate: Date = new Date()): boolean {
-    if (!agreement.signDate) return false;
     const start = new Date(agreement.signDate);
     const windowEnd = new Date(start);
     windowEnd.setMonth(windowEnd.getMonth() + agreement.supportWindowMonths);
     return atDate >= start && atDate <= windowEnd;
   }
 
+  /** Whether the client has at least one training with an End Date set — the precondition for signing an agreement. Check this before showing/enabling "New Agreement". */
+  async clientHasCompletedTraining(clientId: string): Promise<boolean> {
+    return firstValueFrom(this.http.get<boolean>(`${API_BASE_URL}/agreements/client/${clientId}/training-complete`));
+  }
+
+  /**
+   * Creates (signs) the support agreement. SignDate is always set by the
+   * server to today. Rejected with 409 if the client has no completed
+   * training yet — callers should catch that and show the admin a clear
+   * message rather than a generic error.
+   */
   async createAgreement(data: {
     clientId: string; agreementPlace: string;
     expiryDate?: string; supportWindowMonths: number; billingTier: BillingTier;
@@ -149,52 +159,43 @@ export class AgreementService {
     );
   }
 
-  /** Creates a new, empty training row on the agreement — the admin then fills in and saves its details independently of any other training row. */
-  async addTraining(agreementId: string): Promise<Agreement> {
-    const updated = await firstValueFrom(
-      this.http.post<Agreement>(`${API_BASE_URL}/agreements/${agreementId}/trainings`, {})
-    );
-    await Promise.all([this.refresh(), this.refreshPaged()]);
-    return updated;
+  /** All trainings recorded for a client, regardless of whether an agreement has been signed yet. Training now exists independently of any agreement. */
+  async getTrainingsForClient(clientId: string): Promise<AgreementTraining[]> {
+    return firstValueFrom(this.http.get<AgreementTraining[]>(`${API_BASE_URL}/clients/${clientId}/trainings`));
   }
 
-  /** Sets/updates one training row's description and timeline (start/end dates). All fields optional — can be filled in over time. Each training row is saved independently with its own Save action. */
+  /** Creates a new, empty training row for a client — the admin then fills in and saves its details independently of any other training row. Not attached to any agreement yet. */
+  async addTraining(clientId: string): Promise<AgreementTraining> {
+    return firstValueFrom(this.http.post<AgreementTraining>(`${API_BASE_URL}/clients/${clientId}/trainings`, {}));
+  }
+
+  /** Sets/updates one training row's description and timeline (start/end dates). All fields optional — can be filled in over time. EndDate stays editable afterward, e.g. to push it out if training runs long due to unforeseen delays. */
   async saveTraining(
-    agreementId: string,
+    clientId: string,
     trainingId: string,
     data: { description?: string; startDate?: string; endDate?: string }
-  ): Promise<Agreement> {
-    const updated = await firstValueFrom(
-      this.http.put<Agreement>(`${API_BASE_URL}/agreements/${agreementId}/trainings/${trainingId}`, data)
-    );
-    await Promise.all([this.refresh(), this.refreshPaged()]);
-    return updated;
+  ): Promise<AgreementTraining> {
+    return firstValueFrom(this.http.put<AgreementTraining>(`${API_BASE_URL}/clients/${clientId}/trainings/${trainingId}`, data));
   }
 
-  /** Deletes a training row from an agreement. */
-  async deleteTraining(agreementId: string, trainingId: string): Promise<Agreement> {
-    const updated = await firstValueFrom(
-      this.http.delete<Agreement>(`${API_BASE_URL}/agreements/${agreementId}/trainings/${trainingId}`)
-    );
-    await Promise.all([this.refresh(), this.refreshPaged()]);
-    return updated;
+  /** Deletes a training row for a client. */
+  async deleteTraining(clientId: string, trainingId: string): Promise<void> {
+    await firstValueFrom(this.http.delete<void>(`${API_BASE_URL}/clients/${clientId}/trainings/${trainingId}`));
   }
 
   /** Uploads (or replaces) the scanned document for one specific training row — a separate file from the signed agreement scan above. */
-  async uploadTrainingScan(agreementId: string, trainingId: string, file: File): Promise<Agreement> {
+  async uploadTrainingScan(clientId: string, trainingId: string, file: File): Promise<AgreementTraining> {
     const form = new FormData();
     form.append('file', file, file.name);
-    const updated = await firstValueFrom(
-      this.http.post<Agreement>(`${API_BASE_URL}/agreements/${agreementId}/trainings/${trainingId}/scan`, form)
+    return firstValueFrom(
+      this.http.post<AgreementTraining>(`${API_BASE_URL}/clients/${clientId}/trainings/${trainingId}/scan`, form)
     );
-    await Promise.all([this.refresh(), this.refreshPaged()]);
-    return updated;
   }
 
   /** Fetches a training row's scan as a Blob — same reasoning as downloadScannedFile above. */
-  async downloadTrainingScan(agreementId: string, trainingId: string): Promise<Blob> {
+  async downloadTrainingScan(clientId: string, trainingId: string): Promise<Blob> {
     return firstValueFrom(
-      this.http.get(`${API_BASE_URL}/agreements/${agreementId}/trainings/${trainingId}/scan`, { responseType: 'blob' })
+      this.http.get(`${API_BASE_URL}/clients/${clientId}/trainings/${trainingId}/scan`, { responseType: 'blob' })
     );
   }
 }

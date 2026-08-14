@@ -102,13 +102,31 @@ public class AgreementsController : ControllerBase
     [Authorize(Policy = AuthorizationPolicies.AnyEmployee)]
     public async Task<ActionResult<IReadOnlyList<AgreementDto>>> GetExpiringSoon(CancellationToken ct) => Ok(await _agreements.GetExpiringSoonAsync(ct));
 
+    /// <summary>
+    /// Creates (signs) the support agreement. Rejected with 409 if the
+    /// client has no completed training yet — training is mandatory and
+    /// must finish before Daftech and the client sign the support
+    /// agreement.
+    /// </summary>
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.AdminOrItSupport)]
     public async Task<ActionResult<AgreementDto>> Create([FromBody] CreateAgreementRequest request, CancellationToken ct)
     {
-        var a = await _agreements.CreateAsync(request, ct);
-        return Created($"/api/agreements/{a.Id}", a);
+        try
+        {
+            var a = await _agreements.CreateAsync(request, ct);
+            return Created($"/api/agreements/{a.Id}", a);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
+        }
     }
+
+    /// <summary>Whether the client has at least one training with an End Date set — the precondition for signing an agreement.</summary>
+    [HttpGet("client/{clientId:guid}/training-complete")]
+    public async Task<ActionResult<bool>> ClientHasCompletedTraining(Guid clientId, CancellationToken ct) =>
+        Ok(await _agreements.ClientHasCompletedTrainingAsync(clientId, ct));
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<AgreementDto>> GetById(Guid id, CancellationToken ct)
@@ -154,44 +172,63 @@ public class AgreementsController : ControllerBase
         var file = await _agreements.DownloadScannedFileAsync(id, ct);
         return file is null ? NotFound() : File(file.Content, file.ContentType, file.OriginalFileName);
     }
+}
 
-    /// <summary>Adds a new, empty training row to the agreement — the client may then fill in its description/timeline/scan and save it independently of any other training.</summary>
-    [HttpPost("{id:guid}/trainings")]
+/// <summary>
+/// Client-scoped training records — deliberately NOT nested under
+/// /api/agreements/{id}/trainings, because training happens (and must
+/// finish) BEFORE any agreement exists for a client. See
+/// AgreementService.CreateAsync for where a completed training becomes
+/// the precondition for signing an agreement.
+/// </summary>
+[ApiController]
+[Route("api/clients/{clientId:guid}/trainings")]
+[Authorize(Policy = AuthorizationPolicies.AnyAuthenticated)]
+public class ClientTrainingsController : ControllerBase
+{
+    private readonly IAgreementService _agreements;
+    public ClientTrainingsController(IAgreementService agreements) => _agreements = agreements;
+
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<AgreementTrainingDto>>> GetForClient(Guid clientId, CancellationToken ct) =>
+        Ok(await _agreements.GetTrainingsForClientAsync(clientId, ct));
+
+    /// <summary>Adds a new, empty training row for the client — filled in and saved independently via PUT.</summary>
+    [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.AdminOrItSupport)]
-    public async Task<ActionResult<AgreementDto>> AddTraining(Guid id, CancellationToken ct)
+    public async Task<ActionResult<AgreementTrainingDto>> AddTraining(Guid clientId, CancellationToken ct)
     {
-        try { return Ok(await _agreements.AddTrainingAsync(id, ct)); }
+        try { return Ok(await _agreements.AddTrainingAsync(clientId, ct)); }
         catch (InvalidOperationException ex) { return NotFound(ex.Message); }
     }
 
-    /// <summary>Sets/updates one training row's description and timeline (start date + end date). All fields optional. Recalculates the agreement's derived support-start date (SignDate) afterward.</summary>
-    [HttpPut("{id:guid}/trainings/{trainingId:guid}")]
+    /// <summary>Sets/updates one training row's description and timeline (start date + end date). EndDate stays editable even after being set, so the admin can push it out if training runs long.</summary>
+    [HttpPut("{trainingId:guid}")]
     [Authorize(Policy = AuthorizationPolicies.AdminOrItSupport)]
-    public async Task<ActionResult<AgreementDto>> SaveTraining(Guid id, Guid trainingId, [FromBody] SaveAgreementTrainingRequest request, CancellationToken ct)
+    public async Task<ActionResult<AgreementTrainingDto>> SaveTraining(Guid clientId, Guid trainingId, [FromBody] SaveAgreementTrainingRequest request, CancellationToken ct)
     {
-        try { return Ok(await _agreements.SaveTrainingAsync(id, trainingId, request, ct)); }
+        try { return Ok(await _agreements.SaveTrainingAsync(clientId, trainingId, request, ct)); }
+        catch (Application.ValidationException ex) { return BadRequest(ex.Message); }
         catch (InvalidOperationException ex) { return NotFound(ex.Message); }
     }
 
-    /// <summary>Deletes a training row and recalculates the agreement's derived support-start date.</summary>
-    [HttpDelete("{id:guid}/trainings/{trainingId:guid}")]
+    /// <summary>Deletes a training row.</summary>
+    [HttpDelete("{trainingId:guid}")]
     [Authorize(Policy = AuthorizationPolicies.AdminOrItSupport)]
-    public async Task<ActionResult<AgreementDto>> DeleteTraining(Guid id, Guid trainingId, CancellationToken ct)
+    public async Task<IActionResult> DeleteTraining(Guid clientId, Guid trainingId, CancellationToken ct)
     {
-        try { return Ok(await _agreements.DeleteTrainingAsync(id, trainingId, ct)); }
+        try { await _agreements.DeleteTrainingAsync(clientId, trainingId, ct); return NoContent(); }
         catch (InvalidOperationException ex) { return NotFound(ex.Message); }
     }
 
     /// <summary>
     /// Uploads (or replaces) the scanned copy of one training row's
-    /// pre-agreement client training document — a separate file from the
-    /// signed agreement scan above. Accepts multipart/form-data with a
-    /// single "file" field.
+    /// document. Accepts multipart/form-data with a single "file" field.
     /// </summary>
-    [HttpPost("{id:guid}/trainings/{trainingId:guid}/scan")]
+    [HttpPost("{trainingId:guid}/scan")]
     [Authorize(Policy = AuthorizationPolicies.AdminOrItSupport)]
     [RequestSizeLimit(20 * 1024 * 1024)]
-    public async Task<ActionResult<AgreementDto>> UploadTrainingScan(Guid id, Guid trainingId, IFormFile file, CancellationToken ct)
+    public async Task<ActionResult<AgreementTrainingDto>> UploadTrainingScan(Guid clientId, Guid trainingId, IFormFile file, CancellationToken ct)
     {
         if (file is null || file.Length == 0)
             return BadRequest("No file was provided.");
@@ -199,7 +236,7 @@ public class AgreementsController : ControllerBase
         try
         {
             await using var stream = file.OpenReadStream();
-            var dto = await _agreements.UploadTrainingScanAsync(id, trainingId, stream, file.FileName, file.ContentType, ct);
+            var dto = await _agreements.UploadTrainingScanAsync(clientId, trainingId, stream, file.FileName, file.ContentType, ct);
             return Ok(dto);
         }
         catch (InvalidOperationException ex)
@@ -213,10 +250,10 @@ public class AgreementsController : ControllerBase
     }
 
     /// <summary>Streams a training row's scan back to the caller with its original content type.</summary>
-    [HttpGet("{id:guid}/trainings/{trainingId:guid}/scan")]
-    public async Task<IActionResult> DownloadTrainingScan(Guid id, Guid trainingId, CancellationToken ct)
+    [HttpGet("{trainingId:guid}/scan")]
+    public async Task<IActionResult> DownloadTrainingScan(Guid clientId, Guid trainingId, CancellationToken ct)
     {
-        var file = await _agreements.DownloadTrainingScanAsync(id, trainingId, ct);
+        var file = await _agreements.DownloadTrainingScanAsync(clientId, trainingId, ct);
         return file is null ? NotFound() : File(file.Content, file.ContentType, file.OriginalFileName);
     }
 }

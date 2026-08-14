@@ -57,4 +57,7 @@ public class Client
 
     public ICollection<Agreement> Agreements { get; set; } = new List<Agreement>();
     public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+
+    /// <summary>This client's trainings, recorded independently of any agreement — training happens before a support agreement can be signed (see AgreementTraining, AgreementService.CreateAsync).</summary>
+    public ICollection<AgreementTraining> Trainings { get; set; } = new List<AgreementTraining>();
 }

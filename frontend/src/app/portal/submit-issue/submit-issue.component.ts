@@ -40,7 +40,8 @@ import { TicketCategory } from '../../core/models';
         }
         <div class="field" style="margin-top:0.8rem;">
           <label>Description</label>
-          <textarea rows="5" [ngModel]="description()" (ngModelChange)="description.set($event)" placeholder="Describe what happened, when, and any error messages…"></textarea>
+          <textarea rows="5" maxlength="1000" [ngModel]="description()" (ngModelChange)="description.set($event)" placeholder="Describe what happened, when, and any error messages…"></textarea>
+          <span class="text-muted" style="font-size:0.75rem; align-self:flex-end;">{{ description().length }}/1000</span>
         </div>
         <div class="field" style="margin-top:0.8rem;">
           <label>Attach a screenshot (optional)</label>

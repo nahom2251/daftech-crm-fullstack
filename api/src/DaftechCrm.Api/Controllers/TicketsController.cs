@@ -57,8 +57,19 @@ public class TicketsController : ControllerBase
     [Authorize(Policy = AuthorizationPolicies.AnyClient)]
     public async Task<ActionResult<TicketDto>> Submit([FromBody] SubmitTicketRequest request, CancellationToken ct)
     {
-        var ticket = await _tickets.SubmitFromClientAsync(request, ct);
-        return CreatedAtAction(nameof(GetById), new { id = ticket.Id }, ticket);
+        try
+        {
+            var ticket = await _tickets.SubmitFromClientAsync(request, ct);
+            return CreatedAtAction(nameof(GetById), new { id = ticket.Id }, ticket);
+        }
+        catch (Application.ValidationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     /// <summary>

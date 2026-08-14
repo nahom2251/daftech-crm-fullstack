@@ -20,7 +20,7 @@ namespace DaftechCrm.Infrastructure.Migrations
                 b.Property<string>("DocumentNumber").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
                 b.Property<DateOnly>("ExpiryDate").HasColumnType("date");
                 b.Property<string>("ScannedFileUrl").HasMaxLength(500).HasColumnType("character varying(500)");
-                b.Property<DateOnly?>("SignDate").HasColumnType("date");
+                b.Property<DateOnly>("SignDate").HasColumnType("date");
                 b.Property<int>("Status").HasColumnType("integer");
                 b.Property<int>("SupportWindowMonths").HasColumnType("integer");
                 b.HasKey("Id");
@@ -32,13 +32,15 @@ namespace DaftechCrm.Infrastructure.Migrations
             modelBuilder.Entity("DaftechCrm.Domain.Entities.AgreementTraining", b =>
             {
                 b.Property<Guid>("Id").HasColumnType("uuid");
-                b.Property<Guid>("AgreementId").HasColumnType("uuid");
+                b.Property<Guid>("ClientId").HasColumnType("uuid");
+                b.Property<Guid?>("AgreementId").HasColumnType("uuid");
                 b.Property<string>("Description").HasColumnType("text");
                 b.Property<DateOnly?>("StartDate").HasColumnType("date");
                 b.Property<DateOnly?>("EndDate").HasColumnType("date");
                 b.Property<string>("ScanStorageKey").HasMaxLength(500).HasColumnType("character varying(500)");
                 b.Property<string>("ScanFileName").HasMaxLength(300).HasColumnType("character varying(300)");
                 b.HasKey("Id");
+                b.HasIndex("ClientId");
                 b.HasIndex("AgreementId");
                 b.ToTable("agreement_trainings");
             });
@@ -335,11 +337,16 @@ namespace DaftechCrm.Infrastructure.Migrations
 
             modelBuilder.Entity("DaftechCrm.Domain.Entities.AgreementTraining", b =>
             {
+                b.HasOne("DaftechCrm.Domain.Entities.Client", "Client")
+                    .WithMany("Trainings")
+                    .HasForeignKey("ClientId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
                 b.HasOne("DaftechCrm.Domain.Entities.Agreement", "Agreement")
                     .WithMany("Trainings")
                     .HasForeignKey("AgreementId")
-                    .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired();
+                    .OnDelete(DeleteBehavior.SetNull);
+                b.Navigation("Client");
                 b.Navigation("Agreement");
             });
 
@@ -449,6 +456,7 @@ namespace DaftechCrm.Infrastructure.Migrations
             {
                 b.Navigation("Agreements");
                 b.Navigation("Tickets");
+                b.Navigation("Trainings");
             });
 
             modelBuilder.Entity("DaftechCrm.Domain.Entities.Employee", b =>

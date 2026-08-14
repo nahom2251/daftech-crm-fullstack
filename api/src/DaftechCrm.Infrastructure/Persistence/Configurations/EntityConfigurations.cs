@@ -79,7 +79,10 @@ public class AgreementConfiguration : IEntityTypeConfiguration<Agreement>
         b.HasIndex(x => x.DocumentNumber).IsUnique();
         b.Property(x => x.ScannedFileUrl).HasMaxLength(500);
         b.Property(x => x.AgreementPlace).HasMaxLength(200);
-        b.HasMany(x => x.Trainings).WithOne(t => t.Agreement).HasForeignKey(t => t.AgreementId).OnDelete(DeleteBehavior.Cascade);
+        // Trainings are owned by Client (see AgreementTrainingConfiguration) and only
+        // ever linked here, never cascade-deleted with the agreement — deleting an
+        // agreement must not erase the client's training history.
+        b.HasMany(x => x.Trainings).WithOne(t => t.Agreement).HasForeignKey(t => t.AgreementId).OnDelete(DeleteBehavior.SetNull);
     }
 }
 
@@ -92,6 +95,9 @@ public class AgreementTrainingConfiguration : IEntityTypeConfiguration<Agreement
         b.Property(x => x.Description).HasColumnType("text");
         b.Property(x => x.ScanStorageKey).HasMaxLength(500);
         b.Property(x => x.ScanFileName).HasMaxLength(300);
+        // Owning relationship: a training belongs to a Client and exists independently
+        // of any Agreement (training happens before an agreement can be signed).
+        b.HasOne(x => x.Client).WithMany(c => c.Trainings).HasForeignKey(x => x.ClientId).OnDelete(DeleteBehavior.Cascade);
     }
 }
 

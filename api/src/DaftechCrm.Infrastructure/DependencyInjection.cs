@@ -173,6 +173,10 @@ public static class DependencyInjection
         {
             db.EmployeesSet.AddRange(SeedData.Employees());
             db.ClientsSet.AddRange(SeedData.Clients());
+            // Trainings before Agreements — an agreement can only reference
+            // a training via AgreementId once that training row exists.
+            db.AgreementTrainingsSet.AddRange(SeedData.Trainings());
+            db.AgreementsSet.AddRange(SeedData.Agreements());
 
             await db.SaveChangesAsync();
         }

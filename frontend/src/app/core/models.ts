@@ -92,9 +92,12 @@ export interface ClientRegisteredResult {
 
 export interface AgreementTraining {
   id: string;
-  agreementId: string;
+  clientId: string;
+  /** Null until a support agreement is signed for this client — training is recorded before any agreement exists. */
+  agreementId: string | null;
   description?: string;
   startDate?: string; // ISO date
+  /** Set once training finishes — this is what "training complete" means. Stays editable afterward (e.g. to push it out if training runs long). */
   endDate?: string; // ISO date
   scanFileName?: string;
 }
@@ -105,13 +108,13 @@ export interface Agreement {
   documentNumber: string;
   scannedFileUrl?: string;
   agreementPlace: string;
-  /** Derived: the support agreement starts once training ends — this mirrors the latest (max) training endDate and is null until at least one training has an end date. Not directly editable. */
-  signDate?: string; // ISO date
+  /** Admin-entered: the date the agreement was signed. Creating an agreement IS the signing act — the server always sets this to today and rejects creation unless the client has a completed training. */
+  signDate: string; // ISO date
   expiryDate: string; // ISO date
   supportWindowMonths: number;
   status: AgreementStatus;
   billingTier: BillingTier;
-  /** One or more client trainings delivered for this agreement — each has its own scan/description/timeline, saved independently. */
+  /** The client's trainings that were completed as of signing — not the client's full training history (see AgreementService.getTrainingsForClient for that). */
   trainings: AgreementTraining[];
 }
 

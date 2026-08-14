@@ -133,6 +133,13 @@ public interface ITokenService
 
 public interface IAgreementService
 {
+    /// <summary>
+    /// Creates (signs) the support agreement. SignDate is always set to
+    /// today by the server — creating an Agreement IS the admin's act of
+    /// signing it. Throws InvalidOperationException if the client has no
+    /// training with EndDate set yet, since training is mandatory and must
+    /// finish before the agreement can be signed.
+    /// </summary>
     Task<AgreementDto> CreateAsync(CreateAgreementRequest request, CancellationToken ct = default);
     Task<IReadOnlyList<AgreementDto>> GetAllAsync(CancellationToken ct = default);
 
@@ -142,6 +149,9 @@ public interface IAgreementService
     Task<IReadOnlyList<AgreementDto>> GetForClientAsync(Guid clientId, CancellationToken ct = default);
     Task<IReadOnlyList<AgreementDto>> GetExpiringSoonAsync(CancellationToken ct = default);
     Task<AgreementDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>True if the client has at least one training with EndDate set — the precondition for signing an agreement. Lets the UI disable/explain the "New Agreement" action before the user even tries.</summary>
+    Task<bool> ClientHasCompletedTrainingAsync(Guid clientId, CancellationToken ct = default);
 
     /// <summary>
     /// Uploads and attaches a scanned document to the agreement. If the
@@ -154,32 +164,35 @@ public interface IAgreementService
     /// <summary>Retrieves the agreement's attached scanned file, or null if none is attached or the agreement doesn't exist.</summary>
     Task<RetrievedFile?> DownloadScannedFileAsync(Guid agreementId, CancellationToken ct = default);
 
+    /// <summary>All trainings recorded for a client, regardless of whether an agreement has been signed yet.</summary>
+    Task<IReadOnlyList<AgreementTrainingDto>> GetTrainingsForClientAsync(Guid clientId, CancellationToken ct = default);
+
     /// <summary>
-    /// Creates a new, empty training row on the agreement (an agreement may
-    /// have several — e.g. separate sessions for different staff groups).
-    /// Fill in details afterward via SaveTrainingAsync / UploadTrainingScanAsync.
+    /// Creates a new, empty training row for a client — independent of any
+    /// agreement, since training must happen (and finish) before an
+    /// agreement can be signed at all. Fill in details afterward via
+    /// SaveTrainingAsync / UploadTrainingScanAsync.
     /// </summary>
-    Task<AgreementDto> AddTrainingAsync(Guid agreementId, CancellationToken ct = default);
+    Task<AgreementTrainingDto> AddTrainingAsync(Guid clientId, CancellationToken ct = default);
 
-    /// <summary>Sets/updates one training row's description and timeline. All fields optional; can be filled in incrementally. Recalculates the agreement's derived SignDate afterward (see Agreement.RecalculateSignDate).</summary>
-    Task<AgreementDto> SaveTrainingAsync(Guid agreementId, Guid trainingId, SaveAgreementTrainingRequest request, CancellationToken ct = default);
+    /// <summary>Sets/updates one training row's description and timeline. All fields optional; can be filled in incrementally. EndDate stays editable afterward (e.g. to push it out if training runs long).</summary>
+    Task<AgreementTrainingDto> SaveTrainingAsync(Guid clientId, Guid trainingId, SaveAgreementTrainingRequest request, CancellationToken ct = default);
 
-    /// <summary>Deletes a training row (and its scan file, if any) and recalculates the agreement's derived SignDate.</summary>
-    Task<AgreementDto> DeleteTrainingAsync(Guid agreementId, Guid trainingId, CancellationToken ct = default);
+    /// <summary>Deletes a training row (and its scan file, if any).</summary>
+    Task DeleteTrainingAsync(Guid clientId, Guid trainingId, CancellationToken ct = default);
 
     /// <summary>
     /// Uploads and attaches the scanned training document to a specific
     /// training row — a separate file from the signed-agreement scan
-    /// above, since the pre-agreement training the company delivers to
-    /// the client is documented independently (scan + description +
-    /// timeline) per training session. Same
-    /// upload-then-delete-old-file-after-success pattern as
+    /// above, since training is documented independently (scan +
+    /// description + timeline) per training session, before any agreement
+    /// exists. Same upload-then-delete-old-file-after-success pattern as
     /// UploadScannedFileAsync.
     /// </summary>
-    Task<AgreementDto> UploadTrainingScanAsync(Guid agreementId, Guid trainingId, Stream content, string fileName, string contentType, CancellationToken ct = default);
+    Task<AgreementTrainingDto> UploadTrainingScanAsync(Guid clientId, Guid trainingId, Stream content, string fileName, string contentType, CancellationToken ct = default);
 
-    /// <summary>Retrieves a training row's attached scan, or null if none is attached or the training/agreement doesn't exist.</summary>
-    Task<RetrievedFile?> DownloadTrainingScanAsync(Guid agreementId, Guid trainingId, CancellationToken ct = default);
+    /// <summary>Retrieves a training row's attached scan, or null if none is attached or the training doesn't exist.</summary>
+    Task<RetrievedFile?> DownloadTrainingScanAsync(Guid clientId, Guid trainingId, CancellationToken ct = default);
 }
 
 public interface IMaintenanceService

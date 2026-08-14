@@ -31,9 +31,7 @@ import { BadgeComponent } from '../../shared/badge.component';
 
         <dl>
           <dt>Sign Date</dt>
-          <dd>
-            @if (a.signDate) { {{ a.signDate }} } @else { <span class="text-muted">Pending — support starts once training ends</span> }
-          </dd>
+          <dd>{{ a.signDate }}</dd>
           <dt>Expiry</dt><dd>{{ a.expiryDate }}</dd>
           <dt>Support Window</dt><dd>{{ a.supportWindowMonths }} months</dd>
           <dt>Billing Tier</dt><dd>{{ a.billingTier }}</dd>

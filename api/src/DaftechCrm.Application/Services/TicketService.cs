@@ -32,6 +32,9 @@ public class TicketService : ITicketService
 
     public async Task<TicketDto> SubmitFromClientAsync(SubmitTicketRequest request, CancellationToken ct = default)
     {
+        if (request.Description.Length > 1000)
+            throw new ValidationException("Description must be 1000 characters or fewer.");
+
         var agreement = await _db.Agreements.AsNoTracking().FirstOrDefaultAsync(a => a.Id == request.AgreementId, ct)
             ?? throw new InvalidOperationException("Agreement not found.");
 

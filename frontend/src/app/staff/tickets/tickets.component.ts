@@ -71,9 +71,12 @@ import { TicketStatus, TICKET_CATEGORY_LABELS } from '../../core/models';
                   <button class="btn btn-outline btn-sm" (click)="updateStatus(t.id, st.value)" [disabled]="updatingTicketId() === t.id">
                     {{ updatingTicketId() === t.id ? 'Updating…' : 'Update' }}
                   </button>
-                  @if (statusError(); as err) {
-                    @if (err.ticketId === t.id) { <p class="status-error">{{ err.message }}</p> }
-                  }
+                }
+                @if (statusError(); as err) {
+                  @if (err.ticketId === t.id) { <p class="status-error">{{ err.message }}</p> }
+                }
+                @if (statusSuccess(); as msg) {
+                  @if (msg.ticketId === t.id) { <p class="status-success">{{ msg.message }}</p> }
                 }
               </td>
             </tr>
@@ -92,6 +95,7 @@ import { TicketStatus, TICKET_CATEGORY_LABELS } from '../../core/models';
   `,
   styles: [`
     .status-error { color: var(--red); font-size: 0.76rem; margin: 0.35rem 0 0; }
+    .status-success { color: var(--blue); font-size: 0.76rem; margin: 0.35rem 0 0; }
   `],
 })
 export class TicketsComponent {
@@ -103,6 +107,7 @@ export class TicketsComponent {
 
   updatingTicketId = signal<string | null>(null);
   statusError = signal<{ ticketId: string; message: string } | null>(null);
+  statusSuccess = signal<{ ticketId: string; message: string } | null>(null);
 
   isAdmin = computed(() => this.auth.currentEmployee()?.roles.includes('Admin') ?? false);
 
@@ -119,9 +124,19 @@ export class TicketsComponent {
   async updateStatus(ticketId: string, status: string) {
     const actor = this.auth.currentEmployee()?.fullName ?? 'Staff';
     this.statusError.set(null);
+    this.statusSuccess.set(null);
     this.updatingTicketId.set(ticketId);
     try {
       await this.tickets.updateStatus(ticketId, status as TicketStatus, actor);
+      // Marking "Resolved" doesn't set the ticket to a Resolved status — the server
+      // moves it to AwaitingClientConfirmation and starts the confirmation window.
+      // Without this message the row just looks unchanged, so we spell out what happened.
+      if (status === 'Resolved') {
+        this.statusSuccess.set({
+          ticketId,
+          message: 'Marked resolved — waiting on client confirmation.',
+        });
+      }
     } catch (err: any) {
       const message = err?.error ?? err?.message ?? 'Could not update this ticket — please try again.';
       this.statusError.set({ ticketId, message });

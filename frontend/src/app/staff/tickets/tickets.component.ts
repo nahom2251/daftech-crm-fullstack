@@ -122,6 +122,12 @@ export class TicketsComponent {
   }
 
   async updateStatus(ticketId: string, status: string) {
+    // Guards against a double-tap firing two PATCH requests for the same
+    // ticket before the first response (and the [disabled] binding) lands —
+    // the second would race the first and the server would reject it as a
+    // lost concurrency update.
+    if (this.updatingTicketId() === ticketId) return;
+
     const actor = this.auth.currentEmployee()?.fullName ?? 'Staff';
     this.statusError.set(null);
     this.statusSuccess.set(null);

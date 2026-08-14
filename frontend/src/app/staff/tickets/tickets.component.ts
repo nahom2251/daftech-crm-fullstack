@@ -138,7 +138,16 @@ export class TicketsComponent {
         });
       }
     } catch (err: any) {
-      const message = err?.error ?? err?.message ?? 'Could not update this ticket — please try again.';
+      // ExceptionHandlingMiddleware returns { error: string, traceId }.
+      // Controllers' own BadRequest/NotFound(ex.Message) return a plain string.
+      // Angular puts the parsed JSON body in err.error either way, so it can be
+      // a string OR an object depending on which path produced it — handle both,
+      // or we render the raw object as "[object Object]".
+      const raw = err?.error;
+      const message =
+        typeof raw === 'string' ? raw
+        : raw?.error ?? err?.message
+        ?? 'Could not update this ticket — please try again.';
       this.statusError.set({ ticketId, message });
       console.error('Failed to update ticket status', err);
     } finally {

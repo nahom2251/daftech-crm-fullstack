@@ -181,12 +181,24 @@ public class TicketService : ITicketService
 
             await _db.SaveChangesAsync(ct);
 
-            await _notifications.NotifyAsync(
-                NotificationRecipientType.Client,
-                ticket.ClientId.ToString(),
-                "awaiting_confirmation",
-                $"Ticket {ticket.Id} has been marked resolved — please confirm it's working and rate your experience.",
-                ct);
+            // The status change is already committed above — a failure here
+            // (e.g. notification write) must never surface as a failed status
+            // update, since from the caller's point of view the update already
+            // succeeded.
+            try
+            {
+                await _notifications.NotifyAsync(
+                    NotificationRecipientType.Client,
+                    ticket.ClientId.ToString(),
+                    "awaiting_confirmation",
+                    $"Ticket {ticket.Id} has been marked resolved — please confirm it's working and rate your experience.",
+                    ct);
+            }
+            catch (Exception)
+            {
+                // Swallow: the ticket status is already saved. Losing this
+                // notification is not worth failing the whole request over.
+            }
         }
         else
         {

@@ -30,15 +30,25 @@ public class TicketService : ITicketService
         _storage = storage;
     }
 
-    public async Task<TicketDto> SubmitFromClientAsync(SubmitTicketRequest request, CancellationToken ct = default)
+    public async Task<TicketDto> SubmitFromClientAsync(
+        SubmitTicketRequest request,
+        CancellationToken ct = default)
     {
         if (request.Description.Length > 1000)
-            throw new ValidationException("Description must be 1000 characters or fewer.");
+            throw new ValidationException(
+                "Description must be 1000 characters or fewer.");
 
-        var agreement = await _db.Agreements.AsNoTracking().FirstOrDefaultAsync(a => a.Id == request.AgreementId, ct)
-            ?? throw new InvalidOperationException("Agreement not found.");
+        var agreement = await _db.Agreements
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                a => a.Id == request.AgreementId,
+                ct)
+            ?? throw new InvalidOperationException(
+                "Agreement not found.");
 
-        var chargeable = !agreement.IsWithinSupportWindow(DateOnly.FromDateTime(DateTime.UtcNow));
+        var chargeable =
+            !agreement.IsWithinSupportWindow(
+                DateOnly.FromDateTime(DateTime.UtcNow));
 
         var ticket = new Ticket
         {
@@ -52,202 +62,336 @@ public class TicketService : ITicketService
             VoiceNoteStorageKey = request.VoiceNoteStorageKey,
             VoiceNoteFileName = request.VoiceNoteFileName,
         };
-        ticket.AuditTrail.Add(new TicketAuditEntry { TicketId = ticket.Id, Actor = "Client", Action = "Submitted ticket" });
+
+        ticket.AuditTrail.Add(
+            new TicketAuditEntry
+            {
+                TicketId = ticket.Id,
+                Actor = "Client",
+                Action = "Submitted ticket"
+            });
 
         if (!string.IsNullOrEmpty(request.VoiceNoteStorageKey))
-            ticket.AuditTrail.Add(new TicketAuditEntry { TicketId = ticket.Id, Actor = "Client", Action = "Attached a voice-note recording with the issue description" });
+        {
+            ticket.AuditTrail.Add(
+                new TicketAuditEntry
+                {
+                    TicketId = ticket.Id,
+                    Actor = "Client",
+                    Action = "Attached a voice-note recording with the issue description"
+                });
+        }
 
-        // ItSupport (which used to manually Forward a submitted ticket into
-        // the assignment queue) is retired — the Admin absorbs that
-        // oversight instead, and auto-assignment now runs immediately on
-        // submission rather than waiting for a manual forward step. Same
-        // least-loaded selection logic as before (see
-        // TicketAssignmentService.SelectAssigneeAsync), just triggered
-        // earlier in the flow.
-        var assignee = await _assignment.SelectAssigneeAsync(ct);
+        var assignee =
+            await _assignment.SelectAssigneeAsync(ct);
+
         if (assignee is not null)
         {
             ticket.AssignedEmployeeId = assignee.Id;
             ticket.AssignedAt = DateTimeOffset.UtcNow;
             ticket.Status = TicketStatus.Assigned;
-            ticket.AuditTrail.Add(new TicketAuditEntry
-            {
-                TicketId = ticket.Id,
-                Actor = "System",
-                Action = $"Auto-assigned to {assignee.FullName} on submission (lowest open-ticket count)"
-            });
+
+            ticket.AuditTrail.Add(
+                new TicketAuditEntry
+                {
+                    TicketId = ticket.Id,
+                    Actor = "System",
+                    Action =
+                        $"Auto-assigned to {assignee.FullName} on submission (lowest open-ticket count)"
+                });
         }
 
         _db.Add(ticket);
+
         await _db.SaveChangesAsync(ct);
 
-        await _notifications.NotifyAsync(NotificationRecipientType.Admin, "ALL_ADMIN", "new_ticket", $"New ticket {ticket.Id} submitted.", ct);
+        await _notifications.NotifyAsync(
+            NotificationRecipientType.Admin,
+            "ALL_ADMIN",
+            "new_ticket",
+            $"New ticket {ticket.Id} submitted.",
+            ct);
 
         if (assignee is not null)
         {
-            await _notifications.NotifyAsync(NotificationRecipientType.Employee, assignee.Id.ToString(), "ticket_assigned", $"You were assigned ticket {ticket.Id}.", ct);
-            await _notifications.NotifyAsync(NotificationRecipientType.Client, ticket.ClientId.ToString(), "ticket_assigned", $"Your ticket {ticket.Id} has been assigned to a technician.", ct);
+            await _notifications.NotifyAsync(
+                NotificationRecipientType.Employee,
+                assignee.Id.ToString(),
+                "ticket_assigned",
+                $"You were assigned ticket {ticket.Id}.",
+                ct);
+
+            await _notifications.NotifyAsync(
+                NotificationRecipientType.Client,
+                ticket.ClientId.ToString(),
+                "ticket_assigned",
+                $"Your ticket {ticket.Id} has been assigned to a technician.",
+                ct);
         }
         else
         {
-            // No active EmployeeTechnician exists yet — the ticket stays
-            // Submitted/unassigned rather than failing the request outright,
-            // so it isn't lost; Admin needs to be alerted since there's no
-            // more manual Forward step to catch this later.
-            await _notifications.NotifyAsync(NotificationRecipientType.Admin, "ALL_ADMIN", "assignment_failed", $"Ticket {ticket.Id} submitted but no eligible employee was available for auto-assignment.", ct);
+            await _notifications.NotifyAsync(
+                NotificationRecipientType.Admin,
+                "ALL_ADMIN",
+                "assignment_failed",
+                $"Ticket {ticket.Id} submitted but no eligible employee was available for auto-assignment.",
+                ct);
         }
 
         return await LoadDtoAsync(ticket.Id, ct);
     }
 
-    public async Task<TicketDto> UpdateStatusAsync(Guid ticketId, UpdateTicketStatusRequest request, CancellationToken ct = default)
+    public async Task<TicketDto> UpdateStatusAsync(
+        Guid ticketId,
+        UpdateTicketStatusRequest request,
+        CancellationToken ct = default)
     {
-        var ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == ticketId, ct)
-            ?? throw new InvalidOperationException("Ticket not found.");
+        var ticket = await _db.Tickets
+            .FirstOrDefaultAsync(t => t.Id == ticketId, ct)
+            ?? throw new InvalidOperationException(
+                "Ticket not found.");
 
         if (request.Status == TicketStatus.Resolved)
         {
-            // Resolving doesn't close the ticket — it starts the client
-            // confirmation window. The employee's "done" isn't the final word.
-            ticket.Status = TicketStatus.AwaitingClientConfirmation;
-            ticket.ResolvedAt = DateTimeOffset.UtcNow;
-            var confirmationWindowDays = await _config.GetIntAsync("TicketWorkflow.ClientConfirmationWindowDays", ct);
-            ticket.ClientConfirmationDeadline = ticket.ResolvedAt.Value.AddDays(confirmationWindowDays);
-            ticket.AuditTrail.Add(new TicketAuditEntry
-            {
-                TicketId = ticket.Id,
-                Actor = request.ActorName,
-                Action = $"Marked Resolved by {request.ActorName}; awaiting client confirmation (deadline {ticket.ClientConfirmationDeadline:u})"
-            });
+            ticket.Status =
+                TicketStatus.AwaitingClientConfirmation;
+
+            ticket.ResolvedAt =
+                DateTimeOffset.UtcNow;
+
+            var confirmationWindowDays =
+                await _config.GetIntAsync(
+                    "TicketWorkflow.ClientConfirmationWindowDays",
+                    ct);
+
+            ticket.ClientConfirmationDeadline =
+                ticket.ResolvedAt.Value.AddDays(
+                    confirmationWindowDays);
+
+            ticket.AuditTrail.Add(
+                new TicketAuditEntry
+                {
+                    TicketId = ticket.Id,
+                    Actor = request.ActorName,
+                    Action =
+                        $"Marked Resolved by {request.ActorName}; awaiting client confirmation (deadline {ticket.ClientConfirmationDeadline:u})"
+                });
 
             _db.Update(ticket);
+
             await _db.SaveChangesAsync(ct);
 
-            await _notifications.NotifyAsync(NotificationRecipientType.Client, ticket.ClientId.ToString(), "awaiting_confirmation",
-                $"Ticket {ticket.Id} has been marked resolved — please confirm it's working and rate your experience.", ct);
+            await _notifications.NotifyAsync(
+                NotificationRecipientType.Client,
+                ticket.ClientId.ToString(),
+                "awaiting_confirmation",
+                $"Ticket {ticket.Id} has been marked resolved — please confirm it's working and rate your experience.",
+                ct);
         }
         else
         {
             ticket.Status = request.Status;
-            ticket.AuditTrail.Add(new TicketAuditEntry { TicketId = ticket.Id, Actor = request.ActorName, Action = $"Status changed to {request.Status}" });
+
+            ticket.AuditTrail.Add(
+                new TicketAuditEntry
+                {
+                    TicketId = ticket.Id,
+                    Actor = request.ActorName,
+                    Action =
+                        $"Status changed to {request.Status}"
+                });
+
             _db.Update(ticket);
+
             await _db.SaveChangesAsync(ct);
         }
 
         return await LoadDtoAsync(ticket.Id, ct);
     }
 
-    public async Task<TicketDto> ConfirmResolutionAsync(Guid ticketId, ClientConfirmationRequest request, CancellationToken ct = default)
+    public async Task<TicketDto> ConfirmResolutionAsync(
+        Guid ticketId,
+        ClientConfirmationRequest request,
+        CancellationToken ct = default)
     {
-        var ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == ticketId, ct)
-            ?? throw new InvalidOperationException("Ticket not found.");
+        var ticket = await _db.Tickets
+            .FirstOrDefaultAsync(t => t.Id == ticketId, ct)
+            ?? throw new InvalidOperationException(
+                "Ticket not found.");
 
-        if (ticket.Status != TicketStatus.AwaitingClientConfirmation)
-            throw new InvalidOperationException("This ticket is not currently awaiting client confirmation.");
+        if (ticket.Status !=
+            TicketStatus.AwaitingClientConfirmation)
+        {
+            throw new InvalidOperationException(
+                "This ticket is not currently awaiting client confirmation.");
+        }
 
         if (!request.IsFixed)
         {
-            // SRS v2.0 §4.5.1: "No" reopens the ticket to the assigned
-            // employee — no rating is recorded, and this does NOT go
-            // through the Escalated queue (that's reserved for a client
-            // who says it IS fixed but rates the experience poorly).
             ticket.Status = TicketStatus.InProgress;
             ticket.ResolvedAt = null;
             ticket.ClientConfirmationDeadline = null;
-            ticket.AuditTrail.Add(new TicketAuditEntry
-            {
-                TicketId = ticket.Id,
-                Actor = "Client",
-                Action = "Reported issue is NOT fixed — reopened to assigned employee"
-            });
+
+            ticket.AuditTrail.Add(
+                new TicketAuditEntry
+                {
+                    TicketId = ticket.Id,
+                    Actor = "Client",
+                    Action =
+                        "Reported issue is NOT fixed — reopened to assigned employee"
+                });
 
             _db.Update(ticket);
+
             await _db.SaveChangesAsync(ct);
 
             if (ticket.AssignedEmployeeId is { } reopenedEmpId)
-                await _notifications.NotifyAsync(NotificationRecipientType.Employee, reopenedEmpId.ToString(), "ticket_reopened", $"Ticket {ticket.Id} was reopened — the client says it isn't fixed yet.", ct);
-            await _notifications.NotifyAsync(NotificationRecipientType.Admin, "ALL_ADMIN", "ticket_reopened", $"Ticket {ticket.Id} reopened — client reported it's not fixed.", ct);
+            {
+                await _notifications.NotifyAsync(
+                    NotificationRecipientType.Employee,
+                    reopenedEmpId.ToString(),
+                    "ticket_reopened",
+                    $"Ticket {ticket.Id} was reopened — the client says it isn't fixed yet.",
+                    ct);
+            }
+
+            await _notifications.NotifyAsync(
+                NotificationRecipientType.Admin,
+                "ALL_ADMIN",
+                "ticket_reopened",
+                $"Ticket {ticket.Id} reopened — client reported it's not fixed.",
+                ct);
 
             return await LoadDtoAsync(ticket.Id, ct);
         }
 
         if (request.SatisfactionStars is not (>= 1 and <= 5))
-            throw new ArgumentOutOfRangeException(nameof(request), "Satisfaction rating must be between 1 and 5 stars.");
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(request),
+                "Satisfaction rating must be between 1 and 5 stars.");
+        }
 
         var stars = request.SatisfactionStars!.Value;
         var score = stars * 20;
+
         ticket.SatisfactionStars = stars;
         ticket.SatisfactionScore = score;
 
-        var minimumSatisfactionScore = await _config.GetIntAsync("TicketWorkflow.MinimumSatisfactionScore", ct);
+        var minimumSatisfactionScore =
+            await _config.GetIntAsync(
+                "TicketWorkflow.MinimumSatisfactionScore",
+                ct);
+
         if (score >= minimumSatisfactionScore)
         {
             ticket.Status = TicketStatus.Closed;
-            ticket.ClosureReason = ClosureReason.ClientConfirmedSatisfied;
-            ticket.ClosedAt = DateTimeOffset.UtcNow;
-            ticket.AuditTrail.Add(new TicketAuditEntry
-            {
-                TicketId = ticket.Id,
-                Actor = "Client",
-                Action = $"Confirmed fixed and rated {stars}★ ({score}/100). Closed."
-            });
+            ticket.ClosureReason =
+                ClosureReason.ClientConfirmedSatisfied;
+            ticket.ClosedAt =
+                DateTimeOffset.UtcNow;
+
+            ticket.AuditTrail.Add(
+                new TicketAuditEntry
+                {
+                    TicketId = ticket.Id,
+                    Actor = "Client",
+                    Action =
+                        $"Confirmed fixed and rated {stars}★ ({score}/100). Closed."
+                });
 
             _db.Update(ticket);
+
             await _db.SaveChangesAsync(ct);
 
-            await _notifications.NotifyAsync(NotificationRecipientType.Admin, "ALL_ADMIN", "ticket_closed", $"Ticket {ticket.Id} closed — {score}/100 satisfaction.", ct);
+            await _notifications.NotifyAsync(
+                NotificationRecipientType.Admin,
+                "ALL_ADMIN",
+                "ticket_closed",
+                $"Ticket {ticket.Id} closed — {score}/100 satisfaction.",
+                ct);
+
             if (ticket.AssignedEmployeeId is { } empId)
-                await _notifications.NotifyAsync(NotificationRecipientType.Employee, empId.ToString(), "ticket_closed", $"Ticket {ticket.Id} closed — client rated {score}/100.", ct);
+            {
+                await _notifications.NotifyAsync(
+                    NotificationRecipientType.Employee,
+                    empId.ToString(),
+                    "ticket_closed",
+                    $"Ticket {ticket.Id} closed — client rated {score}/100.",
+                    ct);
+            }
         }
         else
         {
-            // Below the 90/100 threshold — this does not go back to the
-            // employee, it escalates to Admin for review.
             ticket.Status = TicketStatus.Escalated;
-            ticket.AuditTrail.Add(new TicketAuditEntry
-            {
-                TicketId = ticket.Id,
-                Actor = "Client",
-                Action = $"Confirmed fixed but rated {stars}★ ({score}/100) — below threshold, escalated to Admin"
-            });
+
+            ticket.AuditTrail.Add(
+                new TicketAuditEntry
+                {
+                    TicketId = ticket.Id,
+                    Actor = "Client",
+                    Action =
+                        $"Confirmed fixed but rated {stars}★ ({score}/100) — below threshold, escalated to Admin"
+                });
 
             _db.Update(ticket);
+
             await _db.SaveChangesAsync(ct);
 
-            await _notifications.NotifyAsync(NotificationRecipientType.Admin, "ALL_ADMIN", "ticket_escalated", $"Ticket {ticket.Id} escalated — client rated it {score}/100.", ct);
+            await _notifications.NotifyAsync(
+                NotificationRecipientType.Admin,
+                "ALL_ADMIN",
+                "ticket_escalated",
+                $"Ticket {ticket.Id} escalated — client rated it {score}/100.",
+                ct);
         }
 
         return await LoadDtoAsync(ticket.Id, ct);
     }
 
-    public async Task<int> AutoCloseUnansweredTicketsAsync(CancellationToken ct = default)
+    public async Task<int> AutoCloseUnansweredTicketsAsync(
+        CancellationToken ct = default)
     {
         var now = DateTimeOffset.UtcNow;
+
         var overdue = await _db.Tickets
-            .Where(t => t.Status == TicketStatus.AwaitingClientConfirmation
-                        && t.ClientConfirmationDeadline != null
-                        && t.ClientConfirmationDeadline <= now)
+            .Where(
+                t =>
+                    t.Status ==
+                    TicketStatus.AwaitingClientConfirmation
+                    && t.ClientConfirmationDeadline != null
+                    && t.ClientConfirmationDeadline <= now)
             .ToListAsync(ct);
 
-        var confirmationWindowDays = await _config.GetIntAsync("TicketWorkflow.ClientConfirmationWindowDays", ct);
+        var confirmationWindowDays =
+            await _config.GetIntAsync(
+                "TicketWorkflow.ClientConfirmationWindowDays",
+                ct);
 
         foreach (var ticket in overdue)
         {
             ticket.Status = TicketStatus.Closed;
-            ticket.ClosureReason = ClosureReason.AutoClosedNoResponse;
+            ticket.ClosureReason =
+                ClosureReason.AutoClosedNoResponse;
             ticket.ClosedAt = now;
-            // No SatisfactionStars/Score recorded — an unanswered ticket
-            // does not count toward the employee's CSAT average.
-            ticket.AuditTrail.Add(new TicketAuditEntry
-            {
-                TicketId = ticket.Id,
-                Actor = "System",
-                Action = $"Auto-closed after {confirmationWindowDays} days with no client response"
-            });
+
+            ticket.AuditTrail.Add(
+                new TicketAuditEntry
+                {
+                    TicketId = ticket.Id,
+                    Actor = "System",
+                    Action =
+                        $"Auto-closed after {confirmationWindowDays} days with no client response"
+                });
+
             _db.Update(ticket);
 
-            await _notifications.NotifyAsync(NotificationRecipientType.Client, ticket.ClientId.ToString(), "ticket_autoclosed",
-                $"Ticket {ticket.Id} was automatically closed after no response — assumed resolved.", ct);
+            await _notifications.NotifyAsync(
+                NotificationRecipientType.Client,
+                ticket.ClientId.ToString(),
+                "ticket_autoclosed",
+                $"Ticket {ticket.Id} was automatically closed after no response — assumed resolved.",
+                ct);
         }
 
         if (overdue.Count > 0)
@@ -256,12 +400,16 @@ public class TicketService : ITicketService
         return overdue.Count;
     }
 
-    public async Task<IReadOnlyList<TicketDto>> GetAllAsync(CancellationToken ct = default) =>
+    public async Task<IReadOnlyList<TicketDto>> GetAllAsync(
+        CancellationToken ct = default) =>
         await ProjectAsync(_db.Tickets, ct);
 
-    public async Task<PagedResult<TicketDto>> GetAllPagedAsync(PaginationQuery query, CancellationToken ct = default)
+    public async Task<PagedResult<TicketDto>> GetAllPagedAsync(
+        PaginationQuery query,
+        CancellationToken ct = default)
     {
-        var totalCount = await _db.Tickets.CountAsync(ct);
+        var totalCount =
+            await _db.Tickets.CountAsync(ct);
 
         var page = await _db.Tickets
             .AsNoTracking()
@@ -274,38 +422,106 @@ public class TicketService : ITicketService
             .Take(query.PageSize)
             .ToListAsync(ct);
 
-        var items = page.Select(t => new TicketDto(
-            t.Id, t.ClientId, t.Client.Name, t.AgreementId, t.Description, t.Category,
-            t.FailureTypeId, t.FailureType?.Name, t.DateSubmitted,
-            t.ForwardedByEmployeeId, t.AssignedEmployeeId, t.AssignedEmployee?.FullName, t.AssignedAt,
-            ExpectedResolutionBy(t),
-            t.Chargeable, t.Status, t.ResolvedAt, t.ClientConfirmationDeadline,
-            t.SatisfactionStars, t.SatisfactionScore, t.ClosureReason, t.AttachmentFileName, t.VoiceNoteFileName,
-            t.AuditTrail.OrderBy(a => a.Timestamp).Select(a => new TicketAuditEntryDto(a.Timestamp, a.Actor, a.Action)).ToList()
-        )).ToList();
+        var items = page.Select(
+            t =>
+                new TicketDto(
+                    t.Id,
+                    t.ClientId,
+                    t.Client.Name,
+                    t.AgreementId,
+                    t.Description,
+                    t.Category,
+                    t.FailureTypeId,
+                    t.FailureType?.Name,
+                    t.DateSubmitted,
+                    t.ForwardedByEmployeeId,
+                    t.AssignedEmployeeId,
+                    t.AssignedEmployee?.FullName,
+                    t.AssignedAt,
+                    ExpectedResolutionBy(t),
+                    t.Chargeable,
+                    t.Status,
+                    t.ResolvedAt,
+                    t.ClientConfirmationDeadline,
+                    t.SatisfactionStars,
+                    t.SatisfactionScore,
+                    t.ClosureReason,
+                    t.AttachmentFileName,
+                    t.VoiceNoteFileName,
+                    t.AuditTrail
+                        .OrderBy(a => a.Timestamp)
+                        .Select(
+                            a =>
+                                new TicketAuditEntryDto(
+                                    a.Timestamp,
+                                    a.Actor,
+                                    a.Action))
+                        .ToList()
+                ))
+            .ToList();
 
-        return new PagedResult<TicketDto>(items, query.Page, query.PageSize, totalCount);
+        return new PagedResult<TicketDto>(
+            items,
+            query.Page,
+            query.PageSize,
+            totalCount);
     }
 
-    public async Task<TicketDto?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
-        (await ProjectAsync(_db.Tickets.Where(t => t.Id == id), ct)).FirstOrDefault();
+    public async Task<TicketDto?> GetByIdAsync(
+        Guid id,
+        CancellationToken ct = default) =>
+        (
+            await ProjectAsync(
+                _db.Tickets.Where(t => t.Id == id),
+                ct)
+        ).FirstOrDefault();
 
-    public async Task<IReadOnlyList<TicketDto>> GetForClientAsync(Guid clientId, CancellationToken ct = default) =>
-        await ProjectAsync(_db.Tickets.Where(t => t.ClientId == clientId), ct);
+    public async Task<IReadOnlyList<TicketDto>> GetForClientAsync(
+        Guid clientId,
+        CancellationToken ct = default) =>
+        await ProjectAsync(
+            _db.Tickets.Where(t => t.ClientId == clientId),
+            ct);
 
-    public async Task<IReadOnlyList<TicketDto>> GetForEmployeeAsync(Guid employeeId, CancellationToken ct = default) =>
-        await ProjectAsync(_db.Tickets.Where(t => t.AssignedEmployeeId == employeeId), ct);
+    public async Task<IReadOnlyList<TicketDto>> GetForEmployeeAsync(
+        Guid employeeId,
+        CancellationToken ct = default) =>
+        await ProjectAsync(
+            _db.Tickets.Where(
+                t => t.AssignedEmployeeId == employeeId),
+            ct);
 
-    public async Task<IReadOnlyList<TicketDto>> GetAwaitingConfirmationForClientAsync(Guid clientId, CancellationToken ct = default) =>
-        await ProjectAsync(_db.Tickets.Where(t => t.ClientId == clientId && t.Status == TicketStatus.AwaitingClientConfirmation), ct);
+    public async Task<IReadOnlyList<TicketDto>>
+        GetAwaitingConfirmationForClientAsync(
+            Guid clientId,
+            CancellationToken ct = default) =>
+        await ProjectAsync(
+            _db.Tickets.Where(
+                t =>
+                    t.ClientId == clientId &&
+                    t.Status ==
+                        TicketStatus.AwaitingClientConfirmation),
+            ct);
 
-    public async Task<IReadOnlyList<TicketDto>> GetEscalatedAsync(CancellationToken ct = default) =>
-        await ProjectAsync(_db.Tickets.Where(t => t.Status == TicketStatus.Escalated), ct);
+    public async Task<IReadOnlyList<TicketDto>> GetEscalatedAsync(
+        CancellationToken ct = default) =>
+        await ProjectAsync(
+            _db.Tickets.Where(
+                t => t.Status == TicketStatus.Escalated),
+            ct);
 
-    private async Task<TicketDto> LoadDtoAsync(Guid id, CancellationToken ct) =>
-        (await ProjectAsync(_db.Tickets.Where(t => t.Id == id), ct)).First();
+    private async Task<TicketDto> LoadDtoAsync(
+        Guid id,
+        CancellationToken ct) =>
+        (
+            await ProjectAsync(
+                _db.Tickets.Where(t => t.Id == id),
+                ct)
+        ).First();
 
-    private static async Task<IReadOnlyList<TicketDto>> ProjectAsync(IQueryable<Ticket> query, CancellationToken ct)
+    private static async Task<IReadOnlyList<TicketDto>> ProjectAsync(
+        IQueryable<Ticket> query,
+        CancellationToken ct)
     {
         var tickets = await query
             .AsNoTracking()
@@ -316,85 +532,186 @@ public class TicketService : ITicketService
             .OrderByDescending(t => t.DateSubmitted)
             .ToListAsync(ct);
 
-        return tickets.Select(t => new TicketDto(
-            t.Id, t.ClientId, t.Client.Name, t.AgreementId, t.Description, t.Category,
-            t.FailureTypeId, t.FailureType?.Name, t.DateSubmitted,
-            t.ForwardedByEmployeeId, t.AssignedEmployeeId, t.AssignedEmployee?.FullName, t.AssignedAt,
-            ExpectedResolutionBy(t),
-            t.Chargeable, t.Status, t.ResolvedAt, t.ClientConfirmationDeadline,
-            t.SatisfactionStars, t.SatisfactionScore, t.ClosureReason, t.AttachmentFileName, t.VoiceNoteFileName,
-            t.AuditTrail.OrderBy(a => a.Timestamp).Select(a => new TicketAuditEntryDto(a.Timestamp, a.Actor, a.Action)).ToList()
-        )).ToList();
+        return tickets.Select(
+            t =>
+                new TicketDto(
+                    t.Id,
+                    t.ClientId,
+                    t.Client.Name,
+                    t.AgreementId,
+                    t.Description,
+                    t.Category,
+                    t.FailureTypeId,
+                    t.FailureType?.Name,
+                    t.DateSubmitted,
+                    t.ForwardedByEmployeeId,
+                    t.AssignedEmployeeId,
+                    t.AssignedEmployee?.FullName,
+                    t.AssignedAt,
+                    ExpectedResolutionBy(t),
+                    t.Chargeable,
+                    t.Status,
+                    t.ResolvedAt,
+                    t.ClientConfirmationDeadline,
+                    t.SatisfactionStars,
+                    t.SatisfactionScore,
+                    t.ClosureReason,
+                    t.AttachmentFileName,
+                    t.VoiceNoteFileName,
+                    t.AuditTrail
+                        .OrderBy(a => a.Timestamp)
+                        .Select(
+                            a =>
+                                new TicketAuditEntryDto(
+                                    a.Timestamp,
+                                    a.Actor,
+                                    a.Action))
+                        .ToList()
+                ))
+            .ToList();
     }
 
-    /// <summary>AssignedAt + the ticket's FailureType duration. Null until the ticket is assigned, or if no FailureType was chosen — reporting falls back to the global OnTimeResolutionTargetDays in that case (see ReportService.IsOnTime).</summary>
-    private static DateTimeOffset? ExpectedResolutionBy(Ticket t) =>
-        t.AssignedAt is null || t.FailureType is null ? null : t.AssignedAt.Value + t.FailureType.ToTimeSpan();
+    private static DateTimeOffset? ExpectedResolutionBy(
+        Ticket t) =>
+        t.AssignedAt is null || t.FailureType is null
+            ? null
+            : t.AssignedAt.Value + t.FailureType.ToTimeSpan();
 
-    public async Task<TicketDto> UploadAttachmentAsync(Guid ticketId, Stream content, string fileName, string contentType, CancellationToken ct = default)
+    public async Task<TicketDto> UploadAttachmentAsync(
+        Guid ticketId,
+        Stream content,
+        string fileName,
+        string contentType,
+        CancellationToken ct = default)
     {
-        var ticket = await _db.Tickets.FirstOrDefaultAsync(t => t.Id == ticketId, ct)
-            ?? throw new InvalidOperationException("Ticket not found.");
+        var ticket = await _db.Tickets
+            .FirstOrDefaultAsync(
+                t => t.Id == ticketId,
+                ct)
+            ?? throw new InvalidOperationException(
+                "Ticket not found.");
 
-        // Replacing an existing attachment — delete the old file first so
-        // it doesn't linger as an orphaned, unreferenced upload.
-        if (!string.IsNullOrEmpty(ticket.AttachmentStorageKey))
-            await _storage.DeleteAsync(ticket.AttachmentStorageKey, ct);
+        if (!string.IsNullOrEmpty(
+            ticket.AttachmentStorageKey))
+        {
+            await _storage.DeleteAsync(
+                ticket.AttachmentStorageKey,
+                ct);
+        }
 
-        var result = await _storage.SaveAsync(content, fileName, contentType, ct);
-        ticket.AttachmentStorageKey = result.StorageKey;
-        ticket.AttachmentFileName = result.OriginalFileName;
+        var result = await _storage.SaveAsync(
+            content,
+            fileName,
+            contentType,
+            ct);
+
+        ticket.AttachmentStorageKey =
+            result.StorageKey;
+
+        ticket.AttachmentFileName =
+            result.OriginalFileName;
+
         _db.Update(ticket);
+
         await _db.SaveChangesAsync(ct);
 
         return await LoadDtoAsync(ticketId, ct);
     }
 
-    public async Task<RetrievedFile?> DownloadAttachmentAsync(Guid ticketId, CancellationToken ct = default)
+    public async Task<RetrievedFile?> DownloadAttachmentAsync(
+        Guid ticketId,
+        CancellationToken ct = default)
     {
-        var ticket = await _db.Tickets.AsNoTracking().FirstOrDefaultAsync(t => t.Id == ticketId, ct);
+        var ticket = await _db.Tickets
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                t => t.Id == ticketId,
+                ct);
 
-        if (ticket is null || string.IsNullOrEmpty(ticket.AttachmentStorageKey))
+        if (
+            ticket is null ||
+            string.IsNullOrEmpty(
+                ticket.AttachmentStorageKey))
+        {
             return null;
+        }
 
-        return await _storage.GetAsync(ticket.AttachmentStorageKey, ct);
+        return await _storage.GetAsync(
+            ticket.AttachmentStorageKey,
+            ct);
     }
 
-    public async Task<bool> CanAccessAttachmentAsync(Guid ticketId, SessionAccountType callerType, Guid callerId, CancellationToken ct = default)
+    public async Task<bool> CanAccessAttachmentAsync(
+        Guid ticketId,
+        SessionAccountType callerType,
+        Guid callerId,
+        CancellationToken ct = default)
     {
-        var ticket = await _db.Tickets.AsNoTracking().FirstOrDefaultAsync(t => t.Id == ticketId, ct);
+        var ticket = await _db.Tickets
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                t => t.Id == ticketId,
+                ct);
+
         if (ticket is null)
             return false;
 
         if (callerType == SessionAccountType.Client)
             return ticket.ClientId == callerId;
 
-        // Employee caller: the assigned technician, or any Admin (who can
-        // see/manage every ticket regardless of assignment — ItSupport
-        // used to share this scope, but that role is retired).
         if (ticket.AssignedEmployeeId == callerId)
             return true;
 
-        var employee = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == callerId, ct);
-        return employee is not null && employee.Roles.Any(r => r == EmployeeRole.Admin);
+        var employee = await _db.Employees
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                e => e.Id == callerId,
+                ct);
+
+        return employee is not null &&
+               employee.Roles.Any(
+                   r => r == EmployeeRole.Admin);
     }
 
-    public async Task<(string StorageKey, string FileName)> UploadVoiceNoteAsync(Stream content, string fileName, string contentType, CancellationToken ct = default)
+    public async Task<(
+        string StorageKey,
+        string FileName)> UploadVoiceNoteAsync(
+        Stream content,
+        string fileName,
+        string contentType,
+        CancellationToken ct = default)
     {
-        // No ticket exists yet at recording time — this just persists the
-        // audio and hands the key back; SubmitFromClientAsync is what
-        // actually attaches it to a ticket (via SubmitTicketRequest).
-        var result = await _storage.SaveAsync(content, fileName, contentType, ct);
-        return (result.StorageKey, result.OriginalFileName);
+        var result = await _storage.SaveAsync(
+            content,
+            fileName,
+            contentType,
+            ct);
+
+        return (
+            result.StorageKey,
+            result.OriginalFileName);
     }
 
-    public async Task<RetrievedFile?> DownloadVoiceNoteAsync(Guid ticketId, CancellationToken ct = default)
+    public async Task<RetrievedFile?> DownloadVoiceNoteAsync(
+        Guid ticketId,
+        CancellationToken ct = default)
     {
-        var ticket = await _db.Tickets.AsNoTracking().FirstOrDefaultAsync(t => t.Id == ticketId, ct);
+        var ticket = await _db.Tickets
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                t => t.Id == ticketId,
+                ct);
 
-        if (ticket is null || string.IsNullOrEmpty(ticket.VoiceNoteStorageKey))
+        if (
+            ticket is null ||
+            string.IsNullOrEmpty(
+                ticket.VoiceNoteStorageKey))
+        {
             return null;
+        }
 
-        return await _storage.GetAsync(ticket.VoiceNoteStorageKey, ct);
+        return await _storage.GetAsync(
+            ticket.VoiceNoteStorageKey,
+            ct);
     }
 }

@@ -28,6 +28,8 @@
   --amber-bg: #fef3c7;
   --slate-badge-bg: #e2e8f0;
   --slate-badge-text: #475569;
+  --blue: #1d4ed8;
+  --blue-bg: #dbeafe;
 
   /* Client Portal — lighter, friendlier, still on-brand */
   --portal-bg: #f7f8fb;
@@ -103,6 +105,7 @@ input:focus, select:focus, textarea:focus {
 .badge-red { background: var(--red-bg); color: var(--red); }
 .badge-amber { background: var(--amber-bg); color: var(--amber); }
 .badge-slate { background: var(--slate-badge-bg); color: var(--slate-badge-text); }
+.badge-blue { background: var(--blue-bg); color: var(--blue); }
 
 /* Cards / panels */
 .panel {
